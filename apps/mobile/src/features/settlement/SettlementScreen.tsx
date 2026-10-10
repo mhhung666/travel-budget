@@ -17,7 +17,6 @@ import {
   Title,
   usePalette,
 } from '@/components/ui';
-import { TripContext } from '@/features/navigation/TripContext';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { errorMessage, isAccessDenied } from '@/features/auth/errorMessage';
 import {
@@ -249,7 +248,6 @@ export function SettlementScreen({ tripId }: { tripId: string }) {
   const status = settlement?.status;
   return (
     <Page>
-      <TripContext tripId={tripId} />
       <Title>{t.settlement}</Title>
       {!online && <Notice tone="warning">{t.offline}</Notice>}
       <MemberRosterNotice members={members} online={online} />

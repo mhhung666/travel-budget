@@ -12,7 +12,7 @@ export type HeaderProps = {
 };
 export function PageHeader({ title, backLabel, onBack, busy = false, backTestID }: HeaderProps) {
   return (
-    <View style={{ gap: spacing.small }}>
+    <View style={{ gap: spacing.small, paddingVertical: spacing.small }}>
       <View style={{ alignSelf: 'flex-start', maxWidth: '100%' }}>
         <Action
           variant="ghost"

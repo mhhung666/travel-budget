@@ -2,6 +2,7 @@ import { ActivityIndicator, View, type ViewStyle } from 'react-native';
 import { sizing } from '@/theme/tokens';
 
 export type IconName =
+  | 'menu'
   | 'map-pin'
   | 'plus'
   | 'user'
@@ -14,6 +15,11 @@ export type IconName =
 
 type Segment = readonly [number, number, number, number];
 const paths: Partial<Record<IconName, readonly Segment[]>> = {
+  menu: [
+    [3, 5, 17, 5],
+    [3, 10, 17, 10],
+    [3, 15, 17, 15],
+  ],
   'map-pin': [
     [6, 12, 10, 18],
     [10, 18, 14, 12],

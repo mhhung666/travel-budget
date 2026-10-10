@@ -4,6 +4,9 @@ import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 import { usePalette } from '@/theme/usePalette';
 
 const Edges = createContext<Edge[]>(['top', 'bottom', 'left', 'right']);
+export function useContentEdges() {
+  return useContext(Edges);
+}
 /** The containing navigator owns its header/footer insets; the content owns the remainder. */
 export function ContentInsets({ edges, children }: PropsWithChildren<{ edges: Edge[] }>) {
   return <Edges.Provider value={edges}>{children}</Edges.Provider>;

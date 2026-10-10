@@ -1,4 +1,5 @@
 import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
+import { ScrollChrome } from '@/components/scrollChrome';
 import { ScreenFrame } from '@/components/frame';
 import { router } from 'expo-router';
 import { errorMessage, isAccessDenied } from '@/features/auth/errorMessage';
@@ -45,6 +46,7 @@ export function TripsScreen() {
         }
         ListHeaderComponent={
           <View style={{ gap: spacing.small, marginBottom: spacing.medium }}>
+            <ScrollChrome />
             <Title>{t.trips}</Title>
             <View style={{ flexDirection: 'row', gap: spacing.small }}>
               <View style={{ flex: 1 }}>

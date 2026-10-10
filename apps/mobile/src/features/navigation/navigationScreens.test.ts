@@ -5,7 +5,9 @@ import { MyScreen } from './MyScreen';
 import { SelectTripScreen } from './SelectTripScreen';
 import { LocalWorkScreen } from './LocalWorkScreen';
 import { TripContext } from './TripContext';
-import { GlobalTabBar, TripLayout } from './layouts';
+import { GlobalLayout, GlobalTabBar, TripLayout } from './layouts';
+import { NavigationMenu } from '@/components/NavigationMenu';
+import { ScrollChromeProvider } from '@/components/scrollChrome';
 import { FormPage } from '@/components/screen';
 import { TabRouter } from 'expo-router/build/react-navigation/routers';
 
@@ -15,6 +17,8 @@ const h = vi.hoisted(() => ({
   online: true,
   pathname: '/trips',
   tripId: 'a',
+  fontScale: 1,
+  width: 390,
   visible: true,
   state: [] as unknown[],
   refs: [] as { current: unknown }[],
@@ -88,6 +92,7 @@ vi.mock('react', async (original) => ({
   },
 }));
 vi.mock('react-native', () => ({
+  useWindowDimensions: () => ({ width: h.width, height: 844, fontScale: h.fontScale, scale: 3 }),
   View: 'View',
   Text: 'Text',
   Pressable: 'Pressable',
@@ -118,6 +123,7 @@ vi.mock('expo-router', async () => {
 vi.mock('@/components/frame', () => ({
   ScreenFrame: 'ScreenFrame',
   ContentInsets: 'ContentInsets',
+  useContentEdges: () => ['top', 'left', 'right'],
 }));
 vi.mock('@/components/ui', () => ({
   ...Object.fromEntries(
@@ -183,6 +189,8 @@ beforeEach(() => {
   h.online = h.visible = true;
   h.pathname = '/trips';
   h.tripId = 'a';
+  h.fontScale = 1;
+  h.width = 390;
   h.state = [];
   h.refs = [];
   h.deps = [];
@@ -326,9 +334,12 @@ it('hides all trip tab content and invitation after denial, even when landing da
 
 it.each(
   ['index', 'expenses', 'settlement'].flatMap((entry) =>
-    ['507f1f77bcf86cd799439011', '507f1f77bcf86cd799439012'].map((id) => ({ entry, id }))
+    ['507f1f77bcf86cd799439011', '507f1f77bcf86cd799439012'].flatMap((id) =>
+      [1, 1.5, 3].map((fontScale) => ({ entry, id, fontScale }))
+    )
   )
-)('keeps trip $id when switching from a direct $entry entry to unvisited tabs', ({ entry, id }) => {
+)('keeps trip $id from a direct $entry entry at scale $fontScale', ({ entry, id, fontScale }) => {
+  h.fontScale = fontScale;
   h.tripId = id;
   const options = {
     routeNames: ['index', 'expenses', 'settlement'],
@@ -363,7 +374,14 @@ it.each(
       children: 'ledger',
     });
     const chrome = render(() => (layout.type as (props: object) => ReactElement)(layout.props));
-    press(find(chrome, 'testID', name === 'index' ? 'trip-tab-index' : `trip-${name}`));
+    if (fontScale >= 1.5) {
+      const provider = nodes(chrome).find((node) => node.type === ScrollChromeProvider)!;
+      const header = provider.props.header as ReactNode;
+      const menu = nodes(header).find((node) => node.type === NavigationMenu)!;
+      const choices = menu.props.choices as { name: string; onPress: () => void }[];
+      choices.find((choice) => choice.name === name)!.onPress();
+      expect(nodes(chrome).some((node) => node.type === 'SafeAreaView')).toBe(false);
+    } else press(find(chrome, 'testID', name === 'index' ? 'trip-tab-index' : `trip-${name}`));
     expect(state.routes[state.index]).toMatchObject({ name, params: { id } });
     expect(state.routes.map((route) => route.key)).toEqual(keys);
   }
@@ -398,4 +416,96 @@ it('uses visible pending counts while keeping terminal notices and local-only pe
       (n) => n.props.label === 'queueTitle' && n.props.value !== undefined
     )
   ).toBe(false);
+});
+
+it('moves global navigation into content at large scale and keeps footer safe areas at normal scale', () => {
+  h.fontScale = 3;
+  let tabs = render(GlobalLayout) as Element;
+  const props = {
+    state: {
+      index: 1,
+      routes: [
+        { name: 'trips', key: 'trips' },
+        { name: 'me', key: 'me' },
+      ],
+    },
+    navigation: { emit: vi.fn(() => ({ defaultPrevented: false })), navigate: vi.fn() },
+    children: 'content',
+  };
+  const layout = (tabs.props.layout as (props: object) => Element)(props);
+  expect(layout.type).toBe(ScrollChromeProvider);
+  expect(find(layout, 'children', 'content').props.edges).toContain('bottom');
+  const bar = layout.props.header as Element;
+  const menu = render(() =>
+    GlobalTabBar(bar.props as Parameters<typeof GlobalTabBar>[0])
+  ) as Element;
+  expect(menu.type).toBe(NavigationMenu);
+  expect(menu.props.label).toBe('myAccount');
+  const choices = menu.props.choices as {
+    testID: string;
+    onPress: () => void;
+    selected?: boolean;
+  }[];
+  expect(choices.find((choice) => choice.testID === 'nav-me')?.selected).toBe(true);
+  choices.find((choice) => choice.testID === 'nav-record')!.onPress();
+  choices.find((choice) => choice.testID === 'nav-record')!.onPress();
+  expect(h.push).toHaveBeenCalledExactlyOnceWith('/record');
+  const footer = (tabs.props.tabBar as (props: object) => Element)(props);
+  expect(render(() => GlobalTabBar(footer.props as Parameters<typeof GlobalTabBar>[0]))).toBeNull();
+  // No navigator key or replacement is introduced when the display configuration changes.
+  h.fontScale = 1;
+  tabs = render(GlobalLayout) as Element;
+  expect(tabs.key).toBeNull();
+  const normal = (tabs.props.layout as (props: object) => Element)(props);
+  expect(normal.props.header).toBeNull();
+  expect(find(normal, 'children', 'content').props.edges).not.toContain('bottom');
+});
+
+it('withholds cached trip names inside compact menus after revocation and keeps Back available', () => {
+  h.fontScale = 3;
+  h.visible = false;
+  const tabs = TripLayout() as Element;
+  const layout = (tabs.props.layout as (props: object) => Element)({
+    state: { index: 0, routes: [{ name: 'index', key: 'overview' }] },
+    navigation: {},
+    children: 'PRIVATE ledger',
+  });
+  const chrome = render(() => (layout.type as (props: object) => ReactElement)(layout.props));
+  const provider = nodes(chrome).find((node) => node.type === ScrollChromeProvider)!;
+  const header = provider.props.header as ReactNode;
+  expect(find(header, 'testID', 'trip-navigation-menu').props.context).toBeUndefined();
+  expect(nodes(header).some((node) => node.props.testID === 'trip-invitation')).toBe(false);
+  expect(find(header, 'testID', 'trip-back')).toBeDefined();
+  expect(find(chrome, 'children', 'notFound')).toBeDefined();
+  expect(nodes(chrome).some((node) => node.props.children === 'PRIVATE ledger')).toBe(false);
+});
+
+it('keeps measured overflow in menu mode when moving the header into the padded scroller', () => {
+  const props = {
+    state: {
+      index: 0,
+      routes: [
+        { name: 'index', key: 'overview' },
+        { name: 'expenses', key: 'expenses' },
+        { name: 'settlement', key: 'settlement' },
+      ],
+    },
+    navigation: {},
+    children: 'ledger',
+  };
+  const tabs = TripLayout() as Element;
+  const layout = (tabs.props.layout as (props: object) => Element)(props);
+  const chrome = () => render(() => (layout.type as (props: object) => ReactElement)(layout.props));
+  let tree = chrome();
+  const row = find(tree, 'testID', 'trip-tab-index');
+  (row.props.onTextLayout as (event: object) => void)({ nativeEvent: { lines: [{}, {}] } });
+  tree = chrome();
+  const provider = nodes(tree).find((node) => node.type === ScrollChromeProvider)!;
+  const header = provider.props.header as Element;
+  expect(find(header, 'testID', 'trip-navigation-menu').props.iconOnly).toBe(false);
+  expect(header.props.onLayout).toBeUndefined();
+  // Rotation invalidates the old width and allows a new fixed-row measurement.
+  h.width = 768;
+  tree = chrome();
+  expect(nodes(tree).some((node) => node.type === 'SafeAreaView')).toBe(true);
 });

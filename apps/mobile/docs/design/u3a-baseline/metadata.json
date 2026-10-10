@@ -4,16 +4,10 @@
   "purpose": "U3a design baseline, not complete device acceptance",
   "data": "disposable u3a-base; TWD 100.01 uneven 10/80.01/10; JPY 3000 at .0333; repayment20.5; total199.91 myShare43.3 receive36.21",
   "web": {
-    "viewport": [
-      390,
-      844
-    ],
+    "viewport": [390, 844],
     "locale": "en",
     "theme": "light",
-    "narrowSupplement": [
-      320,
-      740
-    ]
+    "narrowSupplement": [320, 740]
   },
   "ios": {
     "device": "TravelBudget E Acceptance / iPhone 18 Pro Simulator",

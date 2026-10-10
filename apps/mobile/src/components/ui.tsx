@@ -22,6 +22,7 @@ import {
 import { radius, sizing, spacing, toneColors, typography, type Tone } from '@/theme/tokens';
 import { usePalette } from '@/theme/usePalette';
 import { ScreenFrame } from './frame';
+import { ScrollChrome } from './scrollChrome';
 import { Icon, type IconName } from './icons';
 export { Icon, type IconName } from './icons';
 
@@ -55,6 +56,7 @@ export function Page({
         keyboardDismissMode={form ? 'on-drag' : 'none'}
         contentContainerStyle={[styles.page, style]}
       >
+        <ScrollChrome />
         {children}
       </ScrollView>
     </ScreenFrame>
@@ -440,7 +442,7 @@ export const styles = StyleSheet.create({
     maxWidth: 640,
     alignSelf: 'center',
     padding: spacing.medium,
-    gap: spacing.medium,
+    gap: spacing.large,
   },
   title: { ...typography.page, fontWeight: '700' },
   copy: typography.body,

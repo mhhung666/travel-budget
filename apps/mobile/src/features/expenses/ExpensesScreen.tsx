@@ -3,8 +3,8 @@ import { MemberRosterNotice } from '@/features/expenses/MemberRosterNotice';
 import { useMemo } from 'react';
 import { useTripMembers } from './useTripMembers';
 import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
+import { ScrollChrome } from '@/components/scrollChrome';
 import { ScreenFrame } from '@/components/frame';
-import { TripContext } from '@/features/navigation/TripContext';
 import { router } from 'expo-router';
 import { Action, Copy, Notice, Title, styles, usePalette } from '@/components/ui';
 import { errorMessage, isAccessDenied } from '@/features/auth/errorMessage';
@@ -64,7 +64,7 @@ export function ExpensesScreen({ tripId }: { tripId: string }) {
         }
         ListHeaderComponent={
           <View style={{ gap: 16, marginBottom: 20 }}>
-            <TripContext tripId={tripId} />
+            <ScrollChrome />
             <Title>{t.expenses}</Title>
             <Action
               testID="expenses-search"

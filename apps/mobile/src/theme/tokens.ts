@@ -59,7 +59,15 @@ export type Tone = 'info' | 'success' | 'warning' | 'danger';
 
 export const spacing = { tiny: 4, small: 8, compact: 12, medium: 16, large: 24, section: 32 };
 export const radius = { card: 16, control: 12, badge: 999 };
-export const sizing = { border: 1, touch: 48, input: 52, amount: 72, icon: 20, iconStroke: 2 };
+export const sizing = {
+  border: 1,
+  touch: 48,
+  navigationRow: 56,
+  input: 52,
+  amount: 72,
+  icon: 20,
+  iconStroke: 2,
+};
 export const typography = {
   page: { fontSize: 24, lineHeight: 32 },
   section: { fontSize: 20, lineHeight: 28 },
