@@ -1,5 +1,6 @@
 import { baseCurrency } from '@/api/ledger';
 import type { Expense, ExpenseDetail, ExpenseOptions } from '@/api/contracts';
+import type { IconName } from '@/components/icons';
 import type { Messages } from '@/i18n/messages';
 
 const categoryKeys = {
@@ -15,6 +16,29 @@ const categoryKeys = {
 export function categoryLabel(category: Expense['category'], t: Messages) {
   return t[categoryKeys[category] ?? 'categoryOther'];
 }
+const categoryIcons = {
+  accommodation: 'bed',
+  transportation: 'train',
+  food: 'utensils',
+  shopping: 'shopping-bag',
+  entertainment: 'sparkles',
+  tickets: 'ticket',
+  other: 'receipt',
+} as const satisfies Record<Expense['category'], IconName>;
+
+export function categoryIcon(category: Expense['category']): IconName {
+  return categoryIcons[category] ?? 'receipt';
+}
+
+/** Compare literal calendar days across the flattened, deduplicated pages. No daily totals. */
+export function expenseDayEdges(items: Expense[], index: number) {
+  const date = items[index]?.date;
+  return {
+    startOfDay: index === 0 || items[index - 1]?.date !== date,
+    endOfDay: index === items.length - 1 || items[index + 1]?.date !== date,
+  };
+}
+
 /** A payer or split user that no longer resolves has an empty name. */
 export function memberName(name: string, t: Messages) {
   return name || t.unknownMember;

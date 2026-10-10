@@ -66,6 +66,8 @@ U3b-1 的 `ScrollChromeProvider` 只組合全域／旅行導覽的 React 節點�
 
 U3b-2 的 `EntryGroup` 只呈現同 surface／分隔線的次入口，每列單一無障礙控制、至少 56 點且全文換行；概覽仍由呼叫端傳目前 trip ID，不另判斷管理權限。旅行列表與「我的」共用 `LocalWorkLink`／`useLocalWorkCounts`，收起零項、不掩蓋載入／儲存錯誤；沿用既有引擎的帳號／環境 Query key 與 SQLite 讀取，不新增遠端請求、預算快照或持久化狀態。
 
+U3c-1 的 `ExpenseListItem` 在既有 FlatList cell 內放 date-only 標題，再呈現單一 `ExpenseRow` 按鈕；兩份列表都以展平／去重後的相鄰日期判斷組首／組尾，不外包 scroller、不新增查詢或日總額。列元件只量測扣除內距與圖示後的容器，依字級／寬度切橫排或直排，沿既有基準幣別格式與上層成員索引。一般 Query 分頁與搜尋 reader 的 filters／summary／revision、權限守衛及生命週期不變；頁內協調另在 U3c-2 實作。
+
 支出清單使用 TanStack Query 的游標式無限查詢；下拉更新一起重讀名冊，支出只保留並重讀最新一頁，較舊頁面按需再載入。所有私人查詢的 key 以 `[API 環境, 帳號, 資源, 旅行…]` 開頭，換帳號不會讀到同一筆快取，登出仍會清除全部。 成員標籤在畫面上層建索引，閱讀頁共用 expense-options 的帳號／環境／旅行 key，observer 設定 refetchOnMount false，列與標籤不掛載查詢；TripChrome／表單仍重新核對選項。建立／編輯／還款 context 與最新衝突 context 各建索引，規則及歷史名冊限制見 [FEATURES 成員識別](FEATURES.md#成員識別)。
 
 依賴方向：`app → features → api / storage / i18n / theme`。API 與 storage 不得反向 import 畫面或路由；route 不直接呼叫 fetch，也不計算業務交易。跨 feature 使用明確的公開 export，避免引用彼此內部元件。

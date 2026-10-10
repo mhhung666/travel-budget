@@ -3,6 +3,8 @@ import { expenseCategories, type Expense } from '@/api/contracts';
 import { messages } from '@/i18n/messages';
 import {
   categoryLabel,
+  categoryIcon,
+  expenseDayEdges,
   createMemberLabelIndex,
   isForeign,
   memberName,
@@ -192,3 +194,29 @@ it.each(localeKeys)(
     );
   }
 );
+
+it('marks day boundaries after deduplicating pages, including year/month transitions and empty results', () => {
+  const pages = [
+    { items: [expense('a', { date: '2026-01-01' })] },
+    {
+      items: [
+        expense('a', { date: '2026-01-01' }),
+        expense('b', { date: '2026-01-01' }),
+        expense('c', { date: '2025-12-31' }),
+        expense('d', { date: '2025-11-30' }),
+      ],
+    },
+  ];
+  const items = uniqueExpenses(pages);
+  expect(items.map((_, i) => expenseDayEdges(items, i))).toEqual([
+    { startOfDay: true, endOfDay: false },
+    { startOfDay: false, endOfDay: true },
+    { startOfDay: true, endOfDay: true },
+    { startOfDay: true, endOfDay: true },
+  ]);
+  expect(uniqueExpenses([]).map((_, i) => expenseDayEdges([], i))).toEqual([]);
+});
+it('maps each category to a distinct decorative icon with the historical fallback', () => {
+  expect(new Set(expenseCategories.map(categoryIcon)).size).toBe(expenseCategories.length);
+  expect(categoryIcon('legacy-category' as Expense['category'])).toBe(categoryIcon('other'));
+});

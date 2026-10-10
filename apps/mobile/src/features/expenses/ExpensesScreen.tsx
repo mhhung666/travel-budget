@@ -12,8 +12,8 @@ import { useMessages } from '@/i18n/useMessages';
 import { useOnline } from '@/providers/useOnline';
 import { usePendingExpenses } from './entryProvider';
 import { useExpenses } from './queries';
-import { uniqueExpenses, createMemberLabelIndex } from './rows';
-import { ExpenseRow } from './ExpenseRow';
+import { uniqueExpenses, createMemberLabelIndex, expenseDayEdges } from './rows';
+import { ExpenseListItem } from './ExpenseListItem';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { useDraftCatalog } from '@/features/localDrafts/provider';
 
@@ -51,7 +51,7 @@ export function ExpensesScreen({ tripId }: { tripId: string }) {
         testID="expenses-list"
         data={expenses}
         keyExtractor={(expense) => expense.id}
-        contentContainerStyle={[styles.page, { flexGrow: 1 }]}
+        contentContainerStyle={[styles.page, { flexGrow: 1, gap: 0 }]}
         refreshControl={
           <RefreshControl
             refreshing={(query.isRefetching && !query.isFetchingNextPage) || members.isFetching}
@@ -119,7 +119,14 @@ export function ExpensesScreen({ tripId }: { tripId: string }) {
             </View>
           ) : null
         }
-        renderItem={({ item }) => <ExpenseRow expense={item} tripId={tripId} labels={labels} />}
+        renderItem={({ item, index }) => (
+          <ExpenseListItem
+            expense={item}
+            tripId={tripId}
+            labels={labels}
+            {...expenseDayEdges(expenses, index)}
+          />
+        )}
         ListFooterComponent={
           query.hasNextPage && !denied ? (
             <Action

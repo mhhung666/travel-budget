@@ -33,8 +33,8 @@ import { useDisplayFormat } from '@/i18n/useDisplayFormat';
 import { useOnline } from '@/providers/useOnline';
 import { openMutationStore } from '@/storage/pendingExpenseDatabase';
 import { expenseReadGuard, expenseReadWait } from './readGuard';
-import { categoryLabel, createMemberLabelIndex } from './rows';
-import { ExpenseRow } from './ExpenseRow';
+import { categoryLabel, createMemberLabelIndex, uniqueExpenses, expenseDayEdges } from './rows';
+import { ExpenseListItem } from './ExpenseListItem';
 import { emptySearch, ExpenseSearchReader, searchPath } from './search';
 
 export function ExpenseSearchScreen({ tripId }: { tripId: string }) {
@@ -86,6 +86,7 @@ export function ExpenseSearchScreen({ tripId }: { tripId: string }) {
     manager.getSnapshot().user?.id === scope.accountId &&
     catalog.isVisible(scope, tripId);
   const data = visible ? state.data : null;
+  const expenses = uniqueExpenses([{ items: data?.items ?? [] }]);
   const t = useMessages(baseCurrency(data));
   const f = useDisplayFormat(baseCurrency(data));
   const [fields, setFields] = useState<ExpenseSearchFilters>(emptySearch);
@@ -120,14 +121,14 @@ export function ExpenseSearchScreen({ tripId }: { tripId: string }) {
     <ScreenFrame>
       <FlatList
         testID="expense-search-list"
-        data={data?.items ?? []}
+        data={expenses}
         keyExtractor={(e) => e.id}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         automaticallyAdjustKeyboardInsets
-        contentContainerStyle={styles.page}
+        contentContainerStyle={[styles.page, { gap: 0 }]}
         ListHeaderComponent={
-          <View style={{ gap: 16 }}>
+          <View style={{ gap: 16, marginBottom: 20 }}>
             <TripContext tripId={tripId} />
             <PageHeader
               title={t.searchExpenses}
@@ -294,7 +295,14 @@ export function ExpenseSearchScreen({ tripId }: { tripId: string }) {
             )}
           </View>
         }
-        renderItem={({ item }) => <ExpenseRow expense={item} tripId={tripId} labels={labels} />}
+        renderItem={({ item, index }) => (
+          <ExpenseListItem
+            expense={item}
+            tripId={tripId}
+            labels={labels}
+            {...expenseDayEdges(expenses, index)}
+          />
+        )}
         ListFooterComponent={
           data?.nextCursor ? (
             <Action

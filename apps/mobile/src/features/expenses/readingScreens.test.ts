@@ -4,11 +4,15 @@ import type { Expense, ExpenseDetail } from '@/api/contracts';
 import { messages } from '@/i18n/messages';
 import { money, formatDate } from '@/i18n/format';
 import { createMemberLabelIndex } from './rows';
+import { ExpenseListItem } from './ExpenseListItem';
 import { ExpenseRow } from './ExpenseRow';
 import { ExpensesScreen } from './ExpensesScreen';
 import { ExpenseDetailScreen } from './ExpenseDetailScreen';
 
 const h = vi.hoisted(() => ({
+  width: 390,
+  fontScale: 1,
+  rowMeasurement: { viewportWidth: 390, width: 0 },
   locale: 'en' as keyof typeof messages,
   online: true,
   visible: true,
@@ -45,6 +49,12 @@ const h = vi.hoisted(() => ({
 vi.mock('react', async (original) => ({
   ...(await original<typeof import('react')>()),
   useMemo: (factory: () => unknown) => factory(),
+  useState: () => [
+    h.rowMeasurement,
+    (value: typeof h.rowMeasurement) => {
+      h.rowMeasurement = value;
+    },
+  ],
 }));
 vi.mock('./useTripMembers', () => ({
   useTripMembers: () => ({
@@ -58,14 +68,15 @@ vi.mock('./useTripMembers', () => ({
     refetch: h.memberRetry,
   }),
 }));
-vi.mock('react-native', () =>
-  Object.fromEntries(
+vi.mock('react-native', () => ({
+  useWindowDimensions: () => ({ width: h.width, fontScale: h.fontScale }),
+  ...Object.fromEntries(
     ['ActivityIndicator', 'FlatList', 'Pressable', 'RefreshControl', 'Text', 'View'].map((n) => [
       n,
       n,
     ])
-  )
-);
+  ),
+}));
 vi.mock('expo-router', () => ({ router: { push: h.push, dismissTo: h.dismissTo } }));
 vi.mock('@/components/frame', () => ({ ScreenFrame: 'ScreenFrame' }));
 vi.mock('@/components/screen', () => ({ PageHeader: 'PageHeader' }));
@@ -140,6 +151,9 @@ const detail = () => ExpenseDetailScreen({ tripId: 'trip', expenseId: 'fx' });
 const list = () => nodes(ExpensesScreen({ tripId: 'trip' })).find((e) => e.type === 'FlatList')!;
 beforeEach(() => {
   vi.clearAllMocks();
+  h.width = 390;
+  h.fontScale = 1;
+  h.rowMeasurement = { viewportWidth: 390, width: 0 };
   h.locale = 'en';
   h.online = true;
   h.visible = true;
@@ -519,5 +533,91 @@ it.each(['USD', 'JPY'] as const)(
     expect(find(detail(), 'expense-amount').props.value).toBe(value);
     expect(find(row, 'expense-fx').props.accessibilityLabel).toContain(value);
     expect(nodes(row).filter((n) => n.props.testID === 'expense-original-fx')).toHaveLength(0);
+  }
+);
+
+it('groups flattened pages by literal day with one heading at a same-day page boundary', () => {
+  const first = { ...expense, id: '1'.repeat(24), date: '2026-01-01' };
+  const second = { ...expense, id: '2'.repeat(24), date: first.date };
+  const third = { ...expense, id: '3'.repeat(24), date: '2025-12-31' };
+  h.query.data = { pages: [{ items: [first] }, { items: [first, second, third] }] };
+  const tree = list();
+  const items = tree.props.data as Expense[];
+  expect(items.map((e) => e.id)).toEqual([first.id, second.id, third.id]);
+  const renderItem = tree.props.renderItem as (input: {
+    item: Expense;
+    index: number;
+  }) => ReactElement<Parameters<typeof ExpenseListItem>[0]>;
+  const rendered = items.map((item, index) => renderItem({ item, index }));
+  expect(rendered.map((e) => e.type)).toEqual([ExpenseListItem, ExpenseListItem, ExpenseListItem]);
+  expect(rendered.map((e) => [e.props.startOfDay, e.props.endOfDay])).toEqual([
+    [true, false],
+    [false, true],
+    [true, true],
+  ]);
+  const headings = rendered
+    .flatMap((e) => nodes(ExpenseListItem(e.props)))
+    .filter((e) => e.props.accessibilityRole === 'header');
+  expect(headings.map((e) => e.props.children)).toEqual(['Jan 1, 2026', 'Dec 31, 2025']);
+  expect(headings.every((e) => typeof e.props.children === 'string')).toBe(true);
+  for (const element of rendered) {
+    press(ExpenseRow(element.props));
+    expect(h.push).toHaveBeenLastCalledWith({
+      pathname: '/trips/[id]/expenses/[expenseId]',
+      params: { id: 'trip', expenseId: element.props.expense.id },
+    });
+  }
+});
+
+it.each(Object.keys(messages) as (keyof typeof messages)[])(
+  'keeps full names, long amounts and original currency readable when row layout changes: %s',
+  (locale) => {
+    h.locale = locale;
+    const long = { ...expense, amount: 999999999.99, originalAmount: 123456789.01 };
+    const props = {
+      expense: long,
+      tripId: 'trip',
+      labels: createMemberLabelIndex(h.roster, [], h.user?.id, messages[locale]),
+    };
+    const renderRow = () => ExpenseRow(props);
+    let row = renderRow();
+    const label = row.props.accessibilityLabel;
+    expect(label).toContain(money(long.amount, locale));
+    expect(label).toContain('Same · #b9c0d1');
+    expect(label).toContain(long.description);
+    // Unknown actual width starts stacked; measuring content permits the normal horizontal row.
+    expect(find(row, 'expense-row-content').props.style).toMatchObject({ flexDirection: 'column' });
+    (find(row, 'expense-row-content').props.onLayout as (e: unknown) => void)({
+      nativeEvent: { layout: { width: 294 } },
+    });
+    row = renderRow();
+    expect(find(row, 'expense-row-content').props.style).toMatchObject({ flexDirection: 'row' });
+    // A narrow iPad split pane can have a wide window; only measured content may decide.
+    h.rowMeasurement.width = 220;
+    expect(find(renderRow(), 'expense-row-content').props.style).toMatchObject({
+      flexDirection: 'column',
+    });
+    h.rowMeasurement.width = 560;
+    h.fontScale = 2;
+    expect(find(renderRow(), 'expense-row-content').props.style).toMatchObject({
+      flexDirection: 'column',
+    });
+    h.fontScale = 1;
+    h.width = 320;
+    // Invalidate a previous wide-window measurement until the new row has actually laid out.
+    row = renderRow();
+    expect(find(row, 'expense-row-content').props.style).toMatchObject({ flexDirection: 'column' });
+    expect(row.props.accessibilityLabel).toBe(label);
+    expect(
+      nodes(row).some(
+        (e) =>
+          e.props.numberOfLines !== undefined ||
+          e.props.allowFontScaling === false ||
+          e.props.maxFontSizeMultiplier !== undefined
+      )
+    ).toBe(false);
+    // Date is announced by every button, but visually appears only in the shared day heading.
+    expect(nodes(row).some((e) => e.props.children === formatDate(long.date, locale))).toBe(false);
+    expect(row.props.accessibilityLabel).toContain(formatDate(long.date, locale));
   }
 );

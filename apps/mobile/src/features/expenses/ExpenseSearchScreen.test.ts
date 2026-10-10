@@ -1,4 +1,6 @@
 import { beforeEach, expect, it, vi } from 'vitest';
+import { ExpenseListItem } from './ExpenseListItem';
+import type { ExpenseRowProps } from './ExpenseRow';
 import { ExpenseSearchScreen } from './ExpenseSearchScreen';
 import { ApiError } from '@/api/client';
 import type { ExpenseSearchResult } from '@travel-budget/contracts';
@@ -274,5 +276,38 @@ it('a failed 429 save prevents the next read until the original deadline can be 
   await flush();
   find('search-refresh').onPress!();
   await flush();
+  expect(h.request).toHaveBeenCalledTimes(2);
+});
+
+it('uses the shared date rows across appended search pages, deduplicating IDs without changing full totals', async () => {
+  const first = result.items[0];
+  const second = { ...first, id: 'e'.repeat(24) };
+  const third = { ...first, id: 'f'.repeat(24), date: '2026-10-08' };
+  h.request.mockImplementation(async (_actor, path: string, _schema, options) => {
+    options.beforeSend();
+    return path.includes('cursor=')
+      ? { ...result, items: [first, second, third], nextCursor: null }
+      : result;
+  });
+  await mount();
+  find('search-more').onPress!();
+  await flush();
+  const list = find('expense-search-list') as {
+    data: typeof result.items;
+    renderItem: (input: { item: typeof first; index: number }) => {
+      type: unknown;
+      props: ExpenseRowProps;
+    };
+  };
+  expect(list.data.map((e) => e.id)).toEqual([first.id, second.id, third.id]);
+  const rows = list.data.map((item, index) => list.renderItem({ item, index }));
+  expect(rows.every((e) => e.type === ExpenseListItem)).toBe(true);
+  expect(rows.map((e) => [e.props.startOfDay, e.props.endOfDay])).toEqual([
+    [true, false],
+    [false, true],
+    [true, true],
+  ]);
+  expect(rows.every((e) => e.props.tripId === 'b'.repeat(24))).toBe(true);
+  expect(nodes(render()).some((n) => n.props.value === 'USD 3000')).toBe(true);
   expect(h.request).toHaveBeenCalledTimes(2);
 });
