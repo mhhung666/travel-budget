@@ -157,7 +157,15 @@
       "updateSuccess": "密碼已更新",
       "tooShort": "新密碼至少需要 6 個字元",
       "mismatch": "新密碼與確認密碼不符",
-      "updateError": "更新密碼失敗"
+      "updateError": "更新密碼失敗",
+      "sessionHint": "修改成功後，所有 Web 與 App 登入將失效，請重新登入。本機草稿與待確認操作會保留。",
+      "currentInvalid": "目前密碼不正確。",
+      "unknown": "結果未確認，請用新密碼登入確認；若無法登入，再嘗試原密碼。不要重送修改。",
+      "reauthenticate": "密碼已更新，請重新登入。",
+      "login": "前往登入確認",
+      "changedElsewhere": "密碼已被其他操作變更，請重新登入。",
+      "rateLimited": "請稍後再試。",
+      "invalid": "新密碼至少 6 字元，UTF-8 不超過 72 位元組。"
     },
     "errors": {
       "fetchUser": "獲取用戶資料失敗",

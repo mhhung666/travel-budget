@@ -1,3 +1,4 @@
+import { newPasswordSchema } from '@travel-budget/contracts';
 import { displayNameInputSchema } from '@travel-budget/contracts';
 import { expenseSplitInput, virtualMemberNameSchema } from '@travel-budget/contracts';
 import { MAX_ACTIVITIES_PER_DAY } from '@/lib/itineraryLimits';
@@ -219,7 +220,7 @@ export const updateProfileSchema = z
   .object({
     display_name: displayNameInputSchema.optional(),
     current_password: z.string().optional(),
-    new_password: z.string().min(6, '新密碼至少需要 6 個字元').optional(),
+    new_password: newPasswordSchema.optional(),
   })
   .refine(
     (data) => {

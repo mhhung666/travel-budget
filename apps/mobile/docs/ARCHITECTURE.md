@@ -275,3 +275,7 @@ receiptFiles 用 Expo picker／manipulator／filesystem：圖片最長邊 2400�
 `avatarWrites` 使用獨立 `travel-budget-avatar-writes.db`，每個帳號／環境一筆不可變 input、UUID、隨機檔名、單向 cancel 與終局；C／D／E／收據資料不變。確認落盤前零請求，重啟只查詢，手動重試先 finish／HEAD、缺檔才取新 ticket 並 PUT，取消未開始的移除也不先執行移除。終局先保存再刪本機檔案，清理失敗保留紀錄。未確認選圖只留頁面記憶體／App 私有檔案，離頁刪除；換帳號碰到落盤中交接時保留已確認檔案。無參照超過 24 小時的本機孤兒於開啟頭像頁清理，未解決確認檔案不清。
 
 `avatarFiles` 使用既有 Expo picker／manipulator／filesystem，不新增依賴或照片庫寫入；壓縮後檔案保存在 App document 子目錄。Native PUT 為前景、120 秒逾時，含 If-None-Match，412 後仍由後端核對 HEAD。沒有 OS 背景同步，不承諾卸載後恢復、備份排除或登出立即抹除；實際 HEIC／方向、權限、SecureStore／SQLite 與 VoiceOver 留他人驗收。
+
+## M3a 密碼生命週期
+
+`PasswordChanger` 捕捉本人／登入世代，只線上前景送出一次 v2 `/me/password`；SessionManager 的 opt-out 僅此流程禁止 401 refresh／重送，其他 API 語意保留。表單秘密只留 controller 記憶體，每次嘗試與卸載清除；結果不明只能明確轉登入，不建 receipt／SQLite。`endCredentialSession(version)` 本機清憑證及私人 query，使用世代守衛，原草稿／pending／附件檔案不刪除。成功與明確再登入允許返回守衛退出，取消未送出輸入不寫 HTTP。

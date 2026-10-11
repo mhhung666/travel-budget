@@ -353,7 +353,11 @@ export async function confirmAccountReset(
           return 'INVALID_CODE' as const;
         }
         await codes.deleteOne({ _id: record._id }, { session });
-        await users.updateOne({ _id: user._id }, { $set: { password } }, { session });
+        await users.updateOne(
+          { _id: user._id },
+          { $set: { password }, $inc: { authVersion: 1 } },
+          { session }
+        );
         return null;
       },
       {

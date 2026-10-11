@@ -2,6 +2,8 @@ import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
 import { cookies } from 'next/headers';
 import { NextRequest } from 'next/server';
 import { getEnv } from './env';
+import { dbConnect } from './mongodb';
+import { User } from '@/models/User';
 
 let cachedKey: Uint8Array | null = null;
 
@@ -17,6 +19,7 @@ export interface SessionPayload {
   userId: string;
   username: string;
   expiresAt: Date;
+  authVersion?: number;
 }
 
 export async function encrypt(payload: SessionPayload) {
@@ -38,9 +41,18 @@ export async function decrypt(token: string): Promise<SessionPayload | null> {
   }
 }
 
-export async function createSession(userId: string, username: string) {
+export async function createSession(userId: string, username: string, passwordHash?: string) {
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-  const session = await encrypt({ userId, username, expiresAt });
+  await dbConnect();
+  const user = await User.findById(userId).select('authVersion isVirtual password').lean();
+  if (!user || user.isVirtual || (passwordHash !== undefined && passwordHash !== user.password))
+    throw new Error('Account unavailable');
+  const session = await encrypt({
+    userId,
+    username,
+    expiresAt,
+    authVersion: user.authVersion ?? 0,
+  });
 
   (await cookies()).set('session', session, {
     httpOnly: true,
@@ -55,7 +67,7 @@ export async function getSession(): Promise<SessionPayload | null> {
   const cookie = (await cookies()).get('session')?.value;
   if (!cookie) return null;
 
-  return await decrypt(cookie);
+  return await validateSession(cookie);
 }
 
 export async function deleteSession() {
@@ -66,5 +78,16 @@ export async function getSessionFromRequest(request: NextRequest): Promise<Sessi
   const token = request.cookies.get('session')?.value;
   if (!token) return null;
 
-  return await decrypt(token);
+  return await validateSession(token);
+}
+
+/** Signature alone is insufficient: password change/reset invalidates existing cookies. */
+async function validateSession(token: string): Promise<SessionPayload | null> {
+  const session = await decrypt(token);
+  if (!session || !/^[a-f\d]{24}$/i.test(session.userId)) return null;
+  await dbConnect();
+  const user = await User.findById(session.userId).select('authVersion isVirtual').lean();
+  if (!user || user.isVirtual || (session.authVersion ?? 0) !== (user.authVersion ?? 0))
+    return null;
+  return session;
 }

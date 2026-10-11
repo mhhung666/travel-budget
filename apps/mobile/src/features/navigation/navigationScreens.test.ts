@@ -223,7 +223,7 @@ it.each(['local', 'signedIn', 'signedOut', 'loading', 'error'])(
         nodes(protectedGroup)
           .filter((node) => node.props.name)
           .map((node) => node.props.name)
-      ).toEqual(['(tabs)', 'trips', 'record', 'profile', 'avatar']);
+      ).toEqual(['(tabs)', 'trips', 'record', 'profile', 'avatar', 'password']);
     }
   }
 );
@@ -308,7 +308,13 @@ it('keeps account controls available after logout fails, and prevents duplicate 
   press(find(element, 'testID', 'logout'));
   expect(h.logout).toHaveBeenCalledOnce();
   element = render(MyScreen);
-  for (const testID of ['my-profile', 'my-preferences', 'my-local-work', 'my-about']) {
+  for (const testID of [
+    'my-profile',
+    'my-password',
+    'my-preferences',
+    'my-local-work',
+    'my-about',
+  ]) {
     expect(find(element, 'testID', testID).props.disabled).toBe(true);
     press(find(element, 'testID', testID));
   }
@@ -324,6 +330,8 @@ it('keeps account controls available after logout fails, and prevents duplicate 
   expect(h.push).toHaveBeenLastCalledWith('/work');
   press(find(element, 'testID', 'my-profile'));
   expect(h.push).toHaveBeenLastCalledWith('/profile');
+  press(find(element, 'testID', 'my-password'));
+  expect(h.push).toHaveBeenLastCalledWith('/password');
   press(find(element, 'testID', 'my-about'));
   expect(h.push).toHaveBeenLastCalledWith('/about');
 });
@@ -338,7 +346,7 @@ it('orders account, preferences/about and local work before logout, with existin
   expect(find(tree, 'testID', 'my-preferences').props.accessibilityLabel).toContain(
     'preferenceDark'
   );
-  for (const testID of ['my-profile', 'my-preferences', 'my-local-work', 'my-about'])
+  for (const testID of ['my-profile', 'my-password', 'my-preferences', 'my-local-work', 'my-about'])
     expect(find(tree, 'testID', testID).props.disabled).toBe(false);
 });
 it('uses the shared keyboard form container and forwards the route guard callback', () => {

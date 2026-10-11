@@ -1,8 +1,9 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { newPasswordSchema } from '@travel-budget/contracts';
 import { updateProfile } from '@/actions';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -16,6 +17,9 @@ export function SecuritySection() {
   const t = useTranslations('settings');
   const tCommon = useTranslations('common');
 
+  const submitting = useRef(false);
+  const [terminal, setTerminal] = useState<'changed' | 'unknown' | null>(null);
+  const [waitUntil, setWaitUntil] = useState(0);
   const newPasswordRef = useRef<HTMLInputElement>(null);
   const confirmPasswordRef = useRef<HTMLInputElement>(null);
   const [invalidField, setInvalidField] = useState<'new' | 'confirm' | null>(null);
@@ -30,15 +34,22 @@ export function SecuritySection() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [updatingPassword, setUpdatingPassword] = useState(false);
 
+  useEffect(() => {
+    if (!waitUntil) return;
+    const timer = setTimeout(() => setWaitUntil(0), Math.max(0, waitUntil - Date.now()));
+    return () => clearTimeout(timer);
+  }, [waitUntil]);
+
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting.current || terminal || Date.now() < waitUntil) return;
     setError('');
     setInvalidField(null);
     setSuccess('');
 
     // 驗證新密碼
-    if (newPassword.length < 6) {
-      setError(t('password.tooShort'));
+    if (!newPasswordSchema.safeParse(newPassword).success) {
+      setError(t('password.invalid'));
       setInvalidField('new');
       newPasswordRef.current?.focus();
       return;
@@ -51,6 +62,7 @@ export function SecuritySection() {
       return;
     }
 
+    submitting.current = true;
     setUpdatingPassword(true);
 
     try {
@@ -60,17 +72,41 @@ export function SecuritySection() {
       });
 
       if (!result.success) {
-        throw new Error(result.error || t('password.updateError'));
+        const map: Record<string, string> = {
+          INVALID_CURRENT_PASSWORD: 'password.currentInvalid',
+          RESOURCE_CHANGED: 'password.changedElsewhere',
+          VALIDATION_ERROR: 'password.invalid',
+          RATE_LIMITED: 'password.rateLimited',
+        };
+        if (result.code === 'RATE_LIMITED')
+          setWaitUntil(Date.now() + (result.retryAfter ?? 30) * 1000);
+        if (result.error && map[result.error]) {
+          setError(t(map[result.error]));
+          return;
+        }
+        if (result.code === 'VALIDATION_ERROR' || result.code === 'NOT_FOUND') {
+          setError(t('password.updateError'));
+          return;
+        }
+        setTerminal('unknown');
+        setError(t('password.unknown'));
+        return;
       }
 
-      setSuccess(t('password.updateSuccess'));
+      setTerminal('changed');
+      setSuccess(t('password.reauthenticate'));
       // 清空密碼欄位
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
+    } catch {
+      setTerminal('unknown');
+      setError(t('password.unknown'));
     } finally {
+      submitting.current = false;
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
       setUpdatingPassword(false);
     }
   };
@@ -90,6 +126,12 @@ export function SecuritySection() {
         </Alert>
       )}
 
+      <p className="mb-4 text-sm text-muted-foreground">{t('password.sessionHint')}</p>
+      {terminal && (
+        <Button className="mb-4" onClick={() => window.location.assign('/login')}>
+          {t('password.login')}
+        </Button>
+      )}
       <Card>
         <CardContent className="pt-6">
           <form onSubmit={handleUpdatePassword} className="space-y-4">
@@ -102,6 +144,7 @@ export function SecuritySection() {
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 required
+                disabled={updatingPassword || !!terminal || !!waitUntil}
               />
             </div>
 
@@ -122,10 +165,11 @@ export function SecuritySection() {
                   clearFieldError();
                 }}
                 required
+                disabled={updatingPassword || !!terminal || !!waitUntil}
                 minLength={6}
               />
               <p id="new-password-help" className="text-xs text-muted-foreground">
-                {t('password.minLength')}
+                {t('password.invalid')}
               </p>
               {invalidField === 'new' && (
                 <p id="new-password-error" className="text-sm text-destructive">
@@ -149,6 +193,7 @@ export function SecuritySection() {
                   clearFieldError();
                 }}
                 required
+                disabled={updatingPassword || !!terminal || !!waitUntil}
                 minLength={6}
               />
             </div>
@@ -159,7 +204,11 @@ export function SecuritySection() {
               </p>
             )}
             <div className="pt-2">
-              <Button type="submit" disabled={updatingPassword} className="w-full sm:w-auto">
+              <Button
+                type="submit"
+                disabled={updatingPassword || !!terminal || !!waitUntil}
+                className="w-full sm:w-auto"
+              >
                 {updatingPassword && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {t('password.updateButton')}
               </Button>

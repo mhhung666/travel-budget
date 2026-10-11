@@ -162,3 +162,9 @@ UUID 及白名單／1 byte–4 MiB／JPEG、PNG、WebP 由共用 schema 驗證�
 replace 等待期限 24 小時，最後五分鐘不再簽發／完成，未完成與已撤換 key 使用 `avatarcleanupjobs` 延後刪除、失敗重試及第二次掃除。清理檢查仍被引用者，退役 tombstone 永不 TTL 刪除，不能再綁回；公開 URL 已交出或被快取不保證立即撤銷。既有 Web 頭像 adapters 共用驗證、本人 fence 與清理，Web ticket 保留原 headers 契約；它仍是原有 RPC，未新增 Web 本機 journal。登入／refresh／me、私人 me/profile 與一般成員 DTO 不變。
 
 部署前由操作人員套用 `20261011090000-avatar-cleanup-jobs.js`（availableAt 索引，down 保留工作）再部署相容後端／worker；本次沒有遠端 migration、R2 或 cron 設定。`test:mobile-api` 驗真 HTTP 讀取／移除／原 UUID，另執行 7 項可丟棄 replica-set 回歸（R2 mocked），包含提交原子性／回滾、並發重播、HEAD、Web 衝突、隔離及清理重試。真 R2、CORS、iOS 選圖與生命週期由 [M2 交接](../../mobile/docs/LOCAL_ACCEPTANCE.md#m2-頭像交接) 驗收。
+
+## M3a 本人密碼
+
+已新增 bearer `POST /api/v2/me/password`，Web 與 Native 共用 `accountPassword.ts`；strict input、額度、結果未知與所有登入撤銷規則集中見 [M3a 契約](../../mobile/docs/BACKEND_CONTRACT.md#m3a-本人修改密碼)。E2 重設同步撤銷 Web cookie；舊使用者／cookie 版本缺值為 0，毋須 migration，也不修改既有 session／member DTO。
+
+`test:mobile-api` 核對真 HTTP 修改／丟回應後手動登入恢復、舊 access／refresh 失效及新密碼登入，另執行 6 項隔離資料庫案例：兩端共用額度、CAS 並行、cookie／所有裝置、舊 cookie／reset、身分與清 cookie 失敗。iOS、Web 操作及儲存故障見 [M3a 交接](../../mobile/docs/LOCAL_ACCEPTANCE.md#m3a-修改密碼交接)，M3b 寄碼／Email 仍未開始。

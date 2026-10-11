@@ -11,6 +11,7 @@ export default function AppLayout() {
         <Stack.Screen name="record" />
         <Stack.Screen name="profile" />
         <Stack.Screen name="avatar" />
+        <Stack.Screen name="password" />
       </Stack.Protected>
       <Stack.Screen name="(local)" />
     </Stack>

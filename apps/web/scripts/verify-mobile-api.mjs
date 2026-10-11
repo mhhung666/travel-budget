@@ -3462,6 +3462,34 @@ try {
   pass(
     'E2: anonymous registration, unique fields, UTF-8 boundary, identical send acceptance/rate limit, one concurrent reset, old session invalidation, lost-response login recovery'
   );
+  await request('/me/password', { token: e2Recovered.accessToken, method: 'POST', body: { current_password: 'wrong', new_password: 'M3-new-password' }, status: 400 });
+  await request('/me/password', { token: e2Recovered.accessToken, method: 'POST', body: { current_password: e2Lost.new_password, new_password: 'M3-new-password', userId: writerId }, status: 400 });
+  const m3Changed = await request('/me/password', { token: e2Recovered.accessToken, method: 'POST', body: { current_password: e2Lost.new_password, new_password: 'M3-new-password' }, schema: contracts.passwordChangeResultSchema });
+  assert.deepEqual(m3Changed.data, { changed: true, reauthenticate: true });
+  await me(e2Recovered, 401);
+  await refresh(e2Recovered, 401);
+  const m3Login = (await request('/auth/login', { body: { username: 'mobile-e2', password: 'M3-new-password' }, schema: sessionSchema })).data;
+  await me(m3Login);
+  pass('M3a true HTTP: strict self password change, old access/refresh revoked and new credentials accepted');
+  const m3Before = await db.collection('users').findOne({ _id: e2UserId });
+  const m3LostBody = { current_password: 'M3-new-password', new_password: 'M3-after-lost-response' };
+  const m3Socket = connect(port, '127.0.0.1');
+  m3Socket.on('error', () => {});
+  await once(m3Socket, 'connect');
+  const m3Text = JSON.stringify(m3LostBody);
+  m3Socket.write(`POST /api/v2/me/password HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nAuthorization: Bearer ${m3Login.accessToken}\r\nContent-Type: application/json\r\nContent-Length: ${Buffer.byteLength(m3Text)}\r\nConnection: close\r\n\r\n${m3Text}`);
+  await eventually(async () => (await db.collection('users').findOne({ _id: e2UserId })).authVersion === m3Before.authVersion + 1, 'M3a lost password change did not commit', 20000);
+  m3Socket.destroy();
+  await me(m3Login, 401);
+  const m3Recovered = (await request('/auth/login', { body: { username: 'mobile-e2', password: m3LostBody.new_password }, schema: sessionSchema })).data;
+  await me(m3Recovered);
+  assert.equal((await db.collection('users').findOne({ _id: e2UserId })).authVersion, m3Before.authVersion + 1);
+  pass('M3a lost HTTP acknowledgement: one committed password change, no replay and manual login recovery');
+  const passwordCases = await exec('pnpm', ['exec', 'vitest', 'run', 'src/__tests__/accountPassword.integration.test.ts'], {
+    env: { ...process.env, MONGODB_MEMBER_TEST_URI: uri, MONGODB_MEMBER_TEST_ALLOW_WRITES: '1' }, maxBuffer: 1024 * 1024,
+  });
+  assert(passwordCases.stdout.includes('6 passed'), 'Password DB cases did not run');
+  pass('M3a isolated DB: shared Web/native quota, concurrent compare-and-swap, every session revoked, legacy cookies and reset compatibility');
   const profileCases = await exec('pnpm', ['exec', 'vitest', 'run', 'src/__tests__/accountProfile.integration.test.ts'], {
     env: { ...process.env, MONGODB_MEMBER_TEST_URI: uri, MONGODB_MEMBER_TEST_ALLOW_WRITES: '1' }, maxBuffer: 1024 * 1024,
   });

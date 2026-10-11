@@ -108,12 +108,18 @@ export class SessionManager {
     const revision = ++this.revision;
     this.session = null;
     this.publish({ status: 'loading', user: null });
-    await this.clearPrivateData();
+    let cacheFailed = false;
+    try {
+      await this.clearPrivateData();
+    } catch {
+      cacheFailed = true;
+    }
     try {
       await this.storage(() =>
         revision === this.revision ? this.store.clear() : Promise.resolve()
       );
       if (revision !== this.revision) return;
+      if (cacheFailed) throw new ApiError('STORAGE');
       this.publish({ status: 'signedOut', user: null, ...(error ? { error } : {}) });
     } catch {
       if (revision !== this.revision) return;
@@ -216,13 +222,14 @@ export class SessionManager {
   async request<T>(
     path: string,
     schema: z.ZodType<T>,
-    options: Omit<RequestOptions, 'accessToken'> = {}
+    options: Omit<RequestOptions, 'accessToken'> & { retryAuthentication?: boolean } = {}
   ): Promise<T> {
+    const { retryAuthentication = true, ...requestOptions } = options;
     const revision = this.revision;
     const accessToken = this.session?.accessToken;
     if (!accessToken) throw new ApiError('UNAUTHORIZED', 401);
     const run = () =>
-      this.api.request(path, schema, { ...options, accessToken: this.session?.accessToken });
+      this.api.request(path, schema, { ...requestOptions, accessToken: this.session?.accessToken });
     // An answer, whether data or an error, that arrives after the sign-in changed belongs to a
     // session that is gone. It must not reach the caller as if it described the current one: a late
     // 400 would otherwise look like proof that a saved request was never written.
@@ -235,7 +242,7 @@ export class SessionManager {
       return data;
     } catch (error) {
       sameSignIn();
-      if (!(error instanceof ApiError) || error.status !== 401) throw error;
+      if (!(error instanceof ApiError) || error.status !== 401 || !retryAuthentication) throw error;
       checkAborted(options.signal);
       // A late 401 for the previous access token reuses the already-refreshed session.
       if (this.session?.accessToken === accessToken) await this.refresh();
@@ -262,11 +269,16 @@ export class SessionManager {
     userId: string,
     path: string,
     schema: z.ZodType<T>,
-    options: Omit<RequestOptions, 'accessToken'> = {}
+    options: Omit<RequestOptions, 'accessToken'> & { retryAuthentication?: boolean } = {}
   ): Promise<T> {
     if (!this.session) return Promise.reject(new ApiError('UNAUTHORIZED', 401));
     if (this.session.user.id !== userId) return Promise.reject(new ApiError('CANCELLED'));
     return this.request(path, schema, options);
+  }
+  /** End this captured login locally after credential change. Leaves durable drafts/journals intact. */
+  async endCredentialSession(version: number) {
+    if (version !== this.revision) throw new ApiError('CANCELLED');
+    await this.invalidate();
   }
   logout(): Promise<void> {
     if (this.logoutFlight && this.logoutRevision === this.revision) return this.logoutFlight;

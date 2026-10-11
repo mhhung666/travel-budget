@@ -59,6 +59,12 @@ export function MyScreen() {
               disabled: busy,
               onPress: () => router.push('/profile'),
             },
+            {
+              testID: 'my-password',
+              label: t.passwordChangeTitle,
+              disabled: busy,
+              onPress: () => router.push('/password'),
+            },
           ]}
         />
       </Section>

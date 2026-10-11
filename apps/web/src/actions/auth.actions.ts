@@ -14,7 +14,7 @@ import {
   confirmAccountReset,
 } from '@/lib/accountEntry';
 import { accountEnvironment, deliverAccountReset } from '@/lib/accountAdapter';
-import bcrypt from 'bcryptjs';
+import { changeAccountPassword, AccountPasswordError } from '@/lib/accountPassword';
 import { dbConnect } from '@/lib/mongodb';
 import { User as UserModel, EmailChangeCode } from '@/models';
 import { createSession, deleteSession, getSession } from '@/lib/auth';
@@ -130,7 +130,7 @@ export async function login(input: LoginInput): Promise<ActionResult<AuthUser>> 
       return { success: false, error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' };
     }
 
-    await createSession(user._id.toString(), user.username);
+    await createSession(user._id.toString(), user.username, user.password);
 
     return {
       success: true,
@@ -228,29 +228,39 @@ export const updateProfile = withAuth(
         return { success: true, data: { message: '個人資料已更新' } };
       }
 
-      // Update password
-      await dbConnect();
       if (current_password && new_password) {
-        const user = await UserModel.findById(session.userId).select('password');
-
-        if (!user) {
-          return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
+        const { db, context } = await accountEnvironment(await headers());
+        try {
+          await changeAccountPassword(
+            db,
+            session.userId,
+            { current_password, new_password },
+            context
+          );
+        } catch (error) {
+          if (error instanceof AccountEntryError)
+            return {
+              success: false,
+              error: error.code,
+              code: 'RATE_LIMITED',
+              retryAfter: error.retryAfter,
+            };
+          if (error instanceof AccountPasswordError)
+            return {
+              success: false,
+              error: error.code,
+              code: error.code === 'NOT_FOUND' ? 'NOT_FOUND' : 'VALIDATION_ERROR',
+            };
+          throw error;
         }
-
-        const isPasswordValid = await bcrypt.compare(current_password, user.password);
-        if (!isPasswordValid) {
-          return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
-        }
-
-        const hashedPassword = await bcrypt.hash(new_password, 10);
-        await UserModel.updateOne({ _id: session.userId }, { $set: { password: hashedPassword } });
-
+        // The database already revokes every cookie; cookie cleanup cannot turn success into failure.
+        await deleteSession().catch(() => {});
         return { success: true, data: { message: '密碼已更新' } };
       }
 
       return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
-    } catch (error) {
-      logger.error('Update user error', error);
+    } catch {
+      logger.error('Update user failed');
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
     }
   }

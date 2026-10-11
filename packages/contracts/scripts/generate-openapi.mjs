@@ -3,6 +3,8 @@ import { z } from 'zod';
 import {
   v2Schemas,
   loginInput,
+  passwordChangeInput,
+  passwordChangeResultSchema,
   registerInput,
   passwordResetRequestInput,
   passwordResetInput,
@@ -108,6 +110,8 @@ const schemas = Object.fromEntries(
     AvatarWriteState: avatarWriteStateSchema,
     AvatarUploadTicket: avatarUploadTicketSchema,
     AvatarWriteCommandInput: avatarWriteCommandInput,
+    PasswordChangeInput: passwordChangeInput,
+    PasswordChangeResult: passwordChangeResultSchema,
     AccountProfile: accountProfileSchema,
     AccountProfileInput: accountProfileInput,
     Session: sessionSchema,
@@ -196,6 +200,11 @@ const templates = {
   '/auth/refresh': { post: operation('refresh', 'Session', 'RefreshInput') },
   '/auth/logout': { post: operation('logout', 'Logout', 'RefreshInput') },
   '/me': { get: operation('me', 'User') },
+  '/me/password': {
+    post: operation('changePassword', 'PasswordChangeResult', 'PasswordChangeInput', {
+      authenticated: true,
+    }),
+  },
   '/me/profile': {
     get: operation('accountProfile', 'AccountProfile', undefined, { authenticated: true }),
     patch: {

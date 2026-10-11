@@ -44,6 +44,12 @@ export function LoginScreen() {
         <Title>{t.login}</Title>
         <Copy>{t.loginHint}</Copy>
         <Card>
+          {params.notice === 'passwordChanged' && (
+            <Notice tone="success">{t.passwordChangeDone}</Notice>
+          )}
+          {params.notice === 'passwordChangeUnknown' && (
+            <Notice tone="warning">{t.passwordChangeUnknown}</Notice>
+          )}
           {params.notice === 'registered' && (
             <Notice tone="success" announce="polite">
               {t.registered}

@@ -103,7 +103,7 @@ const linkMember = withPublicTrip(
     }
 
     // 自動登入為真實用戶
-    await createSession(realUserId, realUser.username);
+    await createSession(realUserId, realUser.username, realUser.password);
 
     return NextResponse.json({ success: true, message: '連結成功' });
   },
@@ -191,7 +191,7 @@ const convertMember = withPublicTrip(
     }
 
     // 自動登入
-    await createSession(virtualUserId, validation.data.username);
+    await createSession(virtualUserId, validation.data.username, hashedPassword);
 
     return NextResponse.json({ success: true, message: '註冊成功' });
   },

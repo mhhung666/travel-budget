@@ -17,6 +17,16 @@ export const newPasswordSchema = z
   .min(6)
   .max(72)
   .refine((s) => passwordBytes(s) <= 72);
+export const passwordChangeInput = z
+  .object({
+    current_password: z.string().min(1).max(1024),
+    new_password: newPasswordSchema,
+  })
+  .strict();
+export const passwordChangeResultSchema = z
+  .object({ changed: z.literal(true), reauthenticate: z.literal(true) })
+  .strict();
+export type PasswordChangeInput = z.infer<typeof passwordChangeInput>;
 const accountEmail = z.string().trim().toLowerCase().email().max(254);
 export const registerInput = z
   .object({

@@ -760,6 +760,137 @@
         }
       }
     },
+    "/v2/me/password": {
+      "post": {
+        "operationId": "changePasswordV2",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChangeInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PasswordChangeResult"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Ledger data or total outside the safe range",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+      }
+    },
     "/v2/me/profile": {
       "get": {
         "operationId": "accountProfileV2",
@@ -13152,6 +13283,44 @@
         },
         "required": [
           "action"
+        ],
+        "additionalProperties": false
+      },
+      "PasswordChangeInput": {
+        "type": "object",
+        "properties": {
+          "current_password": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          "new_password": {
+            "type": "string",
+            "minLength": 6,
+            "maxLength": 72
+          }
+        },
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "additionalProperties": false
+      },
+      "PasswordChangeResult": {
+        "type": "object",
+        "properties": {
+          "changed": {
+            "type": "boolean",
+            "const": true
+          },
+          "reauthenticate": {
+            "type": "boolean",
+            "const": true
+          }
+        },
+        "required": [
+          "changed",
+          "reauthenticate"
         ],
         "additionalProperties": false
       },

@@ -1,4 +1,16 @@
 const zh = {
+  passwordChangeTitle: '修改密碼',
+  passwordCurrent: '目前密碼',
+  passwordChangeHint:
+    '修改成功後，所有 Web 與 App 登入將失效，請重新登入。本機草稿與待確認操作會保留。',
+  passwordCurrentInvalid: '目前密碼不正確。',
+  passwordChangeOffline: '修改密碼需要連線。',
+  passwordChangeUnknown: '結果未確認，請用新密碼登入確認；若無法登入，再嘗試原密碼。不要重送修改。',
+  passwordChangeDone: '密碼已更新，請重新登入。',
+  passwordChangeLogin: '前往登入確認',
+  passwordChangeUnsaved: '密碼尚未送出，離開會捨棄輸入。',
+  passwordChangeConflict: '密碼已被其他操作變更，請重新登入。',
+
   avatarTitle: '頭像',
   avatarPublicHint: '頭像是公開圖片。選圖後確認上傳，才會替換目前頭像。',
   avatarEmpty: '未設定',
@@ -568,6 +580,19 @@ export type Messages = Record<keyof typeof zh, string>;
 export const messages = {
   zh,
   'zh-CN': {
+    passwordChangeTitle: '修改密码',
+    passwordCurrent: '当前密码',
+    passwordChangeHint:
+      '修改成功后，所有 Web 与 App 登录将失效，请重新登录。本机草稿与待确认操作会保留。',
+    passwordCurrentInvalid: '当前密码不正确。',
+    passwordChangeOffline: '修改密码需要联网。',
+    passwordChangeUnknown:
+      '结果未确认，请用新密码登录确认；若无法登录，再尝试原密码。不要重新提交修改。',
+    passwordChangeDone: '密码已更新，请重新登录。',
+    passwordChangeLogin: '前往登录确认',
+    passwordChangeUnsaved: '密码尚未提交，离开会丢弃输入。',
+    passwordChangeConflict: '密码已被其他操作更改，请重新登录。',
+
     avatarTitle: '头像',
     avatarPublicHint: '头像是公开图片。选图后确认上传，才会替换当前头像。',
     avatarEmpty: '未设置',
@@ -1131,6 +1156,19 @@ export const messages = {
     done: '完成',
   },
   en: {
+    passwordChangeTitle: 'Change password',
+    passwordCurrent: 'Current password',
+    passwordChangeHint:
+      'Changing your password signs out every Web and App session. Sign in again. Local drafts and pending operations are retained.',
+    passwordCurrentInvalid: 'The current password is incorrect.',
+    passwordChangeOffline: 'Connect to change your password.',
+    passwordChangeUnknown:
+      'The result is unknown. Sign in with the new password to check; if it fails, try the original password. Do not resend the change.',
+    passwordChangeDone: 'Password changed. Please sign in again.',
+    passwordChangeLogin: 'Go to sign in',
+    passwordChangeUnsaved: 'Your password has not been submitted. Leaving discards the input.',
+    passwordChangeConflict: 'Another operation changed your password. Sign in again.',
+
     avatarTitle: 'Avatar',
     avatarPublicHint:
       'Avatars are public images. Choose a photo, then confirm to replace your current avatar.',
@@ -1787,6 +1825,19 @@ export const messages = {
     done: 'Done',
   },
   jp: {
+    passwordChangeTitle: 'パスワード変更',
+    passwordCurrent: '現在のパスワード',
+    passwordChangeHint:
+      '変更後は Web とアプリのすべてのログインが無効になります。再ログインしてください。端末の下書きと保留中の操作は保持されます。',
+    passwordCurrentInvalid: '現在のパスワードが正しくありません。',
+    passwordChangeOffline: 'パスワード変更には接続が必要です。',
+    passwordChangeUnknown:
+      '結果を確認できません。新しいパスワードでログインして確認し、失敗した場合は元のパスワードを試してください。変更を再送しないでください。',
+    passwordChangeDone: 'パスワードを変更しました。再ログインしてください。',
+    passwordChangeLogin: 'ログインして確認',
+    passwordChangeUnsaved: '未送信のパスワードは戻ると破棄されます。',
+    passwordChangeConflict: '別の操作でパスワードが変更されました。再ログインしてください。',
+
     avatarTitle: 'プロフィール画像',
     avatarPublicHint:
       'プロフィール画像は公開されます。写真を選び、アップロードを確認すると現在の画像が置き換わります。',

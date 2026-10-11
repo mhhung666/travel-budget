@@ -287,3 +287,13 @@ pending 固定 24 小時期限，最後 120 秒不再簽 PUT；取消／到期�
 ## M2 本人頭像
 
 已實作 v2 `GET /me/avatar`、`POST /me/avatar/requests` 及 `GET/POST /me/avatar/requests/:clientRequestId`，只有本人 bearer 身分，沒有旅行 ledger。頭像讀取、確認、原 UUID 終局、HEAD／revision／取消與清理規則集中於 [Web M2 契約](../../web/docs/MOBILE_API.md#m2-本人頭像)；runtime schema 與 OpenAPI 仍在 contracts，登入及 M1 私人本人資料回應不變。
+
+## M3a 本人修改密碼
+
+`POST /api/v2/me/password` 只接受 bearer 本人，strict JSON `current_password`（1–1024 字元）、`new_password`（沿新密碼 schema：6 字元以上／72 UTF-8 bytes 以下），回 `{ changed: true, reauthenticate: true }`。不可指定其他使用者；不 trim、不 echo 密碼。回應 no-store／Vary Authorization；沒有 UUID、receipt 或可重送 journal。
+
+400 `INVALID_CURRENT_PASSWORD`／`VALIDATION_ERROR`，409 `RESOURCE_CHANGED`（驗證後另一操作先改密碼），404 `NOT_FOUND`，401 認證失效，429 `RATE_LIMITED`／Retry-After。Web／Native 同一本人額度：rolling 15 分鐘 10 次合法格式嘗試，包含錯誤目前密碼；拒絕不延長期限。額度 HMAC key 與 E2 匿名寄碼／驗碼分離。
+
+成功以同一原子更新修改 bcrypt hash、遞增 `authVersion`；Web cookie 在認證入口讀目前版本，舊資料／舊 cookie 缺版本視為 0，第一次修改或重設才失效，無 migration。Native 沿既有 hash 綁定檢查，所有舊 access／refresh 在下次認證拒絕。E2 重設在既有碼消耗交易中也遞增版本，Web 登入檢查已驗證 hash 後才簽目前版本，避免舊憑證驗證與改密碼之間的競態。
+
+Mobile 明確提交一次，401 也不自動 refresh／重送；可能送達後的未知回應凍結表單，明確清當前登入、用新密碼核對，失敗再試舊密碼。密碼完全不落盤；重啟只走原 session 恢復，不重送修改。當前登入清理保留全部本機帳務工作，晚到舊世代結果不登出新帳號。

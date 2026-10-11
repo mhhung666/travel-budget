@@ -157,7 +157,15 @@
       "updateSuccess": "Password updated",
       "tooShort": "New password must be at least 6 characters",
       "mismatch": "New password and confirmation do not match",
-      "updateError": "Failed to update password"
+      "updateError": "Failed to update password",
+      "sessionHint": "Changing your password signs out every Web and App session. Sign in again. Local drafts and pending operations are retained.",
+      "currentInvalid": "The current password is incorrect.",
+      "unknown": "The result is unknown. Sign in with the new password to check; if it fails, try the original password. Do not resend the change.",
+      "reauthenticate": "Password changed. Please sign in again.",
+      "login": "Go to sign in",
+      "changedElsewhere": "Another operation changed your password. Sign in again.",
+      "rateLimited": "Please wait before trying again.",
+      "invalid": "Use at least 6 characters and at most 72 UTF-8 bytes."
     },
     "errors": {
       "fetchUser": "Failed to fetch user data",

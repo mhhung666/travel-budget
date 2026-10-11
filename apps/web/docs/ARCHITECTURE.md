@@ -127,3 +127,9 @@ Web `getCurrentUser`／名稱版 `updateProfile` 與 Mobile `/api/v2/me/profile`
 `lib/avatarWrite` 共用 Web 頭像 adapters 與 Mobile v2 的本人授權、型別／大小限制、User fence 及退休 key 防線；普通 GET 僅唯讀。頭像修訂獨立於姓名、帳務與憑證，旧使用者缺 revision 視為初值，首次修改才寫入 counter；不重算任何金額。Native `avatarwrites` 以 actor:UUID 唯一 key 保存原內容與終局，完成／刪除及清理排程在同一 snapshot／majority 交易中提交；HEAD／簽名／實體刪除都在交易外。
 
 公開 avatars 與私人 receipts bucket 保持分離。`avatarcleanupjobs` 存本人 key、原操作 ID、到期／租約、退休 tombstone 與掃除進度；worker 從既有 trip-cleanup cron 有界執行，使用本人 fence 核對活參照，未完成操作按原 UUID 標 EXPIRED，不依賴掃描全部 journal。首次清理後 24 小時再掃一次，失敗保留工作；tombstone 及 receipt 不設 TTL。部署操作見 [M2 API](MOBILE_API.md#m2-本人頭像)，真儲存服務驗收另列。
+
+## M3a 共用密碼與 Web 登入撤銷
+
+`accountPassword.ts` 共用 Web `updateProfile` 密碼分支及 Mobile HTTP adapter：本人非虛擬、共用 password schema、獨立 HMAC rolling quota，bcrypt 驗證後以原 hash compare-and-swap 更新 hash／authVersion。版本缺值為 0，不需 migration；Web `getSession`／`getSessionFromRequest` 在 cookie 驗簽後讀目前帳號版本，撤銷／刪除／虛擬均拒絕。簽 cookie 核對已驗證 hash，避免登入競態；E2 reset 在原碼消耗交易內一併加版。Native 沿既有 credentialHash 授權，不更改 token issuer 或 DTO。
+
+普通 session 讀取不寫資料；DB 讀取失敗不放行。修改成功後 cookie 刪除失敗仍回已提交成功，版本核對才是撤銷權威。Web 表單明確成功／未知與重新登入、限流與防雙擊，未知不重送；流程沒有持久化密碼 journal。契約見 [M3a](../../mobile/docs/BACKEND_CONTRACT.md#m3a-本人修改密碼)。

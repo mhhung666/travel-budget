@@ -157,7 +157,15 @@
       "updateSuccess": "密码已更新",
       "tooShort": "新密码至少需要 6 个字符",
       "mismatch": "新密码与确认密码不符",
-      "updateError": "更新密码失败"
+      "updateError": "更新密码失败",
+      "sessionHint": "修改成功后，所有 Web 与 App 登录将失效，请重新登录。本机草稿与待确认操作会保留。",
+      "currentInvalid": "当前密码不正确。",
+      "unknown": "结果未确认，请用新密码登录确认；若无法登录，再尝试原密码。不要重新提交修改。",
+      "reauthenticate": "密码已更新，请重新登录。",
+      "login": "前往登录确认",
+      "changedElsewhere": "密码已被其他操作更改，请重新登录。",
+      "rateLimited": "请稍后再试。",
+      "invalid": "新密码至少 6 字符，UTF-8 不超过 72 字节。"
     },
     "errors": {
       "fetchUser": "获取用户资料失败",
