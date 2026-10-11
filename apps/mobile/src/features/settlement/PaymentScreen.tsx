@@ -461,101 +461,102 @@ export function PaymentScreen({
               )}
               {'members' in context && fields && (
                 <>
-                  <Section title={t.paymentFrom}>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small }}>
-                      {context.members.map((m) => (
-                        <Chip
-                          testID={`payment-from-${m.id}`}
-                          key={m.id}
-                          label={label(context, m.id)}
-                          selected={fields.fromId === m.id}
-                          disabled={busy || !!prepared}
-                          onPress={() => change({ fromId: m.id })}
-                        />
-                      ))}
-                    </View>
-                  </Section>
-                  <Section title={t.paymentTo}>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small }}>
-                      {context.members.map((m) => (
-                        <Chip
-                          testID={`payment-to-${m.id}`}
-                          key={m.id}
-                          label={label(context, m.id)}
-                          selected={fields.toId === m.id}
-                          disabled={busy || !!prepared}
-                          onPress={() => change({ toId: m.id })}
-                        />
-                      ))}
-                    </View>
-                  </Section>
-                  <TextField
-                    testID="payment-amount"
-                    inputRef={amount}
-                    label={t.amountTwd}
-                    kind="amount"
-                    placeholder={t.amountHint}
-                    autoCorrect={false}
-                    inputAccessoryViewID={amountAccessoryId}
-                    returnKeyType="done"
-                    onSubmitEditing={Keyboard.dismiss}
-                    value={fields.amountText}
-                    editable={!busy && !prepared}
-                    keyboardType="decimal-pad"
-                    onChangeText={(amountText) => change({ amountText })}
-                  />
-                  {Platform.OS === 'ios' ? (
-                    <InputAccessoryView nativeID={amountAccessoryId}>
-                      <View
-                        style={{
-                          backgroundColor: p.surface,
-                          alignItems: 'flex-end',
-                          borderTopWidth: 1,
-                          borderColor: p.border,
-                          padding: spacing.small,
-                        }}
-                      >
-                        <Pressable
-                          testID="payment-keyboard-done"
-                          accessibilityRole="button"
-                          accessibilityLabel={t.done}
-                          onPress={Keyboard.dismiss}
+                  <Card testID="payment-fields" style={{ gap: spacing.compact }}>
+                    <Section title={t.paymentFrom}>
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small }}>
+                        {context.members.map((m) => (
+                          <Chip
+                            testID={`payment-from-${m.id}`}
+                            key={m.id}
+                            label={label(context, m.id)}
+                            selected={fields.fromId === m.id}
+                            disabled={busy || !!prepared}
+                            onPress={() => change({ fromId: m.id })}
+                          />
+                        ))}
+                      </View>
+                    </Section>
+                    <Section title={t.paymentTo}>
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small }}>
+                        {context.members.map((m) => (
+                          <Chip
+                            testID={`payment-to-${m.id}`}
+                            key={m.id}
+                            label={label(context, m.id)}
+                            selected={fields.toId === m.id}
+                            disabled={busy || !!prepared}
+                            onPress={() => change({ toId: m.id })}
+                          />
+                        ))}
+                      </View>
+                    </Section>
+                    <TextField
+                      testID="payment-amount"
+                      inputRef={amount}
+                      label={t.amountTwd}
+                      kind="amount"
+                      placeholder={t.amountHint}
+                      autoCorrect={false}
+                      inputAccessoryViewID={amountAccessoryId}
+                      returnKeyType="done"
+                      onSubmitEditing={Keyboard.dismiss}
+                      value={fields.amountText}
+                      editable={!busy && !prepared}
+                      keyboardType="decimal-pad"
+                      onChangeText={(amountText) => change({ amountText })}
+                    />
+                    {Platform.OS === 'ios' ? (
+                      <InputAccessoryView nativeID={amountAccessoryId}>
+                        <View
                           style={{
-                            minHeight: sizing.touch,
-                            justifyContent: 'center',
-                            paddingHorizontal: spacing.medium,
+                            backgroundColor: p.surface,
+                            alignItems: 'flex-end',
+                            borderTopWidth: 1,
+                            borderColor: p.border,
+                            padding: spacing.small,
                           }}
                         >
-                          <Text style={[typography.body, { color: p.primary, fontWeight: '600' }]}>
-                            {t.done}
-                          </Text>
-                        </Pressable>
-                      </View>
-                    </InputAccessoryView>
-                  ) : (
-                    <Action variant="ghost" label={t.done} onPress={Keyboard.dismiss} />
-                  )}
-                  <TextField
-                    testID="payment-note"
-                    inputRef={note}
-                    label={t.paymentNote}
-                    multiline
-                    submitBehavior="submit"
-                    value={fields.note}
-                    editable={!busy && !prepared}
-                    onChangeText={(note) => change({ note })}
-                    returnKeyType="done"
-                    onSubmitEditing={() => Keyboard.dismiss()}
-                  />
-                  <Copy>
-                    {t.suggestedTransfers}:{' '}
-                    {paymentSuggestion(context, fields) === null
-                      ? t.noSuggestedTransfers
-                      : f.money(paymentSuggestion(context, fields)!)}
-                  </Copy>
-                  <Disclosure testID="payment-reference" title={t.settlement}>
-                    <Card>{showContext(context)}</Card>
-                  </Disclosure>
+                          <Pressable
+                            testID="payment-keyboard-done"
+                            accessibilityRole="button"
+                            accessibilityLabel={t.done}
+                            onPress={Keyboard.dismiss}
+                            style={{
+                              minHeight: sizing.touch,
+                              justifyContent: 'center',
+                              paddingHorizontal: spacing.medium,
+                            }}
+                          >
+                            <Text
+                              style={[typography.body, { color: p.primary, fontWeight: '600' }]}
+                            >
+                              {t.done}
+                            </Text>
+                          </Pressable>
+                        </View>
+                      </InputAccessoryView>
+                    ) : (
+                      <Action variant="ghost" label={t.done} onPress={Keyboard.dismiss} />
+                    )}
+                    <TextField
+                      testID="payment-note"
+                      inputRef={note}
+                      label={t.paymentNote}
+                      multiline
+                      submitBehavior="submit"
+                      value={fields.note}
+                      editable={!busy && !prepared}
+                      onChangeText={(note) => change({ note })}
+                      returnKeyType="done"
+                      onSubmitEditing={() => Keyboard.dismiss()}
+                    />
+                    <Copy>
+                      {t.suggestedTransfers}:{' '}
+                      {paymentSuggestion(context, fields) === null
+                        ? t.noSuggestedTransfers
+                        : f.money(paymentSuggestion(context, fields)!)}
+                    </Copy>
+                  </Card>
                 </>
               )}
               {paymentId && <Notice tone="warning">{t.revokePaymentWarning}</Notice>}
@@ -599,6 +600,11 @@ export function PaymentScreen({
                   disabled={!online || !native || !!latest}
                   onPress={() => void check()}
                 />
+              )}
+              {'members' in context && (
+                <Disclosure testID="payment-reference" title={t.settlement}>
+                  <Card style={{ gap: spacing.compact }}>{showContext(context)}</Card>
+                </Disclosure>
               )}
             </>
           )}

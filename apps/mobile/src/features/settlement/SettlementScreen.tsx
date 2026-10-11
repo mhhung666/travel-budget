@@ -1,6 +1,7 @@
 import { baseCurrency } from '@/api/ledger';
 import { MemberRosterNotice } from '@/features/expenses/MemberRosterNotice';
 import { useMemo } from 'react';
+import { Disclosure } from '@/components/Disclosure';
 import { useTripMembers } from '@/features/expenses/useTripMembers';
 import { router } from 'expo-router';
 import { ActivityIndicator, Text, View } from 'react-native';
@@ -104,54 +105,81 @@ function Details({
   const t = useMessages(baseCurrency(settlement));
   const f = useDisplayFormat(baseCurrency(settlement));
   const transfers = orderTransfers(settlement.suggestedTransfers, userId);
+  const indexed = transfers.map((transfer, index) => ({ transfer, index }));
+  const related = indexed.filter(
+    ({ transfer }) => transfer.fromId === userId || transfer.toId === userId
+  );
+  const others = indexed.filter(
+    ({ transfer }) => transfer.fromId !== userId && transfer.toId !== userId
+  );
+  const renderTransfers = (items: typeof indexed) =>
+    items.map(({ transfer, index }, row) => (
+      <View
+        key={`${transfer.fromId}-${transfer.toId}-${index}`}
+        testID={`settlement-transfer-${index}`}
+        style={{
+          gap: spacing.compact,
+          paddingTop: row === 0 ? 0 : spacing.compact,
+          borderTopWidth: row === 0 ? 0 : 1,
+          borderColor: p.border,
+        }}
+      >
+        <Route
+          from={{
+            id: transfer.fromId,
+            name: transfer.fromName,
+            isVirtual: transfer.fromIsVirtual,
+          }}
+          to={{ id: transfer.toId, name: transfer.toName, isVirtual: transfer.toIsVirtual }}
+          labels={labels}
+        />
+        <Text
+          style={[
+            typography.section,
+            { color: p.text, fontWeight: '700', fontVariant: ['tabular-nums'] },
+          ]}
+        >
+          {f.money(transfer.amount)}
+        </Text>
+        <Badge label={t.unpaid} />
+        <Action
+          testID="settlement-record-payment"
+          variant="secondary"
+          label={t.recordPayment}
+          disabled={!online}
+          onPress={() =>
+            router.push({
+              pathname: '/trips/[id]/payments/edit',
+              params: {
+                id: tripId,
+                from: transfer.fromId,
+                to: transfer.toId,
+                amount: String(transfer.amount),
+              },
+            })
+          }
+        />
+      </View>
+    ));
   return (
     <>
       <Section title={t.suggestedTransfers}>
+        <Copy>{t.settlementHint}</Copy>
         {transfers.length === 0 ? (
           <Copy>{t.noSuggestedTransfers}</Copy>
         ) : (
-          transfers.map((transfer, index) => (
-            <Card
-              key={`${transfer.fromId}-${transfer.toId}-${index}`}
-              testID={`settlement-transfer-${index}`}
-              style={{ gap: spacing.small }}
-            >
-              <Route
-                from={{
-                  id: transfer.fromId,
-                  name: transfer.fromName,
-                  isVirtual: transfer.fromIsVirtual,
-                }}
-                to={{ id: transfer.toId, name: transfer.toName, isVirtual: transfer.toIsVirtual }}
-                labels={labels}
-              />
-              <Text
-                style={[
-                  typography.section,
-                  { color: p.text, fontWeight: '700', fontVariant: ['tabular-nums'] },
-                ]}
-              >
-                {f.money(transfer.amount)}
-              </Text>
-              <Badge label={t.unpaid} />
-              <Action
-                testID="settlement-record-payment"
-                label={t.recordPayment}
-                disabled={!online}
-                onPress={() =>
-                  router.push({
-                    pathname: '/trips/[id]/payments/edit',
-                    params: {
-                      id: tripId,
-                      from: transfer.fromId,
-                      to: transfer.toId,
-                      amount: String(transfer.amount),
-                    },
-                  })
-                }
-              />
-            </Card>
-          ))
+          <>
+            {related.length > 0 && (
+              <Card testID="settlement-my-transfers" style={{ gap: spacing.compact }}>
+                {renderTransfers(related)}
+              </Card>
+            )}
+            {others.length > 0 && (
+              <Disclosure testID="settlement-other-transfers" title={t.otherSuggestedTransfers}>
+                <Card style={{ gap: spacing.compact }}>{renderTransfers(others)}</Card>
+              </Disclosure>
+            )}
+          </>
         )}
       </Section>
       <Action
@@ -267,14 +295,14 @@ export function SettlementScreen({ tripId }: { tripId: string }) {
       )}
       {settlement && !denied && (
         <>
-          {mine !== null && (
-            <Metric
-              testID="settlement-my-balance"
-              label={mine === 0 ? t.balanced : mine > 0 ? t.receivable : t.payable}
-              value={f.money(Math.abs(mine))}
-            />
-          )}
-          <Card>
+          <View testID="settlement-personal-summary" style={{ gap: spacing.compact }}>
+            {mine !== null && (
+              <Metric
+                testID="settlement-my-balance"
+                label={mine === 0 ? t.balanced : mine > 0 ? t.receivable : t.payable}
+                value={f.money(Math.abs(mine))}
+              />
+            )}
             <Text
               testID="settlement-status"
               accessibilityRole="header"
@@ -289,8 +317,7 @@ export function SettlementScreen({ tripId }: { tripId: string }) {
             {status !== 'outstanding' && (
               <Copy>{status === 'empty' ? t.settlementEmptyHint : t.settlementSettledHint}</Copy>
             )}
-          </Card>
-          <Copy>{t.settlementHint}</Copy>
+          </View>
           <Details
             labels={labels}
             settlement={settlement}

@@ -69,7 +69,6 @@ export function LocalTripsScreen() {
         onBack={() => goBack(status === 'local' ? '/work' : '/me')}
       />
       <Copy>{t.localDraftHint}</Copy>
-      <Action variant="secondary" label={t.queueTitle} onPress={() => router.push('/queue')} />
       <LocalSessionActions />
       {query.storageFailed && <Notice tone="danger">{t.localSnapshotFailed}</Notice>}
       {query.isPending && <RecoveryCard message={t.loading} />}
@@ -94,6 +93,7 @@ export function LocalTripsScreen() {
           </Section>
         </Card>
       ))}
+      <Action variant="secondary" label={t.queueTitle} onPress={() => router.push('/queue')} />
     </Page>
   );
 }

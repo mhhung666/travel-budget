@@ -351,6 +351,7 @@ it('puts parties, amount and note before optional settlement, keeping raw input 
   expect(indices[1]).toBeLessThan(amountIndex);
   expect(amountIndex).toBeLessThan(noteIndex);
   expect(noteIndex).toBeLessThan(referenceIndex);
+  expect(list.findIndex((n) => n.props.testID === 'payment-preview')).toBeLessThan(referenceIndex);
   expect(input('amountTwd').kind).toBe('amount');
   input('amountTwd', '00020.01');
   expect(input('amountTwd').value).toBe('00020.01');

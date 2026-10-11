@@ -104,6 +104,11 @@ function ScopedOperationsScreen() {
         <RecoveryCard message={t.recoveryLoadFailed} tone="danger" />
       )}
       {!!error && <Notice tone="warning">{error}</Notice>}
+      {deadline.waiting && (
+        <RecoveryCard message={t.recoveryWaiting} tone="warning" testID="operations-wait">
+          <DetailRow label={t.queueRetryAt} value={format.instant(deadline.until)} />
+        </RecoveryCard>
+      )}
       <Action
         variant="ghost"
         label={records.isError || deadline.isError ? t.retry : t.refresh}
@@ -113,11 +118,6 @@ function ScopedOperationsScreen() {
           void deadline.refetch();
         }}
       />
-      {deadline.waiting && (
-        <RecoveryCard message={t.recoveryWaiting} tone="warning" testID="operations-wait">
-          <DetailRow label={t.queueRetryAt} value={format.instant(deadline.until)} />
-        </RecoveryCard>
-      )}
       {records.isPending && <RecoveryCard message={t.loading} />}
       {items?.length === 0 && (
         <RecoveryCard message={t.operationsEmpty} testID="operations-empty" />

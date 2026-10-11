@@ -1,4 +1,5 @@
 import type { PropsWithChildren } from 'react';
+import { spacing } from '@/theme/tokens';
 import { Card, Notice, Section } from './ui';
 
 /** Status stays visible; child actions retain separate accessible focus targets. */
@@ -23,6 +24,8 @@ export function RecoveryCard({
     </>
   );
   return (
-    <Card testID={testID}>{title ? <Section title={title}>{content}</Section> : content}</Card>
+    <Card testID={testID} style={{ gap: spacing.compact }}>
+      {title ? <Section title={title}>{content}</Section> : content}
+    </Card>
   );
 }

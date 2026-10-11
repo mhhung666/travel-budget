@@ -272,3 +272,20 @@ it('keeps the selected file if navigation races the durable confirmation write',
   expect(h.removeFile).not.toHaveBeenCalled();
   expect(h.request.mock.calls.every((c) => !c[3].method)).toBe(true);
 });
+
+it('canceling a removal confirmation leaves attachments and the durable journal untouched', async () => {
+  render();
+  h.focus();
+  await settle();
+  expect(find('receiptRemove')!.props.variant).toBe('danger');
+  (find('receiptRemove')!.props.onPress as () => void)();
+  await settle();
+  expect(find('receiptConfirm')!.props.variant).toBe('danger');
+  (find('cancel')!.props.onPress as () => void)();
+  await settle();
+  expect(find('receiptConfirm')).toBeUndefined();
+  expect(find('receiptRemove')).toBeDefined();
+  expect(h.request.mock.calls.every((c) => !c[3].method)).toBe(true);
+  expect(await h.store!.list({ environment: h.environment, accountId: h.user })).toEqual([]);
+  expect(h.removeFile).not.toHaveBeenCalled();
+});

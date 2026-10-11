@@ -352,3 +352,30 @@ it('account change during reads ignores the old private response', async () => {
   await flush();
   expect(nodes(render()).some((n) => n.props.testID === 'budget-total')).toBe(false);
 });
+
+it('keeps over-budget warnings outside optional category context without changing private inputs', async () => {
+  h.request.mockResolvedValue({
+    ...original,
+    progress: {
+      ...original.progress,
+      categories: [
+        ...original.progress.categories,
+        { category: 'shopping', budget: 100, spent: 10, remaining: 90 },
+      ],
+    },
+  });
+  await mount();
+  const optional = find('budget-category-progress');
+  const isWarning = (node: { props: Props }) =>
+    Array.isArray(node.props.children) && node.props.children.includes('budgetOver');
+  expect(nodes(optional.children).some(isWarning)).toBe(false);
+  expect(nodes(render()).filter(isWarning)).toHaveLength(2);
+  const total = find('budget-personal-progress');
+  const data = nodes(total.children);
+  expect(data.findIndex(isWarning)).toBeLessThan(
+    data.findIndex((n) => n.props.label === 'mySpent')
+  );
+  expect(find('budget-total').value).toBe('120');
+  expect(h.confirm).not.toHaveBeenCalled();
+  expect(h.request).toHaveBeenCalledOnce();
+});

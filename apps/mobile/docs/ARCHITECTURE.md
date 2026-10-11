@@ -64,6 +64,8 @@ assets/                目前保留 Expo 模板圖示
 
 U3d-1 的 `ExpenseFormParts` 只組合共用 Card／Section 及付款人、選取人數與可展開選擇器；展開狀態只存在元件記憶體，不進 SQLite、preview key 或 E body。成員失效／驗證錯誤要求選擇器展開，警告／移除操作由上層放在外面；`SplitFields` 的模式與逐人輸入也在外，不隨收合卸載。新增仍由 DraftEditor 保存／previewReducer 失效；編輯仍由 maintenance prepareEdit 核對新 context／revision，確認區顯示完整舊／新份額。金額與適用匯率的 iOS accessory、說明 Next 到日期及原 FormPage 鍵盤避讓不變；沒有新 provider、請求、持久化欄位或金額算法。
 
+U3d-2 只調整結算／還款、預算、收據及本機恢復頁的資訊層次：結算按既有 ID 分出本人相關／其他建議，收合不讀取或改帳；預算只將未超支分類進度放入既有 Disclosure，必要警告、新舊確認及全部編輯欄位仍在外。共用 RecoveryCard 改緊湊區內間距；本機入口沿同一可見性／待處理計數，收據恢復顯示原 UUID 與結果。未新增 provider、HTTP／SQLite 欄位或清理時機，Payment／Budget／ReceiptWriter／C／D／E 的 beforeSend、revision、固定 UUID 及共用期限保持原流程。
+
 U3b-1 的 `ScrollChromeProvider` 只組合全域／旅行導覽的 React 節點；Page 將 `ScrollChrome` 放入原 ScrollView，旅行／支出列表放入原 FlatList header。字級倍率達 1.5 或量測標籤不能容納時，用有安全區與 ScrollView 的 Modal 選單取代固定列；安全區沿上層繼承，固定頁首只消耗頂部、固定底列只消耗底部。沒有新增業務 provider、外包列表的 ScrollView、路由 key 或資料持久化；同層選取仍由 `selectTab` 傳入父 trip ID。正常頁首的上下文選單也可讀完整名稱，撤權後立即拿掉上下文名稱／邀請，不改 catalog 重讀保護。
 
 U3b-2 的 `EntryGroup` 只呈現同 surface／分隔線的次入口，每列單一無障礙控制、至少 56 點且全文換行；概覽仍由呼叫端傳目前 trip ID，不另判斷管理權限。旅行列表與「我的」共用 `LocalWorkLink`／`useLocalWorkCounts`，收起零項、不掩蓋載入／儲存錯誤；沿用既有引擎的帳號／環境 Query key 與 SQLite 讀取，不新增遠端請求、預算快照或持久化狀態。

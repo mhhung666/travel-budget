@@ -4,6 +4,7 @@ import { randomUUID } from 'expo-crypto';
 import { receiptAttachmentsV2Schema, type ReceiptAttachments } from '@travel-budget/contracts';
 import { ApiError } from '@/api/client';
 import { Action, Card, Copy, Notice, Page, Section } from '@/components/ui';
+import { spacing } from '@/theme/tokens';
 import { PageHeader } from '@/components/screen';
 import { goBack } from '@/components/navigation';
 import { useTripEntry } from '@/features/tripEntry/provider';
@@ -208,118 +209,137 @@ export function ReceiptWriteScreen({ tripId, expenseId }: { tripId: string; expe
         <Action label={t.retry} onPress={() => void writer.load()} busy={state.busy} />
       )}
       {visible && state.record ? (
-        <Section title={t.receiptPending}>
-          <Copy>
-            {state.record.result?.status === 'committed'
-              ? t.receiptSaved
-              : state.record.result?.status === 'rejected'
-                ? t.receiptRejected
-                : t.receiptPendingHint}
-          </Copy>
-          {state.record.result ? (
-            <Action
-              label={t.receiptDone}
-              busy={state.busy}
-              onPress={() =>
-                void run(async () => {
-                  await writer.dismiss();
-                  setItems(null);
-                })
-              }
-            />
-          ) : (
-            <>
-              <Action label={t.refresh} disabled={disabled} onPress={() => void writer.lookup()} />
+        <Card testID="receipt-write-pending" style={{ gap: spacing.compact }}>
+          <Section title={t.receiptPending}>
+            <Notice tone={state.record.result?.status === 'committed' ? 'success' : 'warning'}>
+              {state.record.result?.status === 'committed'
+                ? t.receiptSaved
+                : state.record.result?.status === 'rejected'
+                  ? t.receiptRejected
+                  : t.receiptPendingHint}
+            </Notice>
+            <Copy>
+              {t.requestId}: {state.record.input.client_request_id}
+            </Copy>
+            {state.record.result ? (
               <Action
-                label={t.retry}
+                label={t.receiptDone}
                 busy={state.busy}
-                disabled={disabled}
-                onPress={() => void writer.retry()}
+                onPress={() =>
+                  void run(async () => {
+                    await writer.dismiss();
+                    setItems(null);
+                  })
+                }
               />
-              {state.record.input.action === 'add' && (
+            ) : (
+              <>
                 <Action
-                  label={t.receiptCancelUpload}
+                  label={t.refresh}
                   disabled={disabled}
-                  onPress={() => void writer.cancel()}
+                  onPress={() => void writer.lookup()}
                 />
-              )}
-            </>
-          )}
-        </Section>
+                <Action
+                  variant="secondary"
+                  label={t.retry}
+                  busy={state.busy}
+                  disabled={disabled}
+                  onPress={() => void writer.retry()}
+                />
+                {state.record.input.action === 'add' && (
+                  <Action
+                    variant="danger"
+                    label={t.receiptCancelUpload}
+                    disabled={disabled}
+                    onPress={() => void writer.cancel()}
+                  />
+                )}
+              </>
+            )}
+          </Section>
+        </Card>
       ) : (
         visible && (
           <>
             {selected || removing ? (
-              <Section title={t.receiptConfirm}>
-                <Copy>
-                  {removing
-                    ? t.receiptRemoveConfirm
-                    : `${selected?.contentType === 'application/pdf' ? 'PDF' : t.receiptImage} · ${Math.ceil((selected?.size ?? 0) / 1024)} KB`}
-                </Copy>
-                <Action
-                  label={t.receiptConfirm}
-                  disabled={disabled}
-                  onPress={() =>
-                    void run(async () => {
-                      const file = selected;
-                      await writer.confirm(
-                        removing
-                          ? {
-                              action: 'remove',
-                              client_request_id: randomUUID(),
-                              attachmentId: removing,
-                            }
-                          : {
-                              action: 'add',
-                              client_request_id: randomUUID(),
-                              contentType: file!.contentType,
-                              size: file!.size,
-                            },
-                        file?.file,
-                        () => {
+              <Card testID="receipt-write-confirm" style={{ gap: spacing.compact }}>
+                <Section title={t.receiptConfirm}>
+                  <Copy>
+                    {removing
+                      ? t.receiptRemoveConfirm
+                      : `${selected?.contentType === 'application/pdf' ? 'PDF' : t.receiptImage} · ${Math.ceil((selected?.size ?? 0) / 1024)} KB`}
+                  </Copy>
+                  <Action
+                    variant={removing ? 'danger' : 'primary'}
+                    label={t.receiptConfirm}
+                    disabled={disabled}
+                    onPress={() =>
+                      void run(async () => {
+                        const file = selected;
+                        await writer.confirm(
+                          removing
+                            ? {
+                                action: 'remove',
+                                client_request_id: randomUUID(),
+                                attachmentId: removing,
+                              }
+                            : {
+                                action: 'add',
+                                client_request_id: randomUUID(),
+                                contentType: file!.contentType,
+                                size: file!.size,
+                              },
+                          file?.file,
+                          () => {
+                            selection.current = null;
+                            setSelected(null);
+                          }
+                        );
+                        // Ownership moves only after SQLite accepted the frozen request.
+                        if (writer.getSnapshot().record) {
                           selection.current = null;
                           setSelected(null);
+                          setRemoving(null);
                         }
-                      );
-                      // Ownership moves only after SQLite accepted the frozen request.
-                      if (writer.getSnapshot().record) {
+                      })
+                    }
+                  />
+                  <Action
+                    variant="ghost"
+                    label={t.cancel}
+                    disabled={working || state.busy}
+                    onPress={() =>
+                      void run(async () => {
+                        if (selected) await removeReceiptFile(selected.file);
                         selection.current = null;
                         setSelected(null);
                         setRemoving(null);
-                      }
-                    })
-                  }
-                />
-                <Action
-                  label={t.cancel}
-                  disabled={working || state.busy}
-                  onPress={() =>
-                    void run(async () => {
-                      if (selected) await removeReceiptFile(selected.file);
-                      selection.current = null;
-                      setSelected(null);
-                      setRemoving(null);
-                    })
-                  }
-                />
-              </Section>
+                      })
+                    }
+                  />
+                </Section>
+              </Card>
             ) : (
               <>
-                <Action
-                  label={t.receiptChoose}
-                  disabled={disabled}
-                  onPress={() => void pick('library')}
-                />
-                <Action
-                  label={t.receiptCamera}
-                  disabled={disabled}
-                  onPress={() => void pick('camera')}
-                />
-                <Action
-                  label={t.receiptChoosePdf}
-                  disabled={disabled}
-                  onPress={() => void pick('pdf')}
-                />
+                <Card testID="receipt-write-sources" style={{ gap: spacing.compact }}>
+                  <Action
+                    label={t.receiptChoose}
+                    disabled={disabled}
+                    onPress={() => void pick('library')}
+                  />
+                  <Action
+                    variant="secondary"
+                    label={t.receiptCamera}
+                    disabled={disabled}
+                    onPress={() => void pick('camera')}
+                  />
+                  <Action
+                    variant="secondary"
+                    label={t.receiptChoosePdf}
+                    disabled={disabled}
+                    onPress={() => void pick('pdf')}
+                  />
+                </Card>
                 {items?.items.map((item, i) => (
                   <Card key={item.id}>
                     <Copy>
@@ -327,6 +347,7 @@ export function ReceiptWriteScreen({ tripId, expenseId }: { tripId: string; expe
                       {item.contentType === 'application/pdf' ? 'PDF' : t.receiptImage}
                     </Copy>
                     <Action
+                      variant="danger"
                       label={t.receiptRemove}
                       disabled={disabled}
                       onPress={() => setRemoving(item.id)}

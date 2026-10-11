@@ -1,9 +1,10 @@
 import { useCallback, useState, useSyncExternalStore } from 'react';
 import { router, useFocusEffect } from 'expo-router';
-import { AppState, Image, Linking, ScrollView } from 'react-native';
+import { AppState, Image, Linking, ScrollView, View } from 'react-native';
 import { receiptAttachmentsV2Schema, receiptViewV2Schema } from '@travel-budget/contracts';
 import { ApiError } from '@/api/client';
 import { Action, Card, Copy, Notice, Page, Section } from '@/components/ui';
+import { spacing } from '@/theme/tokens';
 import { PageHeader } from '@/components/screen';
 import { goBack } from '@/components/navigation';
 import { useTripEntry } from '@/features/tripEntry/provider';
@@ -104,17 +105,6 @@ export function ReceiptsScreen({ tripId, expenseId }: { tripId: string; expenseI
           })
         }
       />
-      <Copy>{t.receiptHint}</Copy>
-      <Action
-        label={t.receiptManage}
-        disabled={!online || !visible}
-        onPress={() =>
-          router.push({
-            pathname: '/trips/[id]/expenses/[expenseId]/receipt-write',
-            params: { id: tripId, expenseId },
-          })
-        }
-      />
       {!online && <Notice tone="warning">{t.offline}</Notice>}
       {!visible && <Notice tone="danger">{t.expenseUnavailable}</Notice>}
       {!!state.error && (
@@ -122,7 +112,9 @@ export function ReceiptsScreen({ tripId, expenseId }: { tripId: string; expenseI
           {failure}
         </Notice>
       )}
+      <Copy>{t.receiptHint}</Copy>
       <Action
+        variant="ghost"
         testID="receipts-refresh"
         label={t.refresh}
         busy={state.busy}
@@ -130,29 +122,35 @@ export function ReceiptsScreen({ tripId, expenseId }: { tripId: string; expenseI
         onPress={() => void reader.refresh()}
       />
       {list?.items.length === 0 && <Notice>{t.noReceipts}</Notice>}
-      {list?.items.map((item, index) => (
-        <Card key={item.id}>
-          <Copy>
-            {t.receipts} {index + 1} ·{' '}
-            {item.contentType === 'application/pdf' ? 'PDF' : t.receiptImage} ·{' '}
-            {Math.ceil(item.size / 1024)} KB
-          </Copy>
-          <Action
-            testID={`receipt-open-${index}`}
-            label={item.contentType === 'application/pdf' ? t.receiptOpenPdf : t.receiptView}
-            disabled={!online || state.busy}
-            onPress={() => void reader.open(item.id)}
-          />
-          {item.contentType !== 'application/pdf' && (
-            <Action
-              variant="secondary"
-              label={t.receiptOpenBrowser}
-              disabled={!online || state.busy}
-              onPress={() => void reader.open(item.id, true)}
-            />
-          )}
-        </Card>
-      ))}
+      {!!list?.items.length && (
+        <Section title={t.receiptView}>
+          <Card style={{ gap: spacing.compact }}>
+            {list.items.map((item, index) => (
+              <View key={item.id} style={{ gap: spacing.compact }}>
+                <Copy>
+                  {t.receipts} {index + 1} ·{' '}
+                  {item.contentType === 'application/pdf' ? 'PDF' : t.receiptImage} ·{' '}
+                  {Math.ceil(item.size / 1024)} KB
+                </Copy>
+                <Action
+                  testID={`receipt-open-${index}`}
+                  label={item.contentType === 'application/pdf' ? t.receiptOpenPdf : t.receiptView}
+                  disabled={!online || state.busy}
+                  onPress={() => void reader.open(item.id)}
+                />
+                {item.contentType !== 'application/pdf' && (
+                  <Action
+                    variant="secondary"
+                    label={t.receiptOpenBrowser}
+                    disabled={!online || state.busy}
+                    onPress={() => void reader.open(item.id, true)}
+                  />
+                )}
+              </View>
+            ))}
+          </Card>
+        </Section>
+      )}
       {view && (
         <Section title={t.receiptView}>
           {state.loadingImage && <Notice announce="polite">{t.loading}</Notice>}
@@ -177,6 +175,20 @@ export function ReceiptsScreen({ tripId, expenseId }: { tripId: string; expenseI
           <Action label={t.receiptClose} variant="secondary" onPress={reader.close} />
         </Section>
       )}
+      <Section title={t.receiptManage}>
+        <Action
+          testID="receipts-manage"
+          variant="secondary"
+          label={t.receiptManage}
+          disabled={!online || !visible}
+          onPress={() =>
+            router.push({
+              pathname: '/trips/[id]/expenses/[expenseId]/receipt-write',
+              params: { id: tripId, expenseId },
+            })
+          }
+        />
+      </Section>
     </Page>
   );
 }

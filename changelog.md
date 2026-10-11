@@ -6,7 +6,8 @@
 
 ### 2026-10-11
 
-- Mobile U3d-1：新增／編輯支出依金額、資料、付款／分攤分區，成員摘要可展開，必要輸入／警告與原／新份額確認完整保留；沿用草稿、衝突與原 UUID／限速守衛，更新 Maestro 展開步驟，已提交。1,509 項＋工具 48 項、check／contracts／三平台匯出通過；iOS／VoiceOver 由其他人驗收，下一片 U3d-2，見 [交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u3d-1-新增與編輯表單交接)。
+- Mobile U3d-1：新增／編輯支出依金額、資料、付款／分攤分區，成員摘要可展開，必要輸入／警告與原／新份額確認完整保留；沿用草稿、衝突與原 UUID／限速守衛，更新 Maestro 展開步驟，已提交。1,509 項＋工具 48 項、check／contracts／三平台匯出通過；iOS／VoiceOver 由其他人驗收；次頁已接續 U3d-2，見 [交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u3d-1-新增與編輯表單交接)。
+- Mobile U3d-2：結算本人建議優先、其他建議可展開，還款／預算／收據／本機恢復按資訊與主次操作分區；超支、危險確認、結果不明及原 UUID／等待期限保持可見，未改帳務或檔案清理。已提交，1,515 項＋工具 48 項、check／contracts／三平台匯出通過；iOS／VoiceOver 與 R2 待他人驗收，F 暫緩，見 [交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u3d-2-結算與次頁交接)。
 
 ### 2026-10-10
 

@@ -427,21 +427,25 @@ it('uses visible pending counts while keeping terminal notices and local-only pe
     { ...scope, status: 'completed' },
   ];
   let work = render(LocalWorkScreen);
-  expect(find(work, 'label', 'queueTitle').props.value).toBe('1');
-  expect(find(work, 'label', 'pendingOperations').props.value).toBe('1');
+  expect(find(work, 'testID', 'local-queue').props.accessibilityLabel).toBe('queueTitle. 1');
+  expect(find(work, 'testID', 'pending-operations').props.accessibilityLabel).toBe(
+    'pendingOperations. 1'
+  );
   h.visible = false;
   work = render(LocalWorkScreen);
-  expect(find(work, 'label', 'queueTitle').props.value).toBe('0');
-  expect(find(work, 'label', 'pendingOperations').props.value).toBe('0');
+  expect(find(work, 'testID', 'local-queue').props.accessibilityLabel).toBe('queueTitle. 0');
+  expect(find(work, 'testID', 'pending-operations').props.accessibilityLabel).toBe(
+    'pendingOperations. 0'
+  );
   h.status = 'local';
   h.visible = true;
   work = render(LocalWorkScreen);
-  expect(find(work, 'label', 'queueTitle').props.value).toBe('1');
+  expect(find(work, 'testID', 'local-queue').props.accessibilityLabel).toBe('queueTitle. 1');
   expect(nodes(work).some((n) => n.props.testID === 'pending-operations')).toBe(false);
   h.queue.isError = true;
   expect(
     nodes(render(LocalWorkScreen)).some(
-      (n) => n.props.label === 'queueTitle' && n.props.value !== undefined
+      (n) => n.props.testID === 'local-queue' && n.props.accessibilityLabel !== 'queueTitle'
     )
   ).toBe(false);
 });

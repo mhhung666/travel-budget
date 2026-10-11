@@ -28,7 +28,12 @@ vi.mock('expo-router', () => ({
     h.focus = fn;
   },
 }));
-vi.mock('@/components/ui', () => ({ Action: 'Action', Notice: 'Notice', Section: 'Section' }));
+vi.mock('@/components/ui', () => ({
+  Action: 'Action',
+  DetailRow: 'DetailRow',
+  Notice: 'Notice',
+  Section: 'Section',
+}));
 vi.mock('@/i18n/useMessages', () => ({
   useMessages: () => ({ receipts: 'receipt', receiptPending: 'pending' }),
 }));

@@ -1,6 +1,7 @@
 import { PendingReceipts } from '@/features/expenses/PendingReceipts';
 import { router } from 'expo-router';
-import { Action, DetailRow, Notice, Page } from '@/components/ui';
+import { Notice, Page, Section } from '@/components/ui';
+import { EntryGroup } from '@/components/EntryGroup';
 import { PageHeader } from '@/components/screen';
 import { goBack } from '@/components/navigation';
 import { useAuth } from '@/features/auth/AuthProvider';
@@ -18,42 +19,43 @@ export function LocalWorkScreen() {
         backLabel={t.backShort}
         onBack={() => goBack(status === 'local' ? '/drafts' : '/me')}
       />
-      <Action
-        label={t.localDrafts}
-        testID="local-drafts"
-        variant="secondary"
-        onPress={() => router.push('/drafts')}
+      <EntryGroup
+        entries={[
+          { label: t.localDrafts, testID: 'local-drafts', onPress: () => router.push('/drafts') },
+        ]}
       />
-      {queue.isError ? (
-        <Notice tone="danger">{t.queueFailed}</Notice>
-      ) : queueCount === undefined ? (
-        <Notice role="status">{t.loading}</Notice>
-      ) : (
-        <DetailRow label={t.queueTitle} value={String(queueCount)} />
-      )}
-      <Action
-        label={t.queueTitle}
-        testID="local-queue"
-        variant="secondary"
-        onPress={() => router.push('/queue')}
-      />
+      <Section title={t.queueTitle}>
+        {queue.isError && <Notice tone="danger">{t.queueFailed}</Notice>}
+        {queueCount === undefined && !queue.isError && <Notice role="status">{t.loading}</Notice>}
+        <EntryGroup
+          entries={[
+            {
+              label: t.queueTitle,
+              detail: queueCount === undefined ? undefined : String(queueCount),
+              testID: 'local-queue',
+              onPress: () => router.push('/queue'),
+            },
+          ]}
+        />
+      </Section>
       {status === 'signedIn' && <PendingReceipts />}
       {status === 'signedIn' && (
-        <>
-          {operations.isError ? (
-            <Notice tone="danger">{t.queueFailed}</Notice>
-          ) : operationCount === undefined ? (
+        <Section title={t.pendingOperations}>
+          {operations.isError && <Notice tone="danger">{t.queueFailed}</Notice>}
+          {operationCount === undefined && !operations.isError && (
             <Notice role="status">{t.loading}</Notice>
-          ) : (
-            <DetailRow label={t.pendingOperations} value={String(operationCount)} />
           )}
-          <Action
-            label={t.pendingOperations}
-            testID="pending-operations"
-            variant="secondary"
-            onPress={() => router.push('/trips/operations')}
+          <EntryGroup
+            entries={[
+              {
+                label: t.pendingOperations,
+                detail: operationCount === undefined ? undefined : String(operationCount),
+                testID: 'pending-operations',
+                onPress: () => router.push('/trips/operations'),
+              },
+            ]}
           />
-        </>
+        </Section>
       )}
     </Page>
   );

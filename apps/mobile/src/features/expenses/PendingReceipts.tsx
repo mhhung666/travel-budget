@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { router, useFocusEffect } from 'expo-router';
-import { Action, Notice, Section } from '@/components/ui';
+import { Action, DetailRow, Notice, Section } from '@/components/ui';
+import { RecoveryCard } from '@/components/RecoveryCard';
 import { useTripEntry } from '@/features/tripEntry/provider';
 import { useMessages } from '@/i18n/useMessages';
 import { openReceiptWriteStore } from '@/storage/receiptWriteDatabase';
@@ -45,16 +46,30 @@ export function PendingReceipts() {
         <Notice>{t.operationsEmpty}</Notice>
       )}
       {records.map((r, i) => (
-        <Action
+        <RecoveryCard
           key={r.input.client_request_id}
-          label={`${t.receipts} ${i + 1}`}
-          onPress={() =>
-            router.push({
-              pathname: '/trips/[id]/expenses/[expenseId]/receipt-write',
-              params: { id: r.tripId, expenseId: r.expenseId },
-            })
+          title={`${t.receipts} ${i + 1}`}
+          message={
+            r.result?.status === 'committed'
+              ? t.receiptSaved
+              : r.result?.status === 'rejected'
+                ? t.receiptRejected
+                : t.receiptPendingHint
           }
-        />
+          tone={r.result?.status === 'committed' ? 'success' : 'warning'}
+        >
+          <DetailRow label={t.requestId} value={r.input.client_request_id} />
+          <Action
+            variant="secondary"
+            label={t.receiptManage}
+            onPress={() =>
+              router.push({
+                pathname: '/trips/[id]/expenses/[expenseId]/receipt-write',
+                params: { id: r.tripId, expenseId: r.expenseId },
+              })
+            }
+          />
+        </RecoveryCard>
       ))}
     </Section>
   );

@@ -8,6 +8,8 @@ import { router, useNavigation } from 'expo-router';
 import { usePreventRemove } from 'expo-router/react-navigation';
 import { onlineManager } from '@tanstack/react-query';
 import { budgetContextV2Schema, type BudgetContext, type BudgetInput } from '@/api/contracts';
+import { Disclosure } from '@/components/Disclosure';
+import { spacing } from '@/theme/tokens';
 import { FormPage } from '@/components/screen';
 import { goBack } from '@/components/navigation';
 import { Action, Card, Copy, DetailRow, Notice, Section, TextField } from '@/components/ui';
@@ -245,15 +247,19 @@ export function BudgetScreen({ tripId, source }: { tripId: string; source?: stri
     limit: number | null,
     remaining: number | null
   ) => (
-    <Card key={label}>
+    <Card
+      key={label}
+      testID={label === t.budgetTotal ? 'budget-personal-progress' : undefined}
+      style={{ gap: spacing.compact }}
+    >
       <Copy>{label}</Copy>
-      <DetailRow label={t.mySpent} value={f.money(spent)} />
-      <DetailRow label={t.budgetLimit} value={limit == null ? t.notSet : f.money(limit)} />
       {remaining !== null && (
         <Notice tone={remaining < 0 ? 'warning' : 'info'}>
           {remaining < 0 ? t.budgetOver : t.budgetRemaining}: {f.money(Math.abs(remaining))}
         </Notice>
       )}
+      <DetailRow label={t.mySpent} value={f.money(spent)} />
+      <DetailRow label={t.budgetLimit} value={limit == null ? t.notSet : f.money(limit)} />
     </Card>
   );
   const field = (
@@ -319,48 +325,58 @@ export function BudgetScreen({ tripId, source }: { tripId: string; source?: stri
               context.progress.total,
               context.progress.remaining
             )}
-            {context.progress.categories.map((c) =>
-              progress(label(c.category), c.spent, c.budget, c.remaining)
+            {context.progress.categories
+              .filter((c) => c.remaining !== null && c.remaining < 0)
+              .map((c) => progress(label(c.category), c.spent, c.budget, c.remaining))}
+            {context.progress.categories.some((c) => c.remaining === null || c.remaining >= 0) && (
+              <Disclosure title={t.categoryBudgets} testID="budget-category-progress">
+                {context.progress.categories
+                  .filter((c) => c.remaining === null || c.remaining >= 0)
+                  .map((c) => progress(label(c.category), c.spent, c.budget, c.remaining))}
+              </Disclosure>
             )}
           </Section>
           <Copy>{t.budgetProgressHint}</Copy>
           <Action
             testID="budget-refresh"
+            variant="ghost"
             label={t.refresh}
             disabled={!online || dirty || busy}
             onPress={() => void run(load)}
           />
-          <Section title={t.editBudget}>
-            <Copy>{t.budgetInputHint}</Copy>
-            {field('budget-total', t.budgetTotal, fields.total, (total) =>
-              change({ ...fields, total })
-            )}
-            <Section title={t.categoryBudgets}>
-              {expenseCategories.map((category) =>
-                field(
-                  `budget-category-${category}`,
-                  categoryLabel(category, t),
-                  fields.categories[category] ?? '',
-                  (value) =>
-                    change({ ...fields, categories: { ...fields.categories, [category]: value } })
-                )
+          <Card testID="budget-edit" style={{ gap: spacing.compact }}>
+            <Section title={t.editBudget}>
+              <Copy>{t.budgetInputHint}</Copy>
+              {field('budget-total', t.budgetTotal, fields.total, (total) =>
+                change({ ...fields, total })
               )}
+              <Section title={t.categoryBudgets}>
+                {expenseCategories.map((category) =>
+                  field(
+                    `budget-category-${category}`,
+                    categoryLabel(category, t),
+                    fields.categories[category] ?? '',
+                    (value) =>
+                      change({ ...fields, categories: { ...fields.categories, [category]: value } })
+                  )
+                )}
+              </Section>
+              <Action
+                testID="budget-clear"
+                variant="ghost"
+                label={t.clearBudget}
+                disabled={busy}
+                onPress={() => change({ total: '', categories: {} })}
+              />
+              <Action
+                testID="budget-review"
+                label={t.reviewExpenseChangesAction}
+                busy={busy}
+                disabled={!online || !dirty || !!latest}
+                onPress={() => void review()}
+              />
             </Section>
-            <Action
-              testID="budget-clear"
-              variant="ghost"
-              label={t.clearBudget}
-              disabled={busy}
-              onPress={() => change({ total: '', categories: {} })}
-            />
-            <Action
-              testID="budget-review"
-              label={t.reviewExpenseChangesAction}
-              busy={busy}
-              disabled={!online || !dirty || !!latest}
-              onPress={() => void review()}
-            />
-          </Section>
+          </Card>
           {(dirty || latest) && (
             <Action
               testID="budget-discard"

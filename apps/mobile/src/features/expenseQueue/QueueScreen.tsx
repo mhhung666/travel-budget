@@ -1,7 +1,7 @@
 import { goBack } from '@/components/navigation';
 import { useRef, useState } from 'react';
 import { router } from 'expo-router';
-import { Action, Copy, DetailRow, Notice, Page } from '@/components/ui';
+import { Action, Card, Copy, DetailRow, Notice, Page } from '@/components/ui';
 import { useExpenseQueue } from '@/features/expenses/entryProvider';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { useMessages } from '@/i18n/useMessages';
@@ -87,21 +87,6 @@ function ScopedQueueScreen() {
           />
         </>
       )}
-      <Action
-        testID="queue-sync"
-        label={t.queueSync}
-        busy={busy}
-        disabled={
-          !online ||
-          status !== 'signedIn' ||
-          busy ||
-          !scope ||
-          deadline.isPending ||
-          deadline.isError ||
-          deadline.waiting
-        }
-        onPress={() => void act(() => queue.synchronize(scope!))}
-      />
       {(records.isError || deadline.isError) && (
         <RecoveryCard message={t.recoveryLoadFailed} tone="danger">
           <Action
@@ -119,8 +104,23 @@ function ScopedQueueScreen() {
           <DetailRow label={t.queueRetryAt} value={format.instant(deadline.until)} />
         </RecoveryCard>
       )}
+      <Action
+        testID="queue-sync"
+        label={t.queueSync}
+        busy={busy}
+        disabled={
+          !online ||
+          status !== 'signedIn' ||
+          busy ||
+          !scope ||
+          deadline.isPending ||
+          deadline.isError ||
+          deadline.waiting
+        }
+        onPress={() => void act(() => queue.synchronize(scope!))}
+      />
       {blocked && visible(blocked) && (
-        <>
+        <Card testID="queue-replace-confirm">
           <Notice tone="warning">{t.queueDraftExists}</Notice>
           <Action
             variant="danger"
@@ -129,7 +129,7 @@ function ScopedQueueScreen() {
             onPress={() => void restore(blocked, true)}
           />
           <Action variant="ghost" label={t.cancel} onPress={() => setBlocked(null)} />
-        </>
+        </Card>
       )}
       {records.isPending && <RecoveryCard message={t.loading} />}
       {items?.length === 0 && <RecoveryCard message={t.queueEmpty} testID="queue-empty" />}

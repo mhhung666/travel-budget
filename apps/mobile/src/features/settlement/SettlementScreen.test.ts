@@ -6,6 +6,7 @@ import { formatDate, localDate, money } from '@/i18n/format';
 import { SettlementScreen } from './SettlementScreen';
 
 const h = vi.hoisted(() => ({
+  expanded: false,
   locale: 'en' as keyof typeof messages,
   online: true,
   visible: true,
@@ -23,6 +24,12 @@ const h = vi.hoisted(() => ({
 vi.mock('react', async (original) => ({
   ...(await original<typeof import('react')>()),
   useMemo: (factory: () => unknown) => factory(),
+  useState: () => [
+    h.expanded,
+    (next: boolean | ((v: boolean) => boolean)) => {
+      h.expanded = typeof next === 'function' ? next(h.expanded) : next;
+    },
+  ],
 }));
 vi.mock('@/features/expenses/useTripMembers', () => ({
   useTripMembers: () => ({
@@ -34,7 +41,7 @@ vi.mock('@/features/expenses/useTripMembers', () => ({
   }),
 }));
 vi.mock('react-native', () =>
-  Object.fromEntries(['Text', 'View', 'ActivityIndicator'].map((n) => [n, n]))
+  Object.fromEntries(['Text', 'View', 'Pressable', 'ActivityIndicator'].map((n) => [n, n]))
 );
 vi.mock('expo-router', () => ({ router: { push: h.push } }));
 vi.mock('@/features/navigation/TripContext', () => ({ TripContext: 'TripContext' }));
@@ -42,9 +49,18 @@ vi.mock('@/components/ui', async () => {
   const { colors } = await import('@/theme/tokens');
   return {
     ...Object.fromEntries(
-      ['Action', 'Badge', 'Card', 'Copy', 'Metric', 'Notice', 'Page', 'Section', 'Title'].map(
-        (n) => [n, n]
-      )
+      [
+        'Action',
+        'Badge',
+        'Card',
+        'Copy',
+        'Icon',
+        'Metric',
+        'Notice',
+        'Page',
+        'Section',
+        'Title',
+      ].map((n) => [n, n])
     ),
     usePalette: () => colors.light,
   };
@@ -123,6 +139,7 @@ const original: Settlement = {
 beforeEach(() => {
   vi.clearAllMocks();
   h.locale = 'en';
+  h.expanded = false;
   h.online = h.visible = true;
   h.user = { id: a };
   Object.assign(h.query, {
@@ -243,6 +260,7 @@ it('offline stale data remains readable with disabled write entrances and readon
   h.online = false;
   h.query.isError = true;
   h.query.error = 'network';
+  (find('settlement-other-transfers').props.onPress as () => void)();
   const tree = render();
   expect(texts(tree)).toContain(messages.en.staleData);
   expect(find('settlement-total', tree)).toBeDefined();
@@ -285,3 +303,30 @@ it.each(['USD', 'JPY'] as const)('B3 settlement and payments preserve %s cents',
   expect(texts(tree)).toContain(`${base} ·`);
   expect(texts(tree)).not.toContain('NT$');
 });
+
+it.each(Object.keys(messages) as (keyof typeof messages)[])(
+  'keeps other-member suggestions optional and third-party registration intact: %s',
+  (locale) => {
+    h.locale = locale;
+    const before = structuredClone(h.query.data);
+    expect(nodes(render()).some((n) => n.props.testID === 'settlement-transfer-1')).toBe(false);
+    expect(find('settlement-other-transfers').props.accessibilityState).toEqual({
+      expanded: false,
+    });
+    (find('settlement-other-transfers').props.onPress as () => void)();
+    const other = find('settlement-transfer-1');
+    const record = nodes(other).find((n) => n.props.testID === 'settlement-record-payment')!;
+    (record.props.onPress as () => void)();
+    expect(h.push).toHaveBeenLastCalledWith({
+      pathname: '/trips/[id]/payments/edit',
+      params: { id: 'trip', from: b, to: c, amount: '2' },
+    });
+    (find('settlement-other-transfers').props.onPress as () => void)();
+    expect(find('settlement-other-transfers').props.accessibilityState).toEqual({
+      expanded: false,
+    });
+    expect(find('payment-revoke-payment')).toBeDefined();
+    expect(h.query.refetch).not.toHaveBeenCalled();
+    expect(h.query.data).toEqual(before);
+  }
+);
