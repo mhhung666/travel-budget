@@ -285,3 +285,7 @@ receiptFiles 用 Expo picker／manipulator／filesystem：圖片最長邊 2400�
 ## M3b Email 生命週期
 
 `EmailChanger`／`EmailScreen` 是 signedIn Stack 的線上頁面，以環境／本人／登入世代建立；沒有新根 provider、持久化或私人 Email query。controller 分開 sendUntil／verifyUntil，所有入口檢查前景、連線、世代、busy、未知及期限，不靠按鈕控制限流；錯碼／投遞拒絕明示，未知鎖寫入，只允許明確本人讀取，沒有重播。嘗試後清碼，卸載清碼／新信箱／私人 profile；晚到結果不更新其他帳號。個人資料使用 focus 重讀，原 editor 保留未保存名稱，避免返回顯示舊信箱。後端及重啟語意見 [M3b 契約](BACKEND_CONTRACT.md#m3b-本人變更-email)。
+
+## M4a 通知偏好
+
+`NotificationEditor` 用 SessionManager.requestAs、登入世代與發送前 online／AppState guard 讀寫本人 v2 偏好；NotificationsScreen 依環境／帳號／登入世代重建表單。設定只留記憶體，不使用裝置 PreferencesStore、私人 Query cache、憑證或支出 outbox。控制器序列化讀寫及雙擊，部分更新只送改動欄位；未知結果禁止再送，成功重讀接受目前設定且不等同原操作 receipt。取消／登出不刪其他已確認工作。兩端 writer 及舊資料預設見 [M4a 契約](BACKEND_CONTRACT.md#m4a-本人通知偏好)。

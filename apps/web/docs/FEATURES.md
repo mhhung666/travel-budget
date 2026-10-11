@@ -75,3 +75,5 @@ E2 已加入匿名註冊、Email 六位碼寄送／重設；Web 與 Mobile 共�
 Mobile E3 提供線上基本資料／明確 TWD 重新均分與刪除，與 Web 共用後端維護模組；版本前條件防止手機覆蓋 Web 新內容，UUID receipt 供結果不明恢復。Web 既有進階編輯欄位與協作權限保留；詳見 [Mobile E3 契約](../../mobile/docs/BACKEND_CONTRACT.md#e3-支出維護)。
 
 E4 還款後端已抽成 Web／Mobile 共用服務，Web 同步驗證 0.01–1,000,000,000.00 TWD 與最多兩位小數，通知／動態原子提交，提交後快取或外部通知失敗不推翻成功；Mobile 的結算前條件／UUID 恢復見 [E4 契約](../../mobile/docs/BACKEND_CONTRACT.md#e4-登記與撤銷還款)。尚未部署，裝置驗收另行交接。
+
+M4a 通知偏好與 Mobile 共用本人設定服務；Email 開關及通知語言各自保存，不再隨 Web 顯示語言切換改動背景通知語言。Web 設定頁明示兩種語言的差異、讀取失敗與未知保存需重讀；Email opt-out 不影響站內、Web Push 或帳號驗證／安全信件。原生推播及收件匣另片。

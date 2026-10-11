@@ -199,7 +199,13 @@
       "pushDevices": "登録済みの端末",
       "pushThisDevice": "この端末",
       "pushRemoveDevice": "この端末を削除",
-      "unknownDevice": "不明な端末"
+      "unknownDevice": "不明な端末",
+      "languageLabel": "通知の言語",
+      "languageHelp": "バックグラウンドのメールと Web プッシュに使用し、端末の表示言語とは別に設定します。アプリ内通知、認証とセキュリティのメールは停止されません。",
+      "current": "現在の設定を取得しました。他の端末の変更を含む場合があります。",
+      "unknown": "保存結果が不明です。現在の設定を確認してください。自動で再送しません。",
+      "checkCurrent": "現在の設定を確認",
+      "refresh": "設定を再取得"
     },
     "appearance": {
       "title": "外観",

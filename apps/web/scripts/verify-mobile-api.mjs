@@ -3572,6 +3572,29 @@ try {
   pass(
     'M3b HTTP/isolated DB: explicit delivery refusal, atomic confirmation, one concurrent email owner, actor quotas, delayed delivery/cancel races and lost acknowledgement profile read; real delivery remains unverified'
   );
+  const notificationBefore = await db.collection('users').findOne({ _id: e2UserId });
+  await request('/me/notification-preferences', { status: 401 });
+  await request('/me/notification-preferences', {
+    token: m3Recovered.accessToken, method: 'PATCH', body: { locale: 'en', userId: writerId }, status: 400,
+  });
+  await request('/me/notification-preferences', {
+    token: m3Recovered.accessToken, method: 'PATCH', body: {}, status: 400,
+  });
+  const notificationLanguage = await request('/me/notification-preferences', {
+    token: m3Recovered.accessToken, method: 'PATCH', body: { locale: 'en' }, schema: contracts.notificationPreferencesSchema,
+  });
+  assert.equal(notificationLanguage.data.locale, 'en');
+  const notificationToggle = await request('/me/notification-preferences', {
+    token: m3Recovered.accessToken, method: 'PATCH', body: { notifyByEmail: false }, schema: contracts.notificationPreferencesSchema,
+  });
+  assert.deepEqual(notificationToggle.data, { notifyByEmail: false, locale: 'en' });
+  const notificationCurrent = await request('/me/notification-preferences', {
+    token: m3Recovered.accessToken, schema: contracts.notificationPreferencesSchema,
+  });
+  assert.deepEqual(notificationCurrent.data, notificationToggle.data);
+  const notificationAfter = await db.collection('users').findOne({ _id: e2UserId });
+  assert.deepEqual({ ...notificationAfter, notifyByEmail: notificationBefore.notifyByEmail, locale: notificationBefore.locale }, notificationBefore);
+  pass('M4a true HTTP: strict self preferences, independent partial fields and current-state recovery, no identity changes');
   const passwordCases = await exec('pnpm', ['exec', 'vitest', 'run', 'src/__tests__/accountPassword.integration.test.ts'], {
     env: { ...process.env, MONGODB_MEMBER_TEST_URI: uri, MONGODB_MEMBER_TEST_ALLOW_WRITES: '1' }, maxBuffer: 1024 * 1024,
   });
@@ -3580,8 +3603,8 @@ try {
   const profileCases = await exec('pnpm', ['exec', 'vitest', 'run', 'src/__tests__/accountProfile.integration.test.ts'], {
     env: { ...process.env, MONGODB_MEMBER_TEST_URI: uri, MONGODB_MEMBER_TEST_ALLOW_WRITES: '1' }, maxBuffer: 1024 * 1024,
   });
-  assert(profileCases.stdout.includes('4 passed'), 'Profile DB cases did not run');
-  pass('M1 isolated DB: shared Web/mobile validation, self-only profile, private projection, identity refresh and credential preservation');
+  assert(profileCases.stdout.includes('5 passed'), 'Profile/notification DB cases did not run');
+  pass('M1/M4a isolated DB: shared Web/mobile self profile and partial notification preferences, private projection, actor isolation and credential preservation');
   const avatarCases = await exec('pnpm', ['exec', 'vitest', 'run', 'src/__tests__/avatarWrite.integration.test.ts'], {
     env: { ...process.env, MONGODB_MEMBER_TEST_URI: uri, MONGODB_MEMBER_TEST_ALLOW_WRITES: '1' }, maxBuffer: 1024 * 1024,
   });

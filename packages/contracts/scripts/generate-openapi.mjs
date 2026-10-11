@@ -20,6 +20,8 @@ import {
   userSchema,
   accountProfileSchema,
   accountProfileInput,
+  notificationPreferencesSchema,
+  notificationPreferencesInput,
   avatarContextSchema,
   avatarWriteInput,
   avatarWriteStateSchema,
@@ -126,6 +128,8 @@ const schemas = Object.fromEntries(
     PasswordChangeResult: passwordChangeResultSchema,
     AccountProfile: accountProfileSchema,
     AccountProfileInput: accountProfileInput,
+    NotificationPreferences: notificationPreferencesSchema,
+    NotificationPreferencesInput: notificationPreferencesInput,
     Session: sessionSchema,
     Trips: tripsSchema,
     Landing: landingSchema,
@@ -231,6 +235,21 @@ const templates = {
     post: operation('changePassword', 'PasswordChangeResult', 'PasswordChangeInput', {
       authenticated: true,
     }),
+  },
+  '/me/notification-preferences': {
+    get: operation('notificationPreferences', 'NotificationPreferences', undefined, {
+      authenticated: true,
+    }),
+    patch: {
+      ...operation(
+        'updateNotificationPreferences',
+        'NotificationPreferences',
+        'NotificationPreferencesInput',
+        { authenticated: true }
+      ),
+      description:
+        'Self-only partial settings update; at least one field required. Notification locale is independent of device/UI locale. On unknown outcomes read current settings before deciding to save again. No ledger journal.',
+    },
   },
   '/me/profile': {
     get: operation('accountProfile', 'AccountProfile', undefined, { authenticated: true }),

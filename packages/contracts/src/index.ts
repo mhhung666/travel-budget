@@ -81,6 +81,21 @@ export const displayNameInputSchema = z.string().trim().min(1).max(100);
 export const accountProfileInput = z.object({ displayName: displayNameInputSchema }).strict();
 export const accountProfileSchema = userSchema.extend({ email: z.string() }).strict();
 export type AccountProfile = z.infer<typeof accountProfileSchema>;
+
+export const notificationLocaleSchema = z.enum(['zh', 'zh-CN', 'en', 'jp']);
+export const notificationPreferencesSchema = z
+  .object({
+    notifyByEmail: z.boolean(),
+    locale: notificationLocaleSchema,
+  })
+  .strict();
+export const notificationPreferencesInput = notificationPreferencesSchema
+  .partial()
+  .strict()
+  .refine((value) => value.notifyByEmail !== undefined || value.locale !== undefined);
+export type NotificationPreferences = z.infer<typeof notificationPreferencesSchema>;
+export type NotificationPreferencesInput = z.infer<typeof notificationPreferencesInput>;
+
 export const logoutResultSchema = z.object({ loggedOut: z.literal(true) });
 export const sessionSchema = z.object({
   accessToken: z.string(),

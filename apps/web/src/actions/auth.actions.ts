@@ -5,6 +5,12 @@ import {
   readAccountDetails,
   updateAccountProfile,
 } from '@/lib/accountProfile';
+import {
+  AccountNotificationsError,
+  readAccountNotifications,
+  updateAccountNotifications,
+} from '@/lib/accountNotifications';
+import type { NotificationPreferences } from '@travel-budget/contracts';
 import { headers } from 'next/headers';
 import {
   AccountEntryError,
@@ -20,8 +26,6 @@ import {
   AccountEmailError,
 } from '@/lib/accountEmail';
 import { changeAccountPassword, AccountPasswordError } from '@/lib/accountPassword';
-import { dbConnect } from '@/lib/mongodb';
-import { User as UserModel } from '@/models';
 import { createSession, deleteSession, getSession } from '@/lib/auth';
 import {
   loginSchema,
@@ -251,36 +255,41 @@ export const updateProfile = withAuth(
   }
 );
 
-/**
- * 更新通知偏好（目前：Email 通知開關 + 寄信語系）。
- * 站內通知一律保留（不可關），Email 為 opt-out。`locale` 由設定頁帶入當前 UI 語系，
- * 供 notify() 的 Email fan-out 決定寄信語系（站內通知仍靠前端依檢視者語系渲染）。
- */
+/** Self-only read; notification language is independent of the UI cookie. */
+export const getNotificationPrefs = withAuth(
+  async (session): Promise<ActionResult<NotificationPreferences>> => {
+    try {
+      return { success: true, data: await readAccountNotifications(session.userId) };
+    } catch (error) {
+      return notificationFailure(error);
+    }
+  }
+);
+function notificationFailure(error: unknown): ActionResult<never> {
+  if (error instanceof AccountNotificationsError)
+    return { success: false, error: error.code, code: error.code };
+  logger.error('Notification preferences failed');
+  return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
+}
+/** Legacy snake-case adapter keeps optional locale and now returns the stored values. */
 export const updateNotificationPrefs = withAuth(
   async (
     session,
-    input: { notify_by_email: boolean; locale?: string }
-  ): Promise<ActionResult<{ message: string }>> => {
+    input: { notify_by_email?: boolean; locale?: string }
+  ): Promise<ActionResult<NotificationPreferences & { message: string }>> => {
+    const parsed = notificationPrefsSchema.safeParse(input);
+    if (!parsed.success)
+      return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
     try {
-      const validation = notificationPrefsSchema.safeParse(input);
-      if (!validation.success) {
-        return {
-          success: false,
-          error: validation.error.issues[0].message,
-          code: 'VALIDATION_ERROR',
-        };
-      }
-
-      const { notify_by_email, locale } = validation.data;
-      const updateData: Record<string, unknown> = { notifyByEmail: notify_by_email };
-      if (locale !== undefined) updateData.locale = locale;
-
-      await dbConnect();
-      await UserModel.updateOne({ _id: session.userId }, { $set: updateData });
-      return { success: true, data: { message: 'OK' } };
+      const data = await updateAccountNotifications(session.userId, {
+        ...(parsed.data.notify_by_email === undefined
+          ? {}
+          : { notifyByEmail: parsed.data.notify_by_email }),
+        ...(parsed.data.locale === undefined ? {} : { locale: parsed.data.locale }),
+      });
+      return { success: true, data: { ...data, message: 'OK' } };
     } catch (error) {
-      logger.error('Update notification prefs error', error);
-      return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
+      return notificationFailure(error);
     }
   }
 );

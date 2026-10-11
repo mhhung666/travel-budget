@@ -12,6 +12,7 @@ import {
   passwordResetInput,
   emailChangeRequestInput,
   emailChangeConfirmInput,
+  notificationPreferencesSchema,
 } from '@travel-budget/contracts';
 import { SUPPORTED_CURRENCY_CODES } from '@/constants/currencies';
 
@@ -242,11 +243,14 @@ export const confirmEmailChangeSchema = emailChangeConfirmInput.extend({
   new_email: emailChangeConfirmInput.shape.new_email.optional(),
 });
 
-// 通知偏好（Email 開關 + 寄信語系）。locale 收斂為支援語系，無效值由 action 端忽略。
-export const notificationPrefsSchema = z.object({
-  notify_by_email: z.boolean(),
-  locale: z.enum(['en', 'zh', 'zh-CN', 'jp']).optional(),
-});
+// Notification preferences: independent partial updates; reject unknown targets/fields.
+export const notificationPrefsSchema = z
+  .object({
+    notify_by_email: notificationPreferencesSchema.shape.notifyByEmail.optional(),
+    locale: notificationPreferencesSchema.shape.locale.optional(),
+  })
+  .strict()
+  .refine((value) => value.notify_by_email !== undefined || value.locale !== undefined);
 
 // Web Push 訂閱（W3C PushSubscriptionJSON 的子集，ROADMAP #9 Phase 3）。前端傳入
 // subscription.toJSON()，只取送推播必要的 endpoint + keys；expirationTime 不存。

@@ -174,3 +174,7 @@ replace 等待期限 24 小時，最後五分鐘不再簽發／完成，未完�
 新增 `/api/v2/me/email/request|confirm|cancel` POST，本人 bearer、嚴格共用 schemas、no-store／Vary Authorization；Web 舊 request／confirm RPC 相容並共用服務，新增 cancel adapter。配額、投遞候選／原子消耗、原信箱／新信箱核對、錯誤及相容／恢復集中於 [M3b 契約](../../mobile/docs/BACKEND_CONTRACT.md#m3b-本人變更-email)。一般身分／成員 DTO、密碼與 session 不變。
 
 `test:mobile-api` 核對未配置 sender 明確失敗、嚴格 HTTP、自身驗碼及丟回應後本人 GET，並執行十一項隔離 replica-set 故障／競態測試（provider mocked）。真 provider 投遞、四語郵件與 iOS／Web 操作由 [M3b 交接](../../mobile/docs/LOCAL_ACCEPTANCE.md#m3b-email-變更交接) 驗收；未操作遠端 mail／DB，E2 匿名額度風險未解。
+
+## M4a 本人通知偏好
+
+新增 GET／PATCH `/api/v2/me/notification-preferences`，本人 bearer、嚴格部分更新及 no-store／Vary Authorization；Web RPC 與 Native 共用服務，通知語言與 Web cookie／Mobile 顯示語言獨立，身分／旅行 DTO 不變。欄位、舊值預設及未知結果恢復見 [M4a 契約](../../mobile/docs/BACKEND_CONTRACT.md#m4a-本人通知偏好)。`test:mobile-api` 增加本人隔離／非法欄位／部分保存與現值核對；真通知及 iOS 操作仍由他人驗收。

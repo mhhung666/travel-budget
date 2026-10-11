@@ -1,4 +1,16 @@
 const zh = {
+  notificationTitle: '通知偏好',
+  notificationScope: '此設定屬於帳號，會同步到 Web 與其他裝置。站內通知仍會保留。',
+  notificationEmail: 'Email 通知',
+  notificationEmailHint: '接收旅行活動及支出摘要 Email。關閉不影響驗證碼與帳號安全信件。',
+  notificationLanguage: '通知語言',
+  notificationLanguageHint: '用於背景 Email 與既有 Web 推播，不會改變本機顯示語言。',
+  notificationSaved: '通知設定已保存。',
+  notificationCurrent: '已讀取目前設定，可能包含其他裝置的修改。請核對後再決定是否保存。',
+  notificationUnknown: '保存結果尚未確認。請先查詢目前設定，不會自動重送。',
+  notificationOffline: '通知設定需要連線。',
+  notificationUnsaved: '設定尚未保存，離開會捨棄變更。',
+
   emailChangeTitle: '變更 Email',
   emailChangeHint: '驗證新信箱後才會變更。驗證碼有效 15 分鐘，最多五次錯誤；輸入不保存在本機。',
   emailChangeUnsaved: '離開會清除輸入，但不會取消已寄出的驗證碼。要作廢驗證碼，請使用取消變更。',
@@ -613,6 +625,18 @@ export type Messages = Record<keyof typeof zh, string>;
 export const messages = {
   zh,
   'zh-CN': {
+    notificationTitle: '通知偏好',
+    notificationScope: '此设置属于账号，会同步到 Web 与其他设备。站内通知仍会保留。',
+    notificationEmail: 'Email 通知',
+    notificationEmailHint: '接收旅行活动及支出摘要 Email。关闭不影响验证码与账号安全邮件。',
+    notificationLanguage: '通知语言',
+    notificationLanguageHint: '用于后台 Email 与现有 Web 推送，不会改变本机显示语言。',
+    notificationSaved: '通知设置已保存。',
+    notificationCurrent: '已读取当前设置，可能包含其他设备的修改。请核对后再决定是否保存。',
+    notificationUnknown: '保存结果尚未确认。请先查询当前设置，不会自动重发。',
+    notificationOffline: '通知设置需要联网。',
+    notificationUnsaved: '设置尚未保存，离开会放弃更改。',
+
     emailChangeTitle: '变更 Email',
     emailChangeHint: '验证新邮箱后才会变更。验证码有效 15 分钟，最多五次错误；输入不保存在本机。',
     emailChangeUnsaved: '离开会清除输入，但不会取消已寄出的验证码。要作废验证码，请使用取消变更。',
@@ -1222,6 +1246,23 @@ export const messages = {
     done: '完成',
   },
   en: {
+    notificationTitle: 'Notification preferences',
+    notificationScope:
+      'These account settings sync with Web and other devices. In-app notifications remain enabled.',
+    notificationEmail: 'Email notifications',
+    notificationEmailHint:
+      'Receive trip activity and expense summaries by email. Verification and security emails remain enabled.',
+    notificationLanguage: 'Notification language',
+    notificationLanguageHint:
+      'Used for background emails and existing Web push. It does not change this device’s display language.',
+    notificationSaved: 'Notification settings saved.',
+    notificationCurrent:
+      'Current settings loaded; they may include changes from another device. Review before saving again.',
+    notificationUnknown:
+      'Save outcome is unknown. Check current settings first; changes will not be resent automatically.',
+    notificationOffline: 'Notification settings require a connection.',
+    notificationUnsaved: 'Settings are unsaved. Leaving discards your changes.',
+
     emailChangeTitle: 'Change email',
     emailChangeHint:
       'Your current email changes only after verification. Codes last 15 minutes with five incorrect attempts. Inputs are not saved locally.',
@@ -1930,6 +1971,23 @@ export const messages = {
     done: 'Done',
   },
   jp: {
+    notificationTitle: '通知設定',
+    notificationScope:
+      'アカウントの設定は Web と他の端末にも反映されます。アプリ内通知は引き続き届きます。',
+    notificationEmail: 'Email 通知',
+    notificationEmailHint:
+      '旅行の更新や支出の概要をメールで受信します。認証コードやセキュリティメールは停止されません。',
+    notificationLanguage: '通知の言語',
+    notificationLanguageHint:
+      'バックグラウンドのメールと既存の Web プッシュに使用します。この端末の表示言語は変わりません。',
+    notificationSaved: '通知設定を保存しました。',
+    notificationCurrent:
+      '現在の設定を取得しました。他の端末の変更を含む場合があります。再保存の前に確認してください。',
+    notificationUnknown:
+      '保存結果が不明です。まず現在の設定を確認してください。自動で再送しません。',
+    notificationOffline: '通知設定には接続が必要です。',
+    notificationUnsaved: '未保存の設定があります。戻ると変更を破棄します。',
+
     emailChangeTitle: 'メールアドレス変更',
     emailChangeHint:
       '新しいアドレスの確認後に変更します。コードは15分間有効で、誤入力は5回までです。入力は端末に保存しません。',

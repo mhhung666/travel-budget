@@ -137,3 +137,7 @@ Web `getCurrentUser`／名稱版 `updateProfile` 與 Mobile `/api/v2/me/profile`
 ## M3b 共用 Email 變更
 
 `accountEmail.ts` 是 Web RPC／Native adapter 的唯一 writer；本人 fence 和 snapshot majority 交易協調一次性驗碼、目標信箱／原信箱檢查、case-insensitive 唯一性及取消。Email provider 在交易外，未公布 candidate 不取代 active code，只有仍屬目前候選的投遞結果可公布，錯誤／取消／較新操作不復活舊碼。`EmailChangeSection` 取代舊 profile 內獨立 handlers：防雙擊、分開寄碼與驗碼期限、取消須 server 成功，未知先讀目前資料，無敏感 journal。共用額度、舊碼相容與索引／部署限制見 [M3b 契約](../../mobile/docs/BACKEND_CONTRACT.md#m3b-本人變更-email)。
+
+## M4a 帳號通知偏好
+
+`accountNotifications.ts` 共用 Web cookie RPC 與 Native v2 本人偏好讀寫，固定投影、非虛擬本人條件與原子部分 `$set` 回傳實值；不調整資料形狀、登入身分或通知 fan-out。NotificationsSection 保存開關不再帶 UI locale，通知語言獨立選擇；讀失敗不開放假預設、未知寫入先重讀。`setLocale` 只寫 NEXT_LOCALE cookie，不再同步 User.locale，背景通知仍使用既有帳號 locale。詳細契約見 [M4a](../../mobile/docs/BACKEND_CONTRACT.md#m4a-本人通知偏好)。

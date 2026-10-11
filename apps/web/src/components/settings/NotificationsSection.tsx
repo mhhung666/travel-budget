@@ -1,24 +1,31 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import {
-  getCurrentUser,
+  getNotificationPrefs,
   updateNotificationPrefs,
   getPushSubscriptions,
   deletePushSubscription,
 } from '@/actions';
 import type { PushDeviceItem } from '@/actions';
+import type { NotificationPreferences } from '@travel-budget/contracts';
 import { describeUserAgent } from '@/lib/pushDevice';
 import { formatRelativeTime } from '@/lib/relativeTime';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
-import { logger } from '@/lib/logger';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 /**
  * 通知偏好（/settings/notifications）：Email 通知開關 + Web Push 訂閱與裝置管理。
@@ -31,43 +38,87 @@ export function NotificationsSection() {
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [notifyByEmail, setNotifyByEmail] = useState(true);
+  const [preferences, setPreferences] = useState<NotificationPreferences | null>(null);
+  const [uncertain, setUncertain] = useState(false);
+  const operation = useRef(false);
+  const generation = useRef(0);
   const [updatingNotifications, setUpdatingNotifications] = useState(false);
 
   // Web Push 訂閱（瀏覽器推播；opt-in 即「有沒有訂閱」，不存 User 層開關）
   const push = usePushNotifications();
   const [pushDevices, setPushDevices] = useState<PushDeviceItem[]>([]);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const result = await getCurrentUser();
-        if (result.success && result.data) setNotifyByEmail(result.data.notify_by_email);
-      } catch (error) {
-        logger.error('獲取用戶資料失敗', error);
+  const readPreferences = useCallback(async () => {
+    if (operation.current) return;
+    operation.current = true;
+    const current = generation.current;
+    setUpdatingNotifications(true);
+    setError('');
+    setSuccess('');
+    try {
+      const result = await getNotificationPrefs();
+      if (current !== generation.current) return;
+      if (!result.success) {
+        setError(t('errors.updateFailed'));
+        return;
       }
-    })();
-  }, []);
+      setPreferences(result.data);
+      setUncertain(false);
+      setSuccess(t('notifications.current'));
+    } catch {
+      if (current === generation.current) setError(t('errors.updateFailed'));
+    } finally {
+      if (current === generation.current) {
+        operation.current = false;
+        setUpdatingNotifications(false);
+      }
+    }
+  }, [t]);
+  useEffect(() => {
+    const current = generation.current;
+    queueMicrotask(() => {
+      if (generation.current === current) void readPreferences();
+    });
+    return () => {
+      generation.current = current + 1;
+      operation.current = false;
+    };
+  }, [readPreferences]);
 
-  const handleSaveNotifications = async (next: boolean) => {
+  const handleSaveNotifications = async (input: { notify_by_email?: boolean; locale?: string }) => {
+    if (operation.current || uncertain || !preferences) return;
+    operation.current = true;
+    const current = generation.current;
     setError('');
     setSuccess('');
     setUpdatingNotifications(true);
-    // 樂觀更新；失敗時回復
-    const prev = notifyByEmail;
-    setNotifyByEmail(next);
     try {
-      // 存檔時帶入當前 UI 語系，供伺服端 Email 寄送決定語系
-      const result = await updateNotificationPrefs({ notify_by_email: next, locale });
+      const result = await updateNotificationPrefs(input);
+      if (current !== generation.current) return;
       if (!result.success) {
-        throw new Error(result.error || t('errors.updateFailed'));
+        const definite = [
+          'VALIDATION_ERROR',
+          'NOT_FOUND',
+          'UNAUTHORIZED',
+          'FORBIDDEN',
+          'RATE_LIMITED',
+        ].includes(result.code ?? '');
+        setUncertain(!definite);
+        setError(t(definite ? 'errors.updateFailed' : 'notifications.unknown'));
+        return;
       }
+      setPreferences({ notifyByEmail: result.data.notifyByEmail, locale: result.data.locale });
       setSuccess(t('notifications.updateSuccess'));
-    } catch (err: unknown) {
-      setNotifyByEmail(prev);
-      setError(err instanceof Error ? err.message : String(err));
+    } catch {
+      if (current === generation.current) {
+        setUncertain(true);
+        setError(t('notifications.unknown'));
+      }
     } finally {
-      setUpdatingNotifications(false);
+      if (current === generation.current) {
+        operation.current = false;
+        setUpdatingNotifications(false);
+      }
     }
   };
 
@@ -128,9 +179,11 @@ export function NotificationsSection() {
         <CardContent className="space-y-4 pt-6">
           <label className="flex items-start gap-3 cursor-pointer">
             <Checkbox
-              checked={notifyByEmail}
-              disabled={updatingNotifications}
-              onCheckedChange={(checked) => handleSaveNotifications(checked === true)}
+              checked={preferences?.notifyByEmail ?? false}
+              disabled={updatingNotifications || !preferences || uncertain}
+              onCheckedChange={(checked) =>
+                handleSaveNotifications({ notify_by_email: checked === true })
+              }
               className="mt-0.5"
             />
             <span className="space-y-1">
@@ -142,6 +195,35 @@ export function NotificationsSection() {
               </span>
             </span>
           </label>
+
+          <div className="space-y-2">
+            <label htmlFor="notification-language" className="text-sm font-medium text-foreground">
+              {t('notifications.languageLabel')}
+            </label>
+            <p className="text-xs text-muted-foreground">{t('notifications.languageHelp')}</p>
+            <Select
+              value={preferences?.locale ?? ''}
+              disabled={updatingNotifications || !preferences || uncertain}
+              onValueChange={(value) => void handleSaveNotifications({ locale: value })}
+            >
+              <SelectTrigger id="notification-language">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="zh">繁體中文</SelectItem>
+                <SelectItem value="zh-CN">简体中文</SelectItem>
+                <SelectItem value="en">English</SelectItem>
+                <SelectItem value="jp">日本語</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              disabled={updatingNotifications}
+              onClick={() => void readPreferences()}
+            >
+              {t(uncertain ? 'notifications.checkCurrent' : 'notifications.refresh')}
+            </Button>
+          </div>
 
           {/* Web Push（瀏覽器推播）。不支援/未配置時停用並提示。 */}
           <label className="flex items-start gap-3 cursor-pointer">

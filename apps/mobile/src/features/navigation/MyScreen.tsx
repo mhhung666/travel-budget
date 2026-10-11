@@ -78,6 +78,12 @@ export function MyScreen() {
         <EntryGroup
           entries={[
             {
+              testID: 'my-notifications',
+              label: t.notificationTitle,
+              disabled: busy,
+              onPress: () => router.push('/notifications'),
+            },
+            {
               testID: 'my-preferences',
               label: t.preferences,
               detail: loaded ? `${language} · ${appearance}` : t.loading,

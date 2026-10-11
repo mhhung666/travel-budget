@@ -13,6 +13,7 @@ export default function AppLayout() {
         <Stack.Screen name="avatar" />
         <Stack.Screen name="password" />
         <Stack.Screen name="email" />
+        <Stack.Screen name="notifications" />
       </Stack.Protected>
       <Stack.Screen name="(local)" />
     </Stack>

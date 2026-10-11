@@ -9,6 +9,11 @@ import { updateProfile, getCurrentUser } from '@/actions/auth.actions';
 import { readAccountDetails, updateAccountProfile } from '@/lib/accountProfile';
 import { loginMobile, refreshMobile } from '@/lib/mobile/session';
 import { GET, PATCH } from '@/app/api/v2/me/profile/route';
+import {
+  GET as notificationGet,
+  PATCH as notificationPatch,
+} from '@/app/api/v2/me/notification-preferences/route';
+import { getNotificationPrefs, updateNotificationPrefs } from '@/actions/auth.actions';
 import { GET as me } from '@/app/api/v2/me/route';
 const h = vi.hoisted(() => ({ actor: '' }));
 vi.mock('@/lib/env', () => ({
@@ -92,6 +97,39 @@ describe.skipIf(!uri || !allowed)('M1 self profile on an owned database', () => 
       displayName: 'Mobile Alice',
     });
     expect(Object.keys(identity).sort()).toEqual(['displayName', 'id', 'username']);
+  });
+  it('shares notification preferences across Web and Native with partial updates and actor isolation', async () => {
+    const before = await User.findById(h.actor).lean();
+    const peer = await User.create({
+      username: 'bob',
+      displayName: 'Bob',
+      email: 'bob@example.invalid',
+      password: 'unused',
+      locale: 'jp',
+    });
+    expect(await getNotificationPrefs()).toEqual({
+      success: true,
+      data: { notifyByEmail: false, locale: 'zh' },
+    });
+    expect((await notificationPatch(request({ locale: 'en' }))).status).toBe(200);
+    expect(await updateNotificationPrefs({ notify_by_email: true })).toEqual({
+      success: true,
+      data: { message: 'OK', notifyByEmail: true, locale: 'en' },
+    });
+    expect((await (await notificationGet(request())).json()).data).toEqual({
+      notifyByEmail: true,
+      locale: 'en',
+    });
+    const after = await User.findById(h.actor).lean();
+    expect({ ...after, notifyByEmail: before!.notifyByEmail, locale: before!.locale }).toEqual(
+      before
+    );
+    expect((await User.findById(peer._id).lean())?.locale).toBe('jp');
+    expect(Object.keys((await (await me(request())).json()).data).sort()).toEqual([
+      'displayName',
+      'id',
+      'username',
+    ]);
   });
   it('rejects forged targets, email/password edits and invalid names without changing the record', async () => {
     for (const body of [

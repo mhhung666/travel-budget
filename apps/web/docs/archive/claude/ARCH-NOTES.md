@@ -81,7 +81,7 @@
 - UI 語系由伺服器端讀 `NEXT_LOCALE` **cookie**（[src/i18n/config.ts](../../../src/i18n/config.ts)；cookie 而非 localStorage，SSR 首繪才正確）。無 i18n middleware——[src/proxy.ts](../../../src/proxy.ts) 只做 auth redirect。[src/i18n/navigation.ts](../../../src/i18n/navigation.ts) 是薄 shim（re-export next/link、next/navigation），留著避免 import 大改。
 - 切語言走 [setLocale](../../../src/actions/locale.actions.ts) server action（寫 cookie + `router.refresh()`）。
 - **新增使用者可見字串 = 四份 catalog 全加**（[src/i18n/messages/](../../../src/i18n/messages)）。
-- `User.locale`（Mongo）≠ UI cookie：它是 Email/Web Push 背景發送的語系（背景讀不到 cookie），`setLocale` 會同步；留在 Mongo。
+- `User.locale`（Mongo）≠ UI cookie：它是 Email/Web Push 背景發送的語系（背景讀不到 cookie），M4a 起 `setLocale` 只改 UI cookie，通知設定頁另存；留在 Mongo。
 
 ## 結算
 

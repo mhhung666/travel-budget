@@ -199,7 +199,13 @@
       "pushDevices": "Subscribed devices",
       "pushThisDevice": "This device",
       "pushRemoveDevice": "Remove this device",
-      "unknownDevice": "Unknown device"
+      "unknownDevice": "Unknown device",
+      "languageLabel": "Notification language",
+      "languageHelp": "Used for background email and Web push, independently of this device’s display language. In-app, verification and security notifications remain enabled.",
+      "current": "Current settings loaded; they may include changes from another device.",
+      "unknown": "Save outcome is unknown. Read current settings first; changes will not be resent automatically.",
+      "checkCurrent": "Check current settings",
+      "refresh": "Refresh settings"
     },
     "appearance": {
       "title": "Appearance",

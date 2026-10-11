@@ -9,6 +9,7 @@ export {
   logout,
   updateProfile,
   updateNotificationPrefs,
+  getNotificationPrefs,
   requestPasswordReset,
   resetPassword,
   requestEmailChange,

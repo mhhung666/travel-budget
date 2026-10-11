@@ -315,3 +315,11 @@ Mobile 明確提交一次，401 也不自動 refresh／重送；可能送達後�
 400 `VALIDATION_ERROR`／`SAME_EMAIL`／`INVALID_CODE`／`CODE_EXPIRED`／`TOO_MANY_ATTEMPTS`；409 `CONFLICT`／`RESOURCE_CHANGED`；503 `EMAIL_DELIVERY_FAILED`（未配置 sender 也失敗，不印碼或假稱寄出），401／404 身分失效，429 `RATE_LIMITED` 帶 Retry-After。Web 舊 confirm `{ code }` 相容，既有碼原到期仍有效；新 Web 同樣綁新信箱。成功不撤銷登入，不改密碼／authVersion；同交易作廢本人舊信箱的未用密碼重設碼，防止舊碼在新信箱重用。E2 發碼在同一本人 fence 交易內重查目前信箱，新碼也綁定寄送信箱：換信箱前已開始、卻延遲發碼的舊信箱請求，不能以該碼核對新信箱或阻擋新信箱寄碼；舊格式仍相容，匿名配額規則不變。
 
 原生寫入不自動 refresh／重送；未知回應鎖寫入，先 GET `/me/profile` 核對目前值，不能把查回資料稱為某次提交終局。輸入只記憶體，無原 UUID／journal，重啟先讀目前資料。取消未知也須先讀後明確重試取消，讀到舊 Email 不證明取消成功。
+
+## M4a 本人通知偏好
+
+`GET /api/v2/me/notification-preferences` 回傳 `{ notifyByEmail: boolean, locale: "zh" | "zh-CN" | "en" | "jp" }`。`PATCH` 嚴格接受至少一個上述欄位，不能指定目標帳號；Web cookie 與 Native bearer 共用 `accountNotifications.ts`，排除虛擬／已刪帳號。每次原子更新只改指定欄位並回傳資料庫實值，不改姓名、Email、密碼、登入世代或帳務。本人讀寫均 no-store／Vary Authorization，身分及旅行 DTO 不增加偏好。
+
+沿用既有 `User.notifyByEmail`／`User.locale`，舊資料缺通知開關視為開啟、語言缺值／不支援視為 zh，沒有資料形狀變動或 migration。通知語言用於背景 Email 及既有 Web Push；站內通知依檢視語言渲染。Web UI cookie 與 Mobile 裝置顯示語言獨立，不隨顯示語言切換改動通知設定；關閉 Email 不關閉驗證碼／帳號安全信件、站內通知或 Web Push。
+
+本片採線上明確保存（Web 仍各欄即時保存），手機表單僅記憶體，不入 SQLite／SecureStore／帳務 journal。只送相對於已讀設定改動的欄位；一般重讀保留使用者改動的欄位，未改欄採最新值。未知結果凍結寫入，讀目前值成功後解除並顯示「目前設定」，不宣稱它是原操作 receipt；查詢失敗仍阻擋，自動重送不啟用。重啟只讀目前值，不自動寫入；返回提醒未保存／未知狀態。登入世代及帳號／環境隔離晚到回應，離線／背景不發起保存，429 沿既有 transport Retry-After。

@@ -199,7 +199,13 @@
       "pushDevices": "已订阅的设备",
       "pushThisDevice": "当前设备",
       "pushRemoveDevice": "移除此设备",
-      "unknownDevice": "未知设备"
+      "unknownDevice": "未知设备",
+      "languageLabel": "通知语言",
+      "languageHelp": "用于后台 Email 与 Web 推送，与本机显示语言分开设置。站内通知仍会保留；Email 开关不影响验证码与安全邮件。",
+      "current": "已读取当前设置，可能包含其他设备的修改。",
+      "unknown": "保存结果未确认，请先查询当前设置，不会自动重发。",
+      "checkCurrent": "查询当前设置",
+      "refresh": "重新读取"
     },
     "appearance": {
       "title": "外观",

@@ -223,7 +223,16 @@ it.each(['local', 'signedIn', 'signedOut', 'loading', 'error'])(
         nodes(protectedGroup)
           .filter((node) => node.props.name)
           .map((node) => node.props.name)
-      ).toEqual(['(tabs)', 'trips', 'record', 'profile', 'avatar', 'password', 'email']);
+      ).toEqual([
+        '(tabs)',
+        'trips',
+        'record',
+        'profile',
+        'avatar',
+        'password',
+        'email',
+        'notifications',
+      ]);
     }
   }
 );

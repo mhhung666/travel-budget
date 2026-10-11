@@ -199,7 +199,13 @@
       "pushDevices": "已訂閱的裝置",
       "pushThisDevice": "目前裝置",
       "pushRemoveDevice": "移除此裝置",
-      "unknownDevice": "未知裝置"
+      "unknownDevice": "未知裝置",
+      "languageLabel": "通知語言",
+      "languageHelp": "用於背景 Email 與 Web 推播，與本機顯示語言分開設定。站內通知仍會保留；Email 開關不影響驗證碼與安全信件。",
+      "current": "已讀取目前設定，可能包含其他裝置的修改。",
+      "unknown": "保存結果未確認，請先查詢目前設定，不會自動重送。",
+      "checkCurrent": "查詢目前設定",
+      "refresh": "重新讀取"
     },
     "appearance": {
       "title": "外觀",
