@@ -1,0 +1,15 @@
+appId: ${MAESTRO_APP_ID}
+---
+# A form can already be expanded after a failed preview; do not toggle it closed.
+- scrollUntilVisible:
+    element:
+      id: new-expense-members-toggle
+    timeout: 30000
+    centerElement: true
+- runFlow:
+    when:
+      visible:
+        id: new-expense-members-toggle-collapsed
+    commands:
+      - tapOn:
+          id: new-expense-members-toggle

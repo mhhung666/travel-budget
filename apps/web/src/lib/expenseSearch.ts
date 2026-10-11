@@ -141,52 +141,58 @@ export async function readExpenseSearch(
   tripId: string,
   input: ExpenseSearchInput
 ) {
-  return withTripReadInDatabase(db, tripId, actorId, async (session) => {
-    const rows = await db
-      .collection<StoredExpense>('expenses')
-      .find(
-        { trip: new mongo.ObjectId(tripId) },
-        {
-          session,
-          projection: {
-            baseCurrency: 1,
-            payer: 1,
-            amount: 1,
-            originalAmount: 1,
-            currency: 1,
-            exchangeRate: 1,
-            description: 1,
-            category: 1,
-            date: 1,
-            createdAt: 1,
-            splits: 1,
-          },
-        }
-      )
-      .sort({ date: -1, createdAt: -1, _id: -1 })
-      .toArray();
-    const refs = new Map<string, mongo.ObjectId>();
-    for (const row of rows)
-      for (const id of [row.payer, ...(row.splits ?? []).map((s) => s.user)])
-        if (id) refs.set(id.toString(), id);
-    const users = await db
-      .collection<ReadUser>('users')
-      .find(
-        { _id: { $in: [...refs.values()] } },
-        { session, projection: { displayName: 1, isVirtual: 1 } }
-      )
-      .toArray();
-    const byId = new Map(users.map((u) => [u._id.toString(), { ...u, username: '' }]));
-    const user = (id: mongo.ObjectId | null) => (id ? (byId.get(id.toString()) ?? null) : null);
-    return searchExpenseRows(
-      rows.map((row) => ({
-        ...row,
-        payer: user(row.payer),
-        splits: (row.splits ?? []).map((s) => ({ ...s, user: user(s.user) })),
-      })),
-      actorId,
-      tripId,
-      input
-    );
-  });
+  return withTripReadInDatabase(
+    db,
+    tripId,
+    actorId,
+    async (_session, cursorOptions) => {
+      const rows = await db
+        .collection<StoredExpense>('expenses')
+        .find(
+          { trip: new mongo.ObjectId(tripId) },
+          {
+            ...cursorOptions(),
+            projection: {
+              baseCurrency: 1,
+              payer: 1,
+              amount: 1,
+              originalAmount: 1,
+              currency: 1,
+              exchangeRate: 1,
+              description: 1,
+              category: 1,
+              date: 1,
+              createdAt: 1,
+              splits: 1,
+            },
+          }
+        )
+        .sort({ date: -1, createdAt: -1, _id: -1 })
+        .toArray();
+      const refs = new Map<string, mongo.ObjectId>();
+      for (const row of rows)
+        for (const id of [row.payer, ...(row.splits ?? []).map((s) => s.user)])
+          if (id) refs.set(id.toString(), id);
+      const users = await db
+        .collection<ReadUser>('users')
+        .find(
+          { _id: { $in: [...refs.values()] } },
+          { ...cursorOptions(), projection: { displayName: 1, isVirtual: 1 } }
+        )
+        .toArray();
+      const byId = new Map(users.map((u) => [u._id.toString(), { ...u, username: '' }]));
+      const user = (id: mongo.ObjectId | null) => (id ? (byId.get(id.toString()) ?? null) : null);
+      return searchExpenseRows(
+        rows.map((row) => ({
+          ...row,
+          payer: user(row.payer),
+          splits: (row.splits ?? []).map((s) => ({ ...s, user: user(s.user) })),
+        })),
+        actorId,
+        tripId,
+        input
+      );
+    },
+    true
+  );
 }

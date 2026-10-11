@@ -128,6 +128,9 @@ v2 preview 已透過 `computeLedgerSplits` 共用 Web 的均分／固定原幣�
 
 新增成員 `GET /api/v2/trips/:id/expense-search`，舊支出清單不變。支援字面描述／付款人搜尋、分類／付款人 ID／含起訖日期，snapshot 內先算全量總計與分類／成員分析再切頁；每頁 20 筆，內容／條件改動使游標回 409，須刷新第一頁。契約、歷史資料與隱私規則見 [Mobile G4b](../../mobile/docs/BACKEND_CONTRACT.md#g4b-搜尋與分析)；真 HTTP 與獨立 DB 案例納入 `test:mobile-api`，原生操作另列。
 
+U3c-2 修正 MongoDB 8／driver 7.2 的 transaction CSOT／getMore 相容性：搜尋讀取仍在授權 snapshot 內，公開 per-operation `timeoutMS` 共用一個 20 秒絕對期限，包含授權／子文件 probes、全部支出／使用者游標與 commit，重試不重置期限；其他讀取與寫入 fence 不變。非 awaitData getMore 不帶 server maxTimeMS，保留 client 游標期限。`test:mobile-api` 包含 48／1,000 筆 HTTP、跨兩種 collection batch、50 頁全量回歸與既有拒絕／隱私案例；本機成本樣本見 [量測](../../mobile/docs/design/u3a-baseline/search-measure.json)，原生操作仍待驗。
+
+
 
 ## G6a 私人收據閱讀
 

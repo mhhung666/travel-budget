@@ -1,10 +1,16 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { ExpenseListItem } from './ExpenseListItem';
 import type { ExpenseRowProps } from './ExpenseRow';
-import { ExpenseSearchScreen } from './ExpenseSearchScreen';
+import { ExpensesScreen } from './ExpensesScreen';
+import { ExpenseSearchControls } from './ExpenseSearchControls';
+import { createExpenseBrowseRegistry } from './browseProvider';
+import type { ExpenseBrowseSession } from './browse';
+import { useAuth } from '@/features/auth/AuthProvider';
+import { useDraftCatalog } from '@/features/localDrafts/provider';
 import { ApiError } from '@/api/client';
 import type { ExpenseSearchResult } from '@travel-budget/contracts';
 const h = vi.hoisted(() => ({
+  session: null as ExpenseBrowseSession | null,
   values: [] as unknown[],
   i: 0,
   focus: (() => () => {}) as () => () => void,
@@ -32,10 +38,15 @@ vi.mock('react', async (original) => ({
     ];
   },
   useCallback: (fn: unknown) => fn,
+  useEffect: () => {},
+  useMemo: (fn: () => unknown) => fn(),
+  useRef: () => ({ current: null }),
   useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
 }));
 vi.mock('react-native', () => ({
   FlatList: 'FlatList',
+  ActivityIndicator: 'ActivityIndicator',
+  RefreshControl: 'RefreshControl',
   View: 'View',
   Keyboard: { dismiss: vi.fn() },
   AppState: { currentState: 'active' },
@@ -44,7 +55,7 @@ vi.mock('expo-router', () => ({
   useFocusEffect: (fn: typeof h.focus) => {
     h.focus = fn;
   },
-  router: { push: vi.fn() },
+  router: { push: vi.fn(), dismissTo: vi.fn() },
 }));
 vi.mock('@/components/frame', () => ({ ScreenFrame: 'ScreenFrame' }));
 vi.mock('@/components/screen', () => ({ PageHeader: 'PageHeader' }));
@@ -54,12 +65,12 @@ vi.mock('@/features/navigation/TripContext', () => ({ TripContext: 'TripContext'
 vi.mock('./ExpenseRow', () => ({ ExpenseRow: 'ExpenseRow' }));
 vi.mock('@/components/ui', () => ({
   ...Object.fromEntries(
-    ['Action', 'Card', 'Chip', 'Copy', 'DetailRow', 'Notice', 'Section', 'TextField'].map((n) => [
-      n,
-      n,
-    ])
+    ['Action', 'Card', 'Chip', 'Copy', 'DetailRow', 'Notice', 'Section', 'TextField', 'Title'].map(
+      (n) => [n, n]
+    )
   ),
   styles: { page: {} },
+  usePalette: () => ({ primary: 'blue' }),
 }));
 vi.mock('@/i18n/useMessages', () => ({
   useMessages: () => new Proxy({}, { get: (_t, k) => String(k) }),
@@ -69,9 +80,10 @@ vi.mock('@/i18n/useDisplayFormat', () => ({
 }));
 vi.mock('@/providers/useOnline', () => ({ useOnline: () => h.online }));
 vi.mock('@tanstack/react-query', () => ({ onlineManager: { isOnline: () => h.online } }));
-vi.mock('@/features/tripEntry/provider', () => ({
-  useTripEntry: () => ({
-    scope: { environment: h.environment, accountId: 'a'.repeat(24) },
+vi.mock('@/features/auth/AuthProvider', () => ({
+  useAuth: () => ({
+    status: 'signedIn',
+    user: { id: h.user },
     manager: {
       api: { environment: h.environment },
       getSignInVersion: () => h.version,
@@ -95,6 +107,29 @@ vi.mock('@/features/localDrafts/provider', () => ({
         h.visible = false;
       },
     },
+  }),
+}));
+vi.mock('./browseProvider', async (original) => ({
+  ...(await original<typeof import('./browseProvider')>()),
+  useExpenseBrowse: () => ({ session: h.session!, state: h.session!.getSnapshot() }),
+}));
+vi.mock('./queries', () => ({
+  useExpenses: () => ({
+    query: { data: { pages: [] }, isError: false, refetch: vi.fn(), isFetching: false },
+    refresh: vi.fn(),
+    cancel: vi.fn(),
+  }),
+}));
+vi.mock('./entryProvider', () => ({ usePendingExpenses: () => ({ data: [] }) }));
+vi.mock('./useTripMembers', () => ({
+  useTripMembers: () => ({
+    roster: [
+      { id: 'a'.repeat(24), displayName: 'Same name' },
+      { id: 'd'.repeat(24), displayName: 'Same name', isVirtual: true },
+    ],
+    denied: false,
+    refresh: vi.fn(),
+    refetch: vi.fn(),
   }),
 }));
 vi.mock('@/storage/pendingExpenseDatabase', () => ({
@@ -135,6 +170,12 @@ const result: ExpenseSearchResult = {
     members: [],
   },
 };
+function refresh() {
+  const control = find('expenses-list') as {
+    refreshControl?: { props: { onRefresh: () => void } };
+  };
+  control.refreshControl!.props.onRefresh();
+}
 interface Props {
   testID?: string;
   children?: unknown;
@@ -149,12 +190,16 @@ interface Props {
 }
 function render() {
   h.i = 0;
-  return ExpenseSearchScreen({ tripId: 'b'.repeat(24) });
+  return ExpensesScreen({ tripId: 'b'.repeat(24) });
 }
 function nodes(node: unknown): { props: Props }[] {
   if (Array.isArray(node)) return node.flatMap(nodes);
   if (!node || typeof node !== 'object' || !('props' in node)) return [];
-  const n = node as { props: Props };
+  const n = node as { type?: unknown; props: Props };
+  if (n.type === ExpenseSearchControls)
+    return nodes(
+      ExpenseSearchControls(n.props as unknown as Parameters<typeof ExpenseSearchControls>[0])
+    );
   return [
     n,
     ...nodes(n.props.children),
@@ -173,12 +218,21 @@ async function flush() {
 async function mount() {
   render();
   const blur = h.focus();
+  find('search-analysis').onPress!();
+  h.session!.tools();
   await flush();
   return blur;
 }
 beforeEach(() => {
   vi.resetAllMocks();
   h.values = [];
+  h.session = createExpenseBrowseRegistry(
+    useAuth().manager,
+    useDraftCatalog().catalog,
+    h.environment,
+    'a'.repeat(24),
+    1
+  ).get('b'.repeat(24));
   h.i = 0;
   h.visible = h.online = true;
   h.user = 'a'.repeat(24);
@@ -198,7 +252,7 @@ beforeEach(() => {
 });
 it('shows full totals, stable same-name payer choices and validates dates before any new request', async () => {
   await mount();
-  expect(find('expense-search-list').data).toHaveLength(1);
+  expect(find('expenses-list').data).toHaveLength(1);
   expect(nodes(render()).some((n) => n.props.value === 'USD 3000')).toBe(true);
   expect(find('search-payer-' + 'a'.repeat(24)).label).not.toBe(
     find('search-payer-' + 'd'.repeat(24)).label
@@ -209,9 +263,10 @@ it('shows full totals, stable same-name payer choices and validates dates before
   expect(h.request).toHaveBeenCalledOnce();
   expect(nodes(render()).some((n) => n.props.children === 'searchInvalid')).toBe(true);
 });
-it('applying and clearing filters always begins at the first page; focus return refreshes applied criteria', async () => {
+it('typing is idle, applied filters start at page one, and focus return retains criteria without a read', async () => {
   const blur = await mount();
   find('search-keyword').onChangeText!('coffee');
+  expect(h.request).toHaveBeenCalledOnce();
   find('search-apply').onPress!();
   await flush();
   expect(h.request.mock.calls.at(-1)?.[1]).toContain('?keyword=coffee');
@@ -222,29 +277,32 @@ it('applying and clearing filters always begins at the first page; focus return 
   expect(h.request.mock.calls.at(-1)?.[1]).toContain('?keyword=coffee');
   find('search-reset').onPress!();
   await flush();
-  expect(h.request.mock.calls.at(-1)?.[1]).toBe('/trips/' + 'b'.repeat(24) + '/expense-search');
+  expect(h.request).toHaveBeenCalledTimes(2);
+  expect(h.session!.searching).toBe(false);
+  expect(h.session!.getSnapshot().search.data).toBeNull();
 });
 it('clears private results after denial, including later network failures', async () => {
   await mount();
   h.request.mockRejectedValueOnce(new ApiError('FORBIDDEN', 403));
-  find('search-refresh').onPress!();
+  refresh();
   await flush();
-  expect(find('expense-search-list').data).toEqual([]);
+  expect(find('expenses-list').data).toEqual([]);
   h.request.mockRejectedValueOnce(new ApiError('NETWORK'));
-  find('search-refresh').onPress!();
+  refresh();
   await flush();
-  expect(find('expense-search-list').data).toEqual([]);
+  expect(h.request).toHaveBeenCalledTimes(2);
+  expect(find('expenses-list').data).toEqual([]);
   expect(nodes(render()).some((n) => n.props.value === 'USD 3000')).toBe(false);
 });
 it('persists one shared 429 deadline; repeated local interception does not extend it', async () => {
   await mount();
   h.request.mockRejectedValueOnce(new ApiError('RATE_LIMITED', 429, 120));
   const before = Date.now();
-  find('search-refresh').onPress!();
+  refresh();
   await flush();
   expect(h.until).toBeGreaterThanOrEqual(before + 120000);
   const until = h.until;
-  find('search-refresh').onPress!();
+  refresh();
   await flush();
   expect(h.until).toBe(until);
   expect(h.request).toHaveBeenCalledTimes(2);
@@ -257,7 +315,7 @@ it('a new cross-trip limit while SQLite waits blocks the search; account change 
       resume = r;
     })
   );
-  find('search-refresh').onPress!();
+  refresh();
   await flush();
   h.until = Date.now() + 120000;
   resume(h.until);
@@ -265,16 +323,23 @@ it('a new cross-trip limit while SQLite waits blocks the search; account change 
   expect(h.request).toHaveBeenCalledOnce();
   h.user = 'd'.repeat(24);
   h.version++;
-  expect(find('expense-search-list').data).toEqual([]);
+  h.session = createExpenseBrowseRegistry(
+    useAuth().manager,
+    useDraftCatalog().catalog,
+    h.environment,
+    h.user,
+    h.version
+  ).get('b'.repeat(24));
+  expect(find('expenses-list').data).toEqual([]);
   expect(nodes(render()).some((n) => n.props.value === 'USD 3000')).toBe(false);
 });
 it('a failed 429 save prevents the next read until the original deadline can be persisted', async () => {
   await mount();
   h.pause.mockRejectedValue(new Error('disk failed'));
   h.request.mockRejectedValueOnce(new ApiError('RATE_LIMITED', 429, 120));
-  find('search-refresh').onPress!();
+  refresh();
   await flush();
-  find('search-refresh').onPress!();
+  refresh();
   await flush();
   expect(h.request).toHaveBeenCalledTimes(2);
 });
@@ -290,9 +355,9 @@ it('uses the shared date rows across appended search pages, deduplicating IDs wi
       : result;
   });
   await mount();
-  find('search-more').onPress!();
+  find('expenses-load-more').onPress!();
   await flush();
-  const list = find('expense-search-list') as {
+  const list = find('expenses-list') as {
     data: typeof result.items;
     renderItem: (input: { item: typeof first; index: number }) => {
       type: unknown;
@@ -310,4 +375,44 @@ it('uses the shared date rows across appended search pages, deduplicating IDs wi
   expect(rows.every((e) => e.props.tripId === 'b'.repeat(24))).toBe(true);
   expect(nodes(render()).some((n) => n.props.value === 'USD 3000')).toBe(true);
   expect(h.request).toHaveBeenCalledTimes(2);
+});
+
+it('offline pull-to-refresh preserves loaded search pages and summary without a request', async () => {
+  await mount();
+  const previous = find('expenses-list').data;
+  h.online = false;
+  refresh();
+  await flush();
+  expect(h.request).toHaveBeenCalledOnce();
+  expect(find('expenses-list').data).toEqual(previous);
+  expect(nodes(render()).some((n) => n.props.value === 'USD 3000')).toBe(true);
+});
+it('returning after a confirmed write rereads original criteria once and announces the updated first page', async () => {
+  const blur = await mount();
+  find('search-keyword').onChangeText!('coffee');
+  find('search-apply').onPress!();
+  await flush();
+  h.session!.saveOffset(1200);
+  blur();
+  h.session!.invalidate();
+  render();
+  h.focus();
+  await flush();
+  expect(h.request).toHaveBeenCalledTimes(3);
+  expect(h.request.mock.calls.at(-1)?.[1]).toContain('?keyword=coffee');
+  expect(h.request.mock.calls.at(-1)?.[1]).not.toContain('cursor=');
+  expect(h.session!.offset).toBe(0);
+  expect(nodes(render()).some((n) => n.props.children === 'expensesUpdated')).toBe(true);
+  render();
+  h.focus();
+  await flush();
+  expect(h.request).toHaveBeenCalledTimes(3);
+});
+it('has one main access-denied notice and does not expose another list or summary', async () => {
+  await mount();
+  h.visible = false;
+  const tree = nodes(render());
+  expect(tree.filter((n) => n.props.children === 'notFound')).toHaveLength(1);
+  expect(find('expenses-list').data).toEqual([]);
+  expect(tree.some((n) => n.props.value === 'USD 3000')).toBe(false);
 });

@@ -838,3 +838,73 @@ it('does not freeze values that changed while waiting for the draft flush', asyn
   expect(h.submit).not.toHaveBeenCalled();
   expect(id(form().entryTree, 'new-expense-confirm').props.disabled).toBe(true);
 });
+
+function memberSelection() {
+  return call(named(form().entryTree, 'ExpenseMemberSelection'));
+}
+it('collapsing member choices preserves a confirmed preview and all raw split input', async () => {
+  advancedOptions();
+  h.draft.splitMode = 'shares';
+  h.draft.splitValues = { shares: { [h.scope.accountId]: '0002.0000' } };
+  h.requestPreview.mockResolvedValue(advancedPreview());
+  press(id(form().entryTree, 'new-expense-preview'));
+  await flush();
+  const before = structuredClone(h.draft);
+  expect(id(form().entryTree, 'new-expense-confirm').props.disabled).toBe(false);
+  let selection = memberSelection();
+  expect(id(selection, 'new-expense-members-toggle').props.expanded).toBe(false);
+  expect(
+    nodes(selection).some((e) => e.props.testID === `new-expense-member-${h.scope.accountId}`)
+  ).toBe(false);
+  press(id(selection, 'new-expense-members-toggle'));
+  selection = memberSelection();
+  expect(
+    nodes(selection).some((e) => e.props.testID === `new-expense-member-${h.scope.accountId}`)
+  ).toBe(true);
+  press(id(selection, 'new-expense-members-toggle'));
+  expect(id(memberSelection(), 'new-expense-members-toggle').props.expanded).toBe(false);
+  expect(h.draft).toEqual(before);
+  expect(id(splitForm(), `expense-split-value-${h.scope.accountId}`).props.value).toBe('0002.0000');
+  expect(id(form().entryTree, 'new-expense-confirm').props.disabled).toBe(false);
+  expect(h.requestPreview).toHaveBeenCalledOnce();
+  expect(h.submit).not.toHaveBeenCalled();
+});
+it.each(['missing', 'payer', 'empty'] as const)(
+  'opens member selection for %s validation without hiding the warning or changing a draft',
+  async (problem) => {
+    if (problem === 'missing') h.draft.memberIds.push('9'.repeat(24));
+    if (problem === 'payer') h.draft.payerId = null;
+    if (problem === 'empty') h.draft.memberIds = [];
+    const before = structuredClone(h.draft);
+    press(id(form().entryTree, 'new-expense-preview'));
+    await flush();
+    expect(id(memberSelection(), 'new-expense-members-toggle').props.expanded).toBe(true);
+    expect(
+      nodes(memberSelection()).some(
+        (e) => e.props.testID === `new-expense-payer-${h.scope.accountId}`
+      )
+    ).toBe(true);
+    expect(h.draft).toEqual(before);
+    expect(h.requestPreview).not.toHaveBeenCalled();
+    expect(id(form().entryTree, 'new-expense-confirm').props.disabled).toBe(true);
+    if (problem === 'missing') {
+      expect(nodes(memberSelection()).some((e) => e.props.testID === 'draft-remove-members')).toBe(
+        false
+      );
+      expect(id(form().entryTree, 'draft-remove-members')).toBeTruthy();
+    }
+  }
+);
+it.each(['amount', 'percent', 'shares'] as const)(
+  'a restored %s draft keeps per-person inputs available while member choices start closed',
+  (mode) => {
+    advancedOptions();
+    h.draft.splitMode = mode;
+    h.draft.splitValues = { [mode]: { [h.scope.accountId]: '0', ['2'.repeat(24)]: '' } };
+    expect(id(memberSelection(), 'new-expense-members-toggle').props.expanded).toBe(false);
+    const input = id(splitForm(), `expense-split-value-${h.scope.accountId}`);
+    expect(input.props.value).toBe('0');
+    expect(input.props.inputAccessoryViewID).toBe('new-expense-amount-test-keyboard');
+    expect(id(splitForm(), `expense-split-value-${'2'.repeat(24)}`).props.value).toBe('');
+  }
+);

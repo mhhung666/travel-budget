@@ -20,7 +20,7 @@ describe.skipIf(!uri || !allowed)('G4b authorized full-trip search snapshot', ()
   const read = (input: Parameters<typeof readExpenseSearch>[3] = { keyword: '' }, id = actor) =>
     withLedgerV2(() => readExpenseSearch(db, id.toString(), trip.toString(), input));
   beforeAll(async () => {
-    client = new mongo.MongoClient(uri!);
+    client = new mongo.MongoClient(uri!, { monitorCommands: true });
     await client.connect();
     db = client.db(`tb_search_${randomUUID().replaceAll('-', '')}`);
     expect((await db.admin().command({ hello: 1 })).setName).toBeTruthy();
@@ -134,6 +134,80 @@ describe.skipIf(!uri || !allowed)('G4b authorized full-trip search snapshot', ()
       expect((await read({ keyword: '', payerId: 'missing' })).summary.count).toBe(1);
       expect((await read({ keyword: 'PRIVATE-TAG' })).summary.count).toBe(0);
       expect(await db.collection('mutationrequests').countDocuments()).toBe(0);
+      expect(
+        (await db.collection('trips').findOne({ _id: trip }))!.expenseDeliveryFence
+      ).toBeUndefined();
+    }
+  );
+  it.each([48, 1000])(
+    'reads %i rows across MongoDB batches with one snapshot and a bounded cursor deadline',
+    async (count) => {
+      const ids = Array.from({ length: 130 }, () => new mongo.ObjectId());
+      await db
+        .collection('users')
+        .insertMany(ids.map((_id, i) => ({ _id, displayName: `payer-${i}` })));
+      await db.collection('expenses').insertMany(
+        Array.from({ length: count }, (_, i) => ({
+          trip,
+          amount: 1.01,
+          description: 'batch',
+          category: 'food',
+          date: new Date('2026-10-09'),
+          createdAt: new Date('2026-10-09'),
+          payer: ids[i % ids.length],
+          splits: [{ user: actor, shareAmount: 1.01 }],
+        }))
+      );
+      const commands: mongo.CommandStartedEvent[] = [];
+      const monitor = (event: mongo.CommandStartedEvent) => {
+        if (event.databaseName === db.databaseName) commands.push(event);
+      };
+      client.on('commandStarted', monitor);
+      try {
+        const timings: number[] = [];
+        let cursor: string | undefined;
+        const seen = new Set<string>();
+        let first: Awaited<ReturnType<typeof read>> | undefined;
+        do {
+          const start = performance.now();
+          const result = await read({ keyword: '', ...(cursor ? { cursor } : {}) });
+          timings.push(Math.round(performance.now() - start));
+          first ??= result;
+          expect(result.summary).toEqual(first.summary);
+          expect(result.revision).toBe(first.revision);
+          for (const item of result.items) {
+            expect(seen.has(item.id)).toBe(false);
+            seen.add(item.id);
+          }
+          cursor = result.nextCursor ?? undefined;
+        } while (cursor);
+        expect(seen.size).toBe(count);
+        expect(first!.summary.count).toBe(count);
+        expect(first!.summary.total).toBe((count * 101) / 100);
+        expect(first!.summary.mySpent).toBe((count * 101) / 100);
+        expect(timings).toHaveLength(Math.ceil(count / 20));
+        if (count === 1000) {
+          for (const collection of ['expenses', 'users'])
+            expect(
+              commands.some(
+                (c) => c.commandName === 'getMore' && c.command.collection === collection
+              )
+            ).toBe(true);
+        }
+        for (const command of commands.filter((c) => c.commandName === 'getMore')) {
+          expect(command.command.maxTimeMS).toBeUndefined();
+          expect(command.command.autocommit).toBe(false);
+          expect(command.command.lsid).toBeDefined();
+        }
+        expect(commands.some((c) => c.command.readConcern?.level === 'snapshot')).toBe(true);
+        expect(
+          commands
+            .filter((c) => c.commandName === 'find')
+            .every((c) => c.command.maxTimeMS > 0 && c.command.maxTimeMS <= 20_000)
+        ).toBe(true);
+      } finally {
+        client.off('commandStarted', monitor);
+      }
       expect(
         (await db.collection('trips').findOne({ _id: trip }))!.expenseDeliveryFence
       ).toBeUndefined();

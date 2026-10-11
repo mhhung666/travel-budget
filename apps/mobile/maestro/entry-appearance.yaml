@@ -62,6 +62,7 @@ name: Add an expense under the device's current text size and appearance
 - inputText: '100'
 - assertVisible: '100'
 - runFlow: flows/entry-keyboard-done.yaml
+- runFlow: flows/expense-members-open.yaml
 - scrollUntilVisible:
     element:
       id: new-expense-member-${MAESTRO_REMOVED_ID}

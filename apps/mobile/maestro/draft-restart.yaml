@@ -32,6 +32,7 @@ appId: ${MAESTRO_APP_ID}
     centerElement: true
 - tapOn:
     id: new-expense-category-accommodation
+- runFlow: flows/expense-members-open.yaml
 - scrollUntilVisible:
     element:
       id: new-expense-payer-${MAESTRO_PEER_ID}

@@ -83,6 +83,7 @@ export function Action({
   variant,
   icon,
   testID,
+  expanded,
 }: {
   label: string;
   onPress: () => void;
@@ -92,6 +93,7 @@ export function Action({
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
   icon?: IconName;
   testID?: string;
+  expanded?: boolean;
 }) {
   const p = usePalette();
   const [focused, setFocused] = useState(false);
@@ -111,7 +113,11 @@ export function Action({
       testID={testID}
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={{ disabled: blocked, busy }}
+      accessibilityState={{
+        disabled: blocked,
+        busy,
+        ...(expanded === undefined ? {} : { expanded }),
+      }}
       disabled={blocked}
       onPress={() => !blocked && onPress()}
       onFocus={() => setFocused(true)}

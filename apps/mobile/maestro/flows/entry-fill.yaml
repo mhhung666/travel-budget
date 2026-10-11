@@ -34,6 +34,7 @@ appId: ${MAESTRO_APP_ID}
     when:
       true: ${KEEP_REMOVED !== 'true'}
     commands:
+      - runFlow: expense-members-open.yaml
       - scrollUntilVisible:
           element:
             id: new-expense-member-${MAESTRO_REMOVED_ID}

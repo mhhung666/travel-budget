@@ -20,6 +20,7 @@ appId: ${MAESTRO_APP_ID}
 - assertVisible:
     id: new-expense-amount
     text: '^${AMOUNT}$'
+- runFlow: expense-members-open.yaml
 - scrollUntilVisible:
     element:
       id: new-expense-member-${MAESTRO_REMOVED_ID}

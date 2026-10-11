@@ -2132,6 +2132,31 @@ try {
   pass(
     'G4b HTTP: authenticated strict filters, complete totals, literal keyword/date/category, pagination and concurrent revision restart'
   );
+  // U3c-2: cross driver batches over real HTTP; totals must never be capped to a page.
+  for (const count of [48, 1000]) {
+    const copies = Array.from({ length: count }, (_, i) => ({
+      ...searchSeed, _id: new mongoose.Types.ObjectId(), description: 'U3C2 batch',
+      date: new Date(i < 30 ? '2026-10-09' : '2026-10-08'),
+      createdAt: new Date('2026-10-10'), clientRequestId: `u3c2-${count}-${i}`,
+    }));
+    await db.collection('expenses').insertMany(copies);
+    const baseQuery = '?keyword=U3C2';
+    const start = performance.now();
+    const first = await search(baseQuery);
+    const firstMs = Math.round(performance.now() - start);
+    assert.equal(first.items.length, 20);
+    assert.equal(first.summary.count, count);
+    assert.equal(first.summary.total, Math.round(searchSeed.amount * count * 100) / 100);
+    const second = await search(baseQuery + '&cursor=' + first.nextCursor);
+    assert.deepEqual(second.summary, first.summary);
+    const last = await search(baseQuery + '&cursor=' + first.revision + '.' + (count === 48 ? 40 : 980));
+    assert.equal(last.items.length, count === 48 ? 8 : 20);
+    assert.equal(last.nextCursor, null);
+    assert.deepEqual(last.summary, first.summary);
+    console.log(JSON.stringify({ expenseSearchHttpRows: count, firstMs, requests: 3 }));
+    await db.collection('expenses').deleteMany({ _id: { $in: copies.map((e) => e._id) } });
+  }
+  pass('U3c-2 HTTP: 48/1000-row cross-batch search, complete summary and first/second/final-page coherence');
   // G4a uses the existing Web budget receipt namespace without exposing other member budgets.
   const budgetPath = `/trips/${g3Trip}/budget`;
   const budgetContext = () =>
@@ -3439,7 +3464,7 @@ try {
       maxBuffer: 1024 * 1024,
     }
   );
-  assert(searchTransactions.stdout.includes('6 passed'), 'Search snapshot cases did not run');
+  assert(searchTransactions.stdout.includes('8 passed'), 'Search snapshot cases did not run');
   pass(
     'G4b isolated DB: full-trip TWD/USD/JPY parity, private projection, tied pagination, revocation and corrupted-ledger rejection'
   );

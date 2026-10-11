@@ -61,6 +61,14 @@ export class ExpenseSearchReader {
     this.controller?.abort();
     this.publish({ busy: false });
   };
+  reset = () => {
+    this.cancel();
+    this.publish({ filters: emptySearch, data: null, error: null, restart: false });
+  };
+  invalidate = () => {
+    this.cancel();
+    this.publish({ error: null });
+  };
   apply = (input: ExpenseSearchFilters) => {
     const filters = expenseSearchFiltersSchema.parse(input);
     this.publish({ filters, data: null, error: null, restart: false });
@@ -69,7 +77,7 @@ export class ExpenseSearchReader {
   refresh = () => this.load(false);
   more = () =>
     this.state.busy || this.state.restart || !this.state.data?.nextCursor
-      ? Promise.resolve()
+      ? Promise.resolve(false)
       : this.load(true);
   private async load(append: boolean) {
     const v = ++this.generation;
@@ -101,6 +109,7 @@ export class ExpenseSearchReader {
         data: append ? { ...data, items: [...previous!.items, ...data.items] } : data,
         restart: false,
       });
+      return true;
     } catch (error) {
       if (isAccessDenied(error)) this.publish({ data: null });
       // A late server denial/rate limit still applies to the current account, even after filter changes.
@@ -115,6 +124,7 @@ export class ExpenseSearchReader {
           restart:
             this.state.restart || (error instanceof ApiError && error.code === 'RESOURCE_CHANGED'),
         });
+      return false;
     } finally {
       if (v === this.generation) this.publish({ busy: false });
     }

@@ -4,11 +4,15 @@
 
 ## Unreleased
 
+### 2026-10-11
+
+- Mobile U3d-1：新增／編輯支出依金額、資料、付款／分攤分區，成員摘要可展開，必要輸入／警告與原／新份額確認完整保留；沿用草稿、衝突與原 UUID／限速守衛，更新 Maestro 展開步驟，已提交。1,509 項＋工具 48 項、check／contracts／三平台匯出通過；iOS／VoiceOver 由其他人驗收，下一片 U3d-2，見 [交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u3d-1-新增與編輯表單交接)。
+
 ### 2026-10-10
 
 - Mobile：已提交 G5 四語／外觀偏好、裝置保存與關於入口，以及旅行分頁保留父層 ID 修正；check／三平台匯出與回歸通過，未部署。原生與客服／隱私入口待驗／待定，見 [G5 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#g5-語言與外觀交接)。
 - G6（Web／Mobile／contracts）：已提交私人收據閱讀、選圖／拍照／PDF、確認上傳／移除、原 UUID／SQLite 恢復與逾期孤兒清理；短效連結、conditional PUT 防覆寫，附件交易不改金額／分攤。工程檢查已通過、未部署；真 R2／原生待驗見 [G6a](apps/mobile/docs/LOCAL_ACCEPTANCE.md#g6a-私人收據閱讀交接) 與 [G6b](apps/mobile/docs/LOCAL_ACCEPTANCE.md#g6b-附件寫入交接)。
-- Mobile U3：已提交頁框／大字級導覽、旅行／我的入口；已提交 U3c-1 一般／搜尋共用日期分組、分類圖示與容器自適應支出列，保留同名識別、全量摘要、分頁與權限，不顯示部分日合計並調升 Mobile patch。Mobile 1,483 項＋工具 48 項、check／三平台匯出通過；iOS／閱讀器待他人驗收，下一片 U3c-2，大筆數搜尋 500、完整裝置／R2 待驗仍保留，見 [U3c-1 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u3c-1-支出列與日期分組交接)。
+- U3（Mobile／Web）：U3b／U3c-1 已提交；U3c-2 頁內搜尋／分析、原條件與位置保留、寫入後雙來源失效及舊入口相容已提交，修正 1,000 筆搜尋 getMore／CSOT、保留完整授權快照。Mobile 1,501 項＋工具 48 項、Web／期限回歸、check／contracts／隔離 HTTP／三平台匯出／Web build 通過；iOS／VoiceOver 交接見 [U3c-2](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u3c-2-頁內搜尋與分析交接)；表單已接續完成 U3d-1，R2／裝置待驗仍保留。
 
 ### 2026-10-09
 

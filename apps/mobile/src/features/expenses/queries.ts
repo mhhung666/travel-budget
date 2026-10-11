@@ -7,6 +7,7 @@ import {
   type InfiniteData,
   type QueryClient,
 } from '@tanstack/react-query';
+import { useCallback } from 'react';
 import type { z } from 'zod';
 import { expenseDetailSchema, expensesSchema } from '@/api/contracts';
 import type { SessionManager } from '@/api/session';
@@ -71,16 +72,29 @@ export function keepFirstPage(client: QueryClient, queryKey: readonly unknown[])
   );
 }
 
-export function useExpenses(tripId: string) {
+export function useExpenses(tripId: string, enabled = true) {
   const { manager, user } = useAuth();
   const client = useQueryClient();
   const options = expensesQuery(manager, user?.id, tripId);
-  const query = useInfiniteQuery(options);
-  const refresh = () => {
-    keepFirstPage(client, options.queryKey);
-    return query.refetch();
-  };
-  return { query, refresh };
+  const query = useInfiniteQuery({
+    ...options,
+    enabled: enabled && options.enabled,
+    refetchOnMount: false,
+  });
+  const { refetch } = query;
+  const refresh = useCallback(() => {
+    keepFirstPage(client, expensesKey(manager.api.environment, user?.id, tripId));
+    return refetch();
+  }, [client, manager, user?.id, tripId, refetch]);
+  const cancel = useCallback(
+    () =>
+      client.cancelQueries({
+        queryKey: expensesKey(manager.api.environment, user?.id, tripId),
+        exact: true,
+      }),
+    [client, manager, user?.id, tripId]
+  );
+  return { query, refresh, cancel };
 }
 export function useExpense(tripId: string, expenseId: string) {
   const { manager, user } = useAuth();

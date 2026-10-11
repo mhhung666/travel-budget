@@ -7,6 +7,7 @@ import { AuthProvider } from '@/features/auth/AuthProvider';
 import { DraftCatalogProvider } from '@/features/localDrafts/provider';
 import { TripEntryProvider } from '@/features/tripEntry/provider';
 import { ExpenseEntryProvider } from '@/features/expenses/entryProvider';
+import { ExpenseBrowseProvider } from '@/features/expenses/browseProvider';
 import { subscribeQueryLifecycle } from './queryLifecycle';
 
 export function AppProviders({ children }: PropsWithChildren) {
@@ -28,7 +29,9 @@ export function AppProviders({ children }: PropsWithChildren) {
             <AuthProvider>
               <DraftCatalogProvider>
                 <ExpenseEntryProvider>
-                  <TripEntryProvider>{children}</TripEntryProvider>
+                  <TripEntryProvider>
+                    <ExpenseBrowseProvider>{children}</ExpenseBrowseProvider>
+                  </TripEntryProvider>
                 </ExpenseEntryProvider>
               </DraftCatalogProvider>
             </AuthProvider>

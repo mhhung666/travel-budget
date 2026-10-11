@@ -30,7 +30,43 @@
       "FindCursor.fetchBatch",
       "FindCursor.next"
     ],
-    "status": "reproduced twice over HTTP and once through readExpenseSearch inside withLedgerV2; unresolved; no valid latency sample"
+    "status": "U3a reproduced; fixed in U3c-2 below. Original failures are not valid latency samples."
   },
-  "remaining": "Fix cursor/transaction timeout compatibility and add multi-batch regression before U3c-2; do not remove transaction/authentication guards or silently cap totals."
+  "remaining": "Native full-screen request traces, iOS visual/VoiceOver acceptance and production capacity remain unmeasured; full-trip search still scans all rows per request.",
+  "u3c2": {
+    "date": "2026-10-10",
+    "environment": "Disposable MongoDB 8.0 replica set / driver 7.2.0, serial local dev HTTP; synthetic fixtures. Not production load or native acceptance.",
+    "http": [
+      {
+        "rows": 48,
+        "firstMs": 16,
+        "requests": 3,
+        "verified": "20 / 20 / 8, same full summary"
+      },
+      {
+        "rows": 1000,
+        "firstMs": 35,
+        "requests": 3,
+        "verified": "first / second / last page; full count and money"
+      }
+    ],
+    "service": [
+      {
+        "rows": 48,
+        "pages": 3,
+        "firstMs": 3,
+        "minMs": 3,
+        "maxMs": 3
+      },
+      {
+        "rows": 1000,
+        "pages": 50,
+        "firstMs": 17,
+        "minMs": 11,
+        "maxMs": 18,
+        "medianMs": 11
+      }
+    ],
+    "regressions": "All 1000 unique IDs; full count/total/mySpent; expenses and users getMore within snapshot, no server maxTimeMS; one remaining 20-second operation/commit deadline; denied and corrupt ledgers refused."
+  }
 }

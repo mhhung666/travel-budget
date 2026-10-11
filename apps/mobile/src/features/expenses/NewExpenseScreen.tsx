@@ -1,3 +1,4 @@
+import { ExpenseFormSection, ExpenseMemberSelection } from './ExpenseFormParts';
 import { SplitFields } from './SplitFields';
 import { splitLabel, splitModeOf, supportsSplitCreate } from './splitInput';
 import { baseCurrency } from '@/api/ledger';
@@ -641,116 +642,121 @@ function EntryForm({
   return (
     <>
       {readStorageFailed && <Notice tone="danger">{t.storageError}</Notice>}
-      <Section title={t.expenseCurrency}>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {draftCurrencies(options, draft).map((code) => (
-            <Chip
-              key={code}
-              testID={`new-expense-currency-${code}`}
-              label={code}
-              selected={(draft.currency ?? 'TWD') === code}
-              disabled={locked}
-              onPress={() => {
-                setRates(null);
-                setRateError(false);
-                edit({
-                  ...currencyDefaults(options, code),
-                  ledger: draft.ledger,
-                  apiVersion: draft.apiVersion,
-                });
-              }}
+      <View testID="new-expense-money" style={{ gap: spacing.compact }}>
+        <TextField
+          testID="new-expense-amount"
+          inputRef={amountInput}
+          label={
+            (draft.currency ?? 'TWD') === baseCurrency(options)
+              ? t.amountTwd
+              : `${t.originalAmount} (${draft.currency})`
+          }
+          kind="amount"
+          placeholder={t.amountHint}
+          value={draft.amountText}
+          onChangeText={(amountText) => {
+            reset();
+            edit({ amountText });
+          }}
+          editable={!locked}
+          keyboardType="decimal-pad"
+          returnKeyType="done"
+          onSubmitEditing={Keyboard.dismiss}
+          inputAccessoryViewID={amountAccessoryId}
+          autoCorrect={false}
+          error={message('amount')}
+        />
+        <Section title={t.expenseCurrency}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {draftCurrencies(options, draft).map((code) => (
+              <Chip
+                key={code}
+                testID={`new-expense-currency-${code}`}
+                label={code}
+                selected={(draft.currency ?? 'TWD') === code}
+                disabled={locked}
+                onPress={() => {
+                  setRates(null);
+                  setRateError(false);
+                  edit({
+                    ...currencyDefaults(options, code),
+                    ledger: draft.ledger,
+                    apiVersion: draft.apiVersion,
+                  });
+                }}
+              />
+            ))}
+          </View>
+          {!!message('currency') && <FieldError message={message('currency')!} />}
+        </Section>
+        {(draft.currency ?? 'TWD') !== baseCurrency(options) && (
+          <>
+            <TextField
+              testID="new-expense-rate"
+              label={t.exchangeRate}
+              value={draft.rateText ?? ''}
+              keyboardType="decimal-pad"
+              returnKeyType="done"
+              onSubmitEditing={Keyboard.dismiss}
+              inputAccessoryViewID={amountAccessoryId}
+              editable={!locked}
+              autoCorrect={false}
+              error={message('rate')}
+              onChangeText={(rateText) =>
+                edit({ rateText, rateSource: 'manual', rateDate: undefined })
+              }
             />
-          ))}
-        </View>
-        {!!message('currency') && <FieldError message={message('currency')!} />}
-      </Section>
-      {(draft.currency ?? 'TWD') !== baseCurrency(options) && (
-        <>
-          <TextField
-            testID="new-expense-rate"
-            label={t.exchangeRate}
-            value={draft.rateText ?? ''}
-            keyboardType="decimal-pad"
-            returnKeyType="done"
-            onSubmitEditing={Keyboard.dismiss}
-            inputAccessoryViewID={amountAccessoryId}
-            editable={!locked}
-            autoCorrect={false}
-            error={message('rate')}
-            onChangeText={(rateText) =>
-              edit({ rateText, rateSource: 'manual', rateDate: undefined })
-            }
-          />
-          <Copy>{t.expenseRateHint}</Copy>
-          <Copy>
-            {draft.rateSource === 'reference'
-              ? `${t.referenceRate} · Frankfurter · ${draft.rateDate ?? ''}`
-              : draft.rateSource === 'trip'
-                ? draft.rateText
-                  ? t.customRate
-                  : t.rateUnavailable
-                : t.manualRate}
-          </Copy>
-          <Action
-            testID="new-expense-load-rates"
-            secondary
-            label={t.loadReferenceRates}
-            busy={rateLoading}
-            disabled={localOnly || !online || locked}
-            onPress={() => void loadRates()}
-          />
-          {rateError && <Notice tone="warning">{t.rateLoadFailed}</Notice>}
-          {rates && (
-            <Card>
-              {rates.rates[draft.currency!] !== undefined ? (
-                <>
-                  <DetailRow label={t.referenceRate} value={String(rates.rates[draft.currency!])} />
-                  <DetailRow label={t.ratePublished} value={rates.dates[draft.currency!]} />
-                  <Copy>Frankfurter</Copy>
-                  <Action
-                    testID="new-expense-use-rate"
-                    secondary
-                    label={t.useReferenceRate}
-                    disabled={locked}
-                    onPress={() =>
-                      edit({
-                        rateText: String(rates.rates[draft.currency!]),
-                        rateSource: 'reference',
-                        rateDate: rates.dates[draft.currency!],
-                      })
-                    }
-                  />
-                </>
-              ) : (
-                <Notice tone="warning">{t.rateUnavailable}</Notice>
-              )}
-            </Card>
-          )}
-        </>
-      )}
-      <TextField
-        testID="new-expense-amount"
-        inputRef={amountInput}
-        label={
-          (draft.currency ?? 'TWD') === baseCurrency(options)
-            ? t.amountTwd
-            : `${t.originalAmount} (${draft.currency})`
-        }
-        kind="amount"
-        placeholder={t.amountHint}
-        value={draft.amountText}
-        onChangeText={(amountText) => {
-          reset();
-          edit({ amountText });
-        }}
-        editable={!locked}
-        keyboardType="decimal-pad"
-        returnKeyType="done"
-        onSubmitEditing={Keyboard.dismiss}
-        inputAccessoryViewID={amountAccessoryId}
-        autoCorrect={false}
-        error={message('amount')}
-      />
+            <Copy>{t.expenseRateHint}</Copy>
+            <Copy>
+              {draft.rateSource === 'reference'
+                ? `${t.referenceRate} · Frankfurter · ${draft.rateDate ?? ''}`
+                : draft.rateSource === 'trip'
+                  ? draft.rateText
+                    ? t.customRate
+                    : t.rateUnavailable
+                  : t.manualRate}
+            </Copy>
+            <Action
+              testID="new-expense-load-rates"
+              secondary
+              label={t.loadReferenceRates}
+              busy={rateLoading}
+              disabled={localOnly || !online || locked}
+              onPress={() => void loadRates()}
+            />
+            {rateError && <Notice tone="warning">{t.rateLoadFailed}</Notice>}
+            {rates && (
+              <Card>
+                {rates.rates[draft.currency!] !== undefined ? (
+                  <>
+                    <DetailRow
+                      label={t.referenceRate}
+                      value={String(rates.rates[draft.currency!])}
+                    />
+                    <DetailRow label={t.ratePublished} value={rates.dates[draft.currency!]} />
+                    <Copy>Frankfurter</Copy>
+                    <Action
+                      testID="new-expense-use-rate"
+                      secondary
+                      label={t.useReferenceRate}
+                      disabled={locked}
+                      onPress={() =>
+                        edit({
+                          rateText: String(rates.rates[draft.currency!]),
+                          rateSource: 'reference',
+                          rateDate: rates.dates[draft.currency!],
+                        })
+                      }
+                    />
+                  </>
+                ) : (
+                  <Notice tone="warning">{t.rateUnavailable}</Notice>
+                )}
+              </Card>
+            )}
+          </>
+        )}
+      </View>
       {Platform.OS === 'ios' && (
         <InputAccessoryView nativeID={amountAccessoryId}>
           <View
@@ -782,101 +788,117 @@ function EntryForm({
           </View>
         </InputAccessoryView>
       )}
-      <TextField
-        testID="new-expense-description"
-        label={t.expenseDescription}
-        multiline
-        submitBehavior="submit"
-        value={draft.description}
-        onChangeText={(description) => edit({ description })}
-        editable={!locked}
-        returnKeyType="next"
-        onSubmitEditing={() => dateInput.current?.focus()}
-        error={message('description')}
-      />
-      <Section title={t.category}>
+      <ExpenseFormSection title={t.expenseDetails} testID="new-expense-details">
+        <TextField
+          testID="new-expense-description"
+          label={t.expenseDescription}
+          multiline
+          submitBehavior="submit"
+          value={draft.description}
+          onChangeText={(description) => edit({ description })}
+          editable={!locked}
+          returnKeyType="next"
+          onSubmitEditing={() => dateInput.current?.focus()}
+          error={message('description')}
+        />
+        <Section title={t.category}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {options.categories.map((category) => (
+              <Chip
+                key={category}
+                testID={`new-expense-category-${category}`}
+                label={categoryLabel(category, t)}
+                selected={draft.category === category}
+                disabled={locked}
+                onPress={() => edit({ category })}
+              />
+            ))}
+          </View>
+          {!!message('category') && <FieldError message={message('category')!} />}
+        </Section>
+        <TextField
+          testID="new-expense-date"
+          inputRef={dateInput}
+          label={t.date}
+          placeholder={t.dateFormatHint}
+          value={draft.date}
+          onChangeText={(date) => edit({ date })}
+          editable={!locked}
+          keyboardType="numbers-and-punctuation"
+          returnKeyType="done"
+          onSubmitEditing={Keyboard.dismiss}
+          autoCorrect={false}
+          autoCapitalize="none"
+          maxLength={10}
+          error={message('date')}
+        />
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {options.categories.map((category) => (
-            <Chip
-              key={category}
-              testID={`new-expense-category-${category}`}
-              label={categoryLabel(category, t)}
-              selected={draft.category === category}
-              disabled={locked}
-              onPress={() => edit({ category })}
-            />
-          ))}
+          <Chip
+            testID="new-expense-date-prev"
+            role="button"
+            label={t.previousDay}
+            disabled={locked}
+            onPress={() => shift(-1)}
+          />
+          <Chip
+            testID="new-expense-date-today"
+            role="button"
+            label={t.today}
+            disabled={locked}
+            onPress={() => edit({ date: localDate() })}
+          />
+          <Chip
+            testID="new-expense-date-next"
+            role="button"
+            label={t.nextDay}
+            disabled={locked}
+            onPress={() => shift(1)}
+          />
         </View>
-        {!!message('category') && <FieldError message={message('category')!} />}
-      </Section>
-      <TextField
-        testID="new-expense-date"
-        inputRef={dateInput}
-        label={t.date}
-        placeholder={t.dateFormatHint}
-        value={draft.date}
-        onChangeText={(date) => edit({ date })}
-        editable={!locked}
-        keyboardType="numbers-and-punctuation"
-        returnKeyType="done"
-        onSubmitEditing={Keyboard.dismiss}
-        autoCorrect={false}
-        autoCapitalize="none"
-        maxLength={10}
-        error={message('date')}
-      />
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-        <Chip
-          testID="new-expense-date-prev"
-          role="button"
-          label={t.previousDay}
+      </ExpenseFormSection>
+      <ExpenseFormSection title={t.expensePaymentSplit} testID="new-expense-payment">
+        <ExpenseMemberSelection
+          testID="new-expense-members-toggle"
+          t={t}
           disabled={locked}
-          onPress={() => shift(-1)}
-        />
-        <Chip
-          testID="new-expense-date-today"
-          role="button"
-          label={t.today}
-          disabled={locked}
-          onPress={() => edit({ date: localDate() })}
-        />
-        <Chip
-          testID="new-expense-date-next"
-          role="button"
-          label={t.nextDay}
-          disabled={locked}
-          onPress={() => shift(1)}
-        />
-      </View>
-      <Section title={t.paidBy}>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {options.members.map((member) => (
-            <Chip
-              key={member.id}
-              testID={`new-expense-payer-${member.id}`}
-              label={memberLabel(member.id, member.displayName)}
-              selected={draft.payerId === member.id}
-              disabled={locked}
-              onPress={() => edit({ payerId: member.id })}
-            />
-          ))}
-        </View>
+          needsAttention={missingMembers.length > 0 || !!message('payer') || !!message('members')}
+          count={draft.memberIds.length}
+          payer={memberLabel(
+            draft.payerId,
+            options.members.find((m) => m.id === draft.payerId)?.displayName ?? ''
+          )}
+        >
+          <Section title={t.paidBy}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {options.members.map((member) => (
+                <Chip
+                  key={member.id}
+                  testID={`new-expense-payer-${member.id}`}
+                  label={memberLabel(member.id, member.displayName)}
+                  selected={draft.payerId === member.id}
+                  disabled={locked}
+                  onPress={() => edit({ payerId: member.id })}
+                />
+              ))}
+            </View>
+          </Section>
+          <Section title={t.splitMembers}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {options.members.map((member) => (
+                <Chip
+                  key={member.id}
+                  testID={`new-expense-member-${member.id}`}
+                  role="checkbox"
+                  label={memberLabel(member.id, member.displayName)}
+                  selected={draft.memberIds.includes(member.id)}
+                  disabled={locked}
+                  onPress={() => toggle(member.id)}
+                />
+              ))}
+            </View>
+          </Section>
+        </ExpenseMemberSelection>
         {!!message('payer') && <FieldError message={message('payer')!} />}
-      </Section>
-      <Section title={t.splitMembers}>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {options.members.map((member) => (
-            <Chip
-              key={member.id}
-              testID={`new-expense-member-${member.id}`}
-              role="checkbox"
-              label={memberLabel(member.id, member.displayName)}
-              selected={draft.memberIds.includes(member.id)}
-              disabled={locked}
-              onPress={() => toggle(member.id)}
-            />
-          ))}
-        </View>
         {missingMembers.length > 0 && (
           <>
             <Notice tone="warning">{t.draftMembersChanged}</Notice>
@@ -892,105 +914,107 @@ function EntryForm({
           </>
         )}
         {!!message('members') && <FieldError message={message('members')!} />}
-      </Section>
-
-      <SplitFields
-        draft={draft}
-        members={options.members.map((m) => ({
-          id: m.id,
-          label: memberLabel(m.id, m.displayName),
-        }))}
-        t={t}
-        disabled={locked}
-        attempted={attempted}
-        available={supportsSplitCreate(options, splitModeOf(draft))}
-        accessoryId={amountAccessoryId}
-        onChange={edit}
-      />
-      {!!message('split') && <FieldError message={message('split')!} />}
-      <Disclosure testID="expense-form-help" title={t.expenseFormHelp}>
-        <Copy>{t.newExpenseHint}</Copy>
-        <Copy>{t.draftHint}</Copy>
-      </Disclosure>
-      <Action
-        testID="new-expense-preview"
-        variant={current ? 'secondary' : 'primary'}
-        label={previewing ? t.previewing : t.previewSplit}
-        busy={previewing}
-        disabled={
-          localOnly ||
-          !online ||
-          locked ||
-          (splitModeOf(draft) !== 'equal' && !supportsSplitCreate(options, splitModeOf(draft)))
-        }
-        onPress={() => void runPreview()}
-      />
-      {!!previewError && (
-        <Notice tone="danger">
-          {previewError instanceof ApiError && previewError.code === 'VALIDATION_ERROR'
-            ? t.splitPreviewInvalid
-            : errorMessage(previewError, t)}
-        </Notice>
-      )}
-      {stale && <Notice tone="warning">{t.previewStale}</Notice>}
-      {current && (
-        <Section title={t.previewTitle}>
-          <Copy>{t.previewHint}</Copy>
-          <Card testID="new-expense-preview-card">
-            <DetailRow label={t.splitMode} value={splitLabel(splitModeOf(draft), t)} />
-            <DetailRow
-              testID="new-expense-preview-total"
-              label={t.amountTwd}
-              value={f.money(current.amount)}
-            />
-            {(draft.currency ?? 'TWD') !== baseCurrency(options) && (
-              <>
-                <DetailRow
-                  label={t.originalAmount}
-                  value={f.originalAmount(current.originalAmount!, current.currency!)}
-                />
-                <DetailRow label={t.exchangeRate} value={String(current.exchangeRate)} />
-              </>
-            )}
-            <DetailRow label={t.expenseDescription} value={draft.description} />
-            <DetailRow label={t.category} value={categoryLabel(draft.category, t)} />
-            <DetailRow label={t.date} value={f.date(draft.date)} />
-            <DetailRow
-              label={t.paidBy}
-              value={memberLabel(
-                draft.payerId,
-                options.members.find((m) => m.id === draft.payerId)?.displayName ?? ''
-              )}
-            />
-            {current.splits.map((split, index) => (
-              <View key={split.userId} style={{ gap: spacing.small }}>
-                <DetailRow
-                  testID={`new-expense-split-${index}`}
-                  label={memberLabel(split.userId, split.displayName)}
-                  value={f.money(split.shareAmount)}
-                />
-                {split.originalShareAmount !== undefined && (
+        <SplitFields
+          draft={draft}
+          members={options.members.map((m) => ({
+            id: m.id,
+            label: memberLabel(m.id, m.displayName),
+          }))}
+          t={t}
+          disabled={locked}
+          attempted={attempted}
+          available={supportsSplitCreate(options, splitModeOf(draft))}
+          accessoryId={amountAccessoryId}
+          onChange={edit}
+        />
+        {!!message('split') && <FieldError message={message('split')!} />}
+      </ExpenseFormSection>
+      <View testID="new-expense-review" style={{ gap: spacing.compact }}>
+        <Action
+          testID="new-expense-preview"
+          variant={current ? 'secondary' : 'primary'}
+          label={previewing ? t.previewing : t.previewSplit}
+          busy={previewing}
+          disabled={
+            localOnly ||
+            !online ||
+            locked ||
+            (splitModeOf(draft) !== 'equal' && !supportsSplitCreate(options, splitModeOf(draft)))
+          }
+          onPress={() => void runPreview()}
+        />
+        {!!previewError && (
+          <Notice tone="danger">
+            {previewError instanceof ApiError && previewError.code === 'VALIDATION_ERROR'
+              ? t.splitPreviewInvalid
+              : errorMessage(previewError, t)}
+          </Notice>
+        )}
+        {stale && <Notice tone="warning">{t.previewStale}</Notice>}
+        {current && (
+          <Section title={t.previewTitle}>
+            <Copy>{t.previewHint}</Copy>
+            <Card testID="new-expense-preview-card">
+              <DetailRow label={t.splitMode} value={splitLabel(splitModeOf(draft), t)} />
+              <DetailRow
+                testID="new-expense-preview-total"
+                label={t.amountTwd}
+                value={f.money(current.amount)}
+              />
+              {(draft.currency ?? 'TWD') !== baseCurrency(options) && (
+                <>
                   <DetailRow
-                    testID={`new-expense-original-split-${index}`}
                     label={t.originalAmount}
-                    value={f.originalAmount(split.originalShareAmount, current.currency!)}
+                    value={f.originalAmount(current.originalAmount!, current.currency!)}
                   />
+                  <DetailRow label={t.exchangeRate} value={String(current.exchangeRate)} />
+                </>
+              )}
+              <DetailRow label={t.expenseDescription} value={draft.description} />
+              <DetailRow label={t.category} value={categoryLabel(draft.category, t)} />
+              <DetailRow label={t.date} value={f.date(draft.date)} />
+              <DetailRow
+                label={t.paidBy}
+                value={memberLabel(
+                  draft.payerId,
+                  options.members.find((m) => m.id === draft.payerId)?.displayName ?? ''
                 )}
-              </View>
-            ))}
-          </Card>
-        </Section>
-      )}
-      {!current && !stale && <Copy>{t.previewNeeded}</Copy>}
-      <Action
-        testID="new-expense-confirm"
-        label={submitting ? t.saving : t.confirmSave}
-        busy={submitting}
-        disabled={
-          localOnly || !current || !online || locked || saveStatus !== 'saved' || issues.length > 0
-        }
-        onPress={() => void confirm()}
-      />
+              />
+              {current.splits.map((split, index) => (
+                <View key={split.userId} style={{ gap: spacing.small }}>
+                  <DetailRow
+                    testID={`new-expense-split-${index}`}
+                    label={memberLabel(split.userId, split.displayName)}
+                    value={f.money(split.shareAmount)}
+                  />
+                  {split.originalShareAmount !== undefined && (
+                    <DetailRow
+                      testID={`new-expense-original-split-${index}`}
+                      label={t.originalAmount}
+                      value={f.originalAmount(split.originalShareAmount, current.currency!)}
+                    />
+                  )}
+                </View>
+              ))}
+            </Card>
+          </Section>
+        )}
+        {!current && !stale && <Copy>{t.previewNeeded}</Copy>}
+        <Action
+          testID="new-expense-confirm"
+          label={submitting ? t.saving : t.confirmSave}
+          busy={submitting}
+          disabled={
+            localOnly ||
+            !current ||
+            !online ||
+            locked ||
+            saveStatus !== 'saved' ||
+            issues.length > 0
+          }
+          onPress={() => void confirm()}
+        />
+      </View>
       <Section title={t.offlineExpenseConfirm}>
         <Notice>
           {isTwdQueueDraft(draft)
@@ -1009,6 +1033,10 @@ function EntryForm({
           onPress={() => void enqueue()}
         />
       </Section>
+      <Disclosure testID="expense-form-help" title={t.expenseFormHelp}>
+        <Copy>{t.newExpenseHint}</Copy>
+        <Copy>{t.draftHint}</Copy>
+      </Disclosure>
       <Action
         variant="ghost"
         label={t.draftDiscard}

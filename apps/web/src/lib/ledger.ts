@@ -161,7 +161,8 @@ type LedgerParent = {
 export async function validateLedgerChildrenBatch(
   db: mongo.Db,
   trips: LedgerParent[],
-  session?: mongo.ClientSession
+  session?: mongo.ClientSession,
+  readOptions?: () => mongo.FindOptions
 ) {
   const groups = new Map<string, mongo.ObjectId[]>();
   for (const trip of trips) {
@@ -181,7 +182,9 @@ export async function validateLedgerChildrenBatch(
   // MongoDB sessions do not support concurrent operations within a transaction.
   for (const collection of ['expenses', 'payments']) {
     if (
-      await db.collection(collection).findOne({ $or: invalid }, { session, projection: { _id: 1 } })
+      await db
+        .collection(collection)
+        .findOne({ $or: invalid }, { ...(readOptions?.() ?? { session }), projection: { _id: 1 } })
     )
       throw new LedgerError('LEDGER_DATA_INVALID');
   }
@@ -189,7 +192,8 @@ export async function validateLedgerChildrenBatch(
 export async function validateLedgerChildren(
   db: mongo.Db,
   trip: LedgerParent,
-  session?: mongo.ClientSession
+  session?: mongo.ClientSession,
+  readOptions?: () => mongo.FindOptions
 ) {
-  return validateLedgerChildrenBatch(db, [trip], session);
+  return validateLedgerChildrenBatch(db, [trip], session, readOptions);
 }

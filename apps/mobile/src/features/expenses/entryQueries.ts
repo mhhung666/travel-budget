@@ -10,6 +10,7 @@ import { useAuth } from '@/features/auth/AuthProvider';
 import { keepAccessDenial, recordAccessDenial } from '@/features/auth/accessGuard';
 import { isAccessDenied } from '@/features/auth/errorMessage';
 import { expensesKey, keepFirstPage } from './queries';
+import { invalidateExpenseBrowsers } from './browse';
 
 type Requester = Pick<SessionManager, 'requestAs'> & {
   api: Pick<SessionManager['api'], 'environment'>;
@@ -99,6 +100,7 @@ export async function refreshTripData(
   tripId: string,
   deletedExpenseId?: string
 ): Promise<void> {
+  invalidateExpenseBrowsers(client, environment, userId, tripId);
   if (deletedExpenseId)
     client.removeQueries({
       queryKey: [environment, userId, 'expense', tripId, deletedExpenseId, 'v2'],

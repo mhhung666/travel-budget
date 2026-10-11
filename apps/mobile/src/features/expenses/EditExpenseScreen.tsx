@@ -1,3 +1,4 @@
+import { ExpenseFormSection, ExpenseMemberSelection } from './ExpenseFormParts';
 import { baseCurrency } from '@/api/ledger';
 import { TripContext } from '@/features/navigation/TripContext';
 import { FormPage } from '@/components/screen';
@@ -529,115 +530,120 @@ export function EditExpenseScreen({
             <Notice tone="warning">{t.deleteExpenseWarning}</Notice>
           ) : (
             <>
-              <Notice>
-                {mode === 'basic'
-                  ? t.basicExpenseHint
-                  : mode === 'split'
-                    ? t.newSplitHint
-                    : t.equalExpenseHint}
-              </Notice>
-              <Chip
-                testID="expense-maintain-basic"
-                label={t.basicExpense}
-                selected={mode === 'basic'}
-                disabled={busy}
-                onPress={() => {
-                  inputGeneration.current++;
-                  setMode('basic');
-                  setPrepared(null);
-                }}
-              />
-              {(canSplitEdit(context) && mode !== 'equal') || mode === 'split' ? (
+              <ExpenseFormSection title={t.expenseEditScope} testID="expense-maintain-scope">
+                <Notice>
+                  {mode === 'basic'
+                    ? t.basicExpenseHint
+                    : mode === 'split'
+                      ? t.newSplitHint
+                      : t.equalExpenseHint}
+                </Notice>
                 <Chip
-                  testID="expense-maintain-resplit"
-                  label={t.resplitExpense}
-                  selected={mode === 'split'}
+                  testID="expense-maintain-basic"
+                  label={t.basicExpense}
+                  selected={mode === 'basic'}
                   disabled={busy}
                   onPress={() => {
                     inputGeneration.current++;
-                    setMode('split');
+                    setMode('basic');
                     setPrepared(null);
                   }}
                 />
-              ) : (
-                <Chip
-                  testID="expense-maintain-equal"
-                  label={t.equalExpense}
-                  selected={mode === 'equal'}
-                  disabled={busy || !canRecalculate(context)}
-                  onPress={() => {
-                    inputGeneration.current++;
-                    setMode('equal');
-                    setPrepared(null);
-                  }}
-                />
-              )}
-              {!canRecalculate(context) && !canSplitEdit(context) && (
-                <Notice>{t.expenseWebOnly}</Notice>
-              )}
+                {(canSplitEdit(context) && mode !== 'equal') || mode === 'split' ? (
+                  <Chip
+                    testID="expense-maintain-resplit"
+                    label={t.resplitExpense}
+                    selected={mode === 'split'}
+                    disabled={busy}
+                    onPress={() => {
+                      inputGeneration.current++;
+                      setMode('split');
+                      setPrepared(null);
+                    }}
+                  />
+                ) : (
+                  <Chip
+                    testID="expense-maintain-equal"
+                    label={t.equalExpense}
+                    selected={mode === 'equal'}
+                    disabled={busy || !canRecalculate(context)}
+                    onPress={() => {
+                      inputGeneration.current++;
+                      setMode('equal');
+                      setPrepared(null);
+                    }}
+                  />
+                )}
+                {!canRecalculate(context) && !canSplitEdit(context) && (
+                  <Notice>{t.expenseWebOnly}</Notice>
+                )}
+              </ExpenseFormSection>
               {mode !== 'basic' && (
                 <>
-                  <Notice>{t.editCurrencyHint}</Notice>
-                  <Section title={t.expenseCurrency}>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small }}>
-                      {draftCurrencies(context.options, { ...fields, category: 'other' }).map(
-                        (currency) => (
-                          <Chip
-                            key={currency}
-                            testID={`expense-maintain-currency-${currency}`}
-                            label={currency}
-                            selected={fields.currency === currency}
-                            disabled={busy}
-                            onPress={() => {
-                              if (currency === fields.currency) return;
-                              change({
-                                currency,
-                                rateText:
-                                  currency === context.expense.currency
-                                    ? String(context.expense.exchangeRate)
-                                    : (currencyDefaults(context.options, currency).rateText ?? ''),
-                              });
-                            }}
-                          />
-                        )
-                      )}
-                    </View>
-                  </Section>
-                  <Copy>{t.expenseRateHint}</Copy>
-                  {fields.currency !== baseCurrency(context) && (
+                  <View testID="expense-maintain-money" style={{ gap: spacing.compact }}>
                     <TextField
-                      testID="expense-maintain-rate"
-                      inputRef={rate}
-                      label={t.exchangeRate}
-                      value={fields.rateText}
-                      editable={!busy}
-                      autoCorrect={false}
-                      keyboardType="decimal-pad"
-                      returnKeyType="next"
+                      testID="expense-maintain-amount"
+                      inputRef={amount}
+                      label={
+                        fields.currency === baseCurrency(context)
+                          ? t.amountTwd
+                          : `${t.originalAmount} (${fields.currency})`
+                      }
+                      kind="amount"
+                      placeholder={t.amountHint}
+                      returnKeyType="done"
+                      onSubmitEditing={Keyboard.dismiss}
                       inputAccessoryViewID={amountAccessoryId}
-                      onSubmitEditing={() => amount.current?.focus()}
-                      onChangeText={(rateText) => change({ rateText })}
+                      autoCorrect={false}
+                      value={fields.amountText}
+                      editable={!busy}
+                      keyboardType="decimal-pad"
+                      onChangeText={(amountText) => change({ amountText })}
                     />
-                  )}
-                  <TextField
-                    testID="expense-maintain-amount"
-                    inputRef={amount}
-                    label={
-                      fields.currency === baseCurrency(context)
-                        ? t.amountTwd
-                        : `${t.originalAmount} (${fields.currency})`
-                    }
-                    kind="amount"
-                    placeholder={t.amountHint}
-                    returnKeyType="done"
-                    onSubmitEditing={Keyboard.dismiss}
-                    inputAccessoryViewID={amountAccessoryId}
-                    autoCorrect={false}
-                    value={fields.amountText}
-                    editable={!busy}
-                    keyboardType="decimal-pad"
-                    onChangeText={(amountText) => change({ amountText })}
-                  />
+                    <Notice>{t.editCurrencyHint}</Notice>
+                    <Section title={t.expenseCurrency}>
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small }}>
+                        {draftCurrencies(context.options, { ...fields, category: 'other' }).map(
+                          (currency) => (
+                            <Chip
+                              key={currency}
+                              testID={`expense-maintain-currency-${currency}`}
+                              label={currency}
+                              selected={fields.currency === currency}
+                              disabled={busy}
+                              onPress={() => {
+                                if (currency === fields.currency) return;
+                                change({
+                                  currency,
+                                  rateText:
+                                    currency === context.expense.currency
+                                      ? String(context.expense.exchangeRate)
+                                      : (currencyDefaults(context.options, currency).rateText ??
+                                        ''),
+                                });
+                              }}
+                            />
+                          )
+                        )}
+                      </View>
+                    </Section>
+                    <Copy>{t.expenseRateHint}</Copy>
+                    {fields.currency !== baseCurrency(context) && (
+                      <TextField
+                        testID="expense-maintain-rate"
+                        inputRef={rate}
+                        label={t.exchangeRate}
+                        value={fields.rateText}
+                        editable={!busy}
+                        autoCorrect={false}
+                        keyboardType="decimal-pad"
+                        returnKeyType="next"
+                        inputAccessoryViewID={amountAccessoryId}
+                        onSubmitEditing={() => amount.current?.focus()}
+                        onChangeText={(rateText) => change({ rateText })}
+                      />
+                    )}
+                  </View>
                   {Platform.OS === 'ios' && (
                     <InputAccessoryView nativeID={amountAccessoryId}>
                       <View
@@ -669,61 +675,112 @@ export function EditExpenseScreen({
                   )}
                 </>
               )}
-              <TextField
-                testID="expense-maintain-description"
-                inputRef={first}
-                label={t.expenseDescription}
-                multiline
-                submitBehavior="submit"
-                value={fields.description}
-                editable={!busy}
-                onChangeText={(description) => change({ description })}
-                returnKeyType="next"
-                onSubmitEditing={() => date.current?.focus()}
-              />
-              <Section title={t.category}>
-                <Copy>{categoryName(fields.category)}</Copy>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small }}>
-                  {context.options.categories.map((category) => (
-                    <Chip
-                      key={category}
-                      label={categoryLabel(category, t)}
-                      selected={fields.category === category}
-                      disabled={busy}
-                      onPress={() => change({ category })}
-                    />
-                  ))}
-                </View>
-              </Section>
-              <TextField
-                testID="expense-maintain-date"
-                inputRef={date}
-                label={t.date}
-                value={fields.date}
-                editable={!busy}
-                onChangeText={(date) => change({ date })}
-                autoCapitalize="none"
-                placeholder={t.dateFormatHint}
-                returnKeyType="done"
-                onSubmitEditing={Keyboard.dismiss}
-              />
+              <ExpenseFormSection title={t.expenseDetails} testID="expense-maintain-details-form">
+                <TextField
+                  testID="expense-maintain-description"
+                  inputRef={first}
+                  label={t.expenseDescription}
+                  multiline
+                  submitBehavior="submit"
+                  value={fields.description}
+                  editable={!busy}
+                  onChangeText={(description) => change({ description })}
+                  returnKeyType="next"
+                  onSubmitEditing={() => date.current?.focus()}
+                />
+                <Section title={t.category}>
+                  <Copy>{categoryName(fields.category)}</Copy>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small }}>
+                    {context.options.categories.map((category) => (
+                      <Chip
+                        key={category}
+                        label={categoryLabel(category, t)}
+                        selected={fields.category === category}
+                        disabled={busy}
+                        onPress={() => change({ category })}
+                      />
+                    ))}
+                  </View>
+                </Section>
+                <TextField
+                  testID="expense-maintain-date"
+                  inputRef={date}
+                  label={t.date}
+                  value={fields.date}
+                  editable={!busy}
+                  onChangeText={(date) => change({ date })}
+                  autoCapitalize="none"
+                  placeholder={t.dateFormatHint}
+                  returnKeyType="done"
+                  onSubmitEditing={Keyboard.dismiss}
+                />
+              </ExpenseFormSection>
               {mode !== 'basic' && (
                 <>
-                  <Section title={t.paidBy}>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small }}>
-                      {context.options.members.map((m) => (
-                        <Chip
-                          key={m.id}
-                          testID={`expense-maintain-payer-${m.id}`}
-                          label={memberLabel(m.id, m.displayName)}
-                          selected={fields.payerId === m.id}
-                          disabled={busy}
-                          onPress={() => change({ payerId: m.id })}
-                        />
-                      ))}
-                    </View>
-                  </Section>
-                  <Section title={t.splitDetails}>
+                  <ExpenseFormSection
+                    title={t.expensePaymentSplit}
+                    testID="expense-maintain-payment"
+                  >
+                    <ExpenseMemberSelection
+                      testID="expense-maintain-members-toggle"
+                      t={t}
+                      disabled={busy}
+                      needsAttention={
+                        fields.memberIds.some(
+                          (id) => !context.options.members.some((m) => m.id === id)
+                        ) ||
+                        !context.options.members.some((m) => m.id === fields.payerId) ||
+                        fields.memberIds.length === 0
+                      }
+                      count={fields.memberIds.length}
+                      payer={memberLabel(
+                        fields.payerId,
+                        context.options.members.find((m) => m.id === fields.payerId)?.displayName ??
+                          (fields.payerId === context.expense.payerId
+                            ? context.expense.payerName
+                            : '')
+                      )}
+                    >
+                      <Section title={t.paidBy}>
+                        <View
+                          style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small }}
+                        >
+                          {context.options.members.map((m) => (
+                            <Chip
+                              key={m.id}
+                              testID={`expense-maintain-payer-${m.id}`}
+                              label={memberLabel(m.id, m.displayName)}
+                              selected={fields.payerId === m.id}
+                              disabled={busy}
+                              onPress={() => change({ payerId: m.id })}
+                            />
+                          ))}
+                        </View>
+                      </Section>
+                      <Section title={t.splitDetails}>
+                        <View
+                          style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small }}
+                        >
+                          {context.options.members.map((m) => (
+                            <Chip
+                              key={m.id}
+                              testID={`expense-maintain-split-${m.id}`}
+                              role="checkbox"
+                              label={memberLabel(m.id, m.displayName)}
+                              selected={fields.memberIds.includes(m.id)}
+                              disabled={busy}
+                              onPress={() =>
+                                change({
+                                  memberIds: fields.memberIds.includes(m.id)
+                                    ? fields.memberIds.filter((id) => id !== m.id)
+                                    : [...fields.memberIds, m.id],
+                                })
+                              }
+                            />
+                          ))}
+                        </View>
+                      </Section>
+                    </ExpenseMemberSelection>
                     {fields.memberIds.some(
                       (id) => !context.options.members.some((m) => m.id === id)
                     ) && (
@@ -747,51 +804,40 @@ export function EditExpenseScreen({
                     {!context.options.members.some((m) => m.id === fields.payerId) && (
                       <Notice tone="warning">{t.chooseCurrentPayer}</Notice>
                     )}
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small }}>
-                      {context.options.members.map((m) => (
-                        <Chip
-                          key={m.id}
-                          testID={`expense-maintain-split-${m.id}`}
-                          role="checkbox"
-                          label={memberLabel(m.id, m.displayName)}
-                          selected={fields.memberIds.includes(m.id)}
-                          disabled={busy}
-                          onPress={() =>
-                            change({
-                              memberIds: fields.memberIds.includes(m.id)
-                                ? fields.memberIds.filter((id) => id !== m.id)
-                                : [...fields.memberIds, m.id],
-                            })
-                          }
-                        />
-                      ))}
-                    </View>
-                  </Section>
-                  {mode === 'split' && (
-                    <SplitFields
-                      draft={editDraft(fields)}
-                      members={context.options.members.map((m) => ({
-                        id: m.id,
-                        label: memberLabel(m.id, m.displayName),
-                      }))}
-                      t={t}
-                      disabled={busy}
-                      attempted={!!error}
-                      requireSelection
-                      available={canSplitEdit(context, fields.splitMode)}
-                      accessoryId={amountAccessoryId}
-                      onChange={(patch) =>
-                        change({
-                          splitMode: patch.splitMode ?? fields.splitMode,
-                          splitValues: patch.splitValues ?? fields.splitValues,
-                        })
-                      }
-                    />
-                  )}
+                    {mode === 'split' && (
+                      <SplitFields
+                        draft={editDraft(fields)}
+                        members={context.options.members.map((m) => ({
+                          id: m.id,
+                          label: memberLabel(m.id, m.displayName),
+                        }))}
+                        t={t}
+                        disabled={busy}
+                        attempted={!!error}
+                        requireSelection
+                        available={canSplitEdit(context, fields.splitMode)}
+                        accessoryId={amountAccessoryId}
+                        onChange={(patch) =>
+                          change({
+                            splitMode: patch.splitMode ?? fields.splitMode,
+                            splitValues: patch.splitValues ?? fields.splitValues,
+                          })
+                        }
+                      />
+                    )}
+                  </ExpenseFormSection>
                 </>
               )}
             </>
           )}
+          <Action
+            testID="expense-maintain-preview"
+            label={remove || mode === 'basic' ? t.reviewExpenseChangesAction : t.previewSplit}
+            variant={prepared ? 'secondary' : 'primary'}
+            busy={busy}
+            disabled={!online || Platform.OS === 'web' || !!latest}
+            onPress={() => void check()}
+          />
           {prepared && (
             <Card>
               <Title>{t.confirmExpenseEdit}</Title>
@@ -819,13 +865,15 @@ export function EditExpenseScreen({
                         label={t.paidBy}
                         value={memberLabel(context.expense.payerId, context.expense.payerName)}
                       />
-                      {context.expense.splits.map((s, i) => (
-                        <DetailRow
-                          key={i}
-                          label={memberLabel(s.userId, s.displayName)}
-                          value={f.money(s.shareAmount)}
-                        />
-                      ))}
+                      <Section title={t.currentExpense}>
+                        {context.expense.splits.map((s, i) => (
+                          <DetailRow
+                            key={i}
+                            label={memberLabel(s.userId, s.displayName)}
+                            value={f.money(s.shareAmount)}
+                          />
+                        ))}
+                      </Section>
                     </>
                   )}
                   {mode !== 'basic' && (
@@ -853,32 +901,41 @@ export function EditExpenseScreen({
                             ?.displayName ?? ''
                         )}
                       />
-                      {context.expense.splits.map((s, i) => (
-                        <DetailRow
-                          key={i}
-                          label={`${t.currentExpense}: ${memberLabel(s.userId, s.displayName)}`}
-                          value={f.money(s.shareAmount)}
-                        />
-                      ))}
+                      <Section title={t.currentExpense}>
+                        {context.expense.splits.map((s, i) => (
+                          <DetailRow
+                            key={i}
+                            label={memberLabel(s.userId, s.displayName)}
+                            value={f.money(s.shareAmount)}
+                          />
+                        ))}
+                      </Section>
                     </>
                   )}
                 </>
               )}
-              {prepared.preview?.splits.map((s) => (
-                <View key={s.userId} style={{ gap: spacing.small }}>
-                  <DetailRow
-                    key={s.userId}
-                    label={memberLabel(s.userId, s.displayName)}
-                    value={f.money(s.shareAmount)}
-                  />
-                  {s.originalShareAmount !== undefined && (
-                    <DetailRow
-                      label={t.originalAmount}
-                      value={f.originalAmount(s.originalShareAmount, prepared.preview!.currency!)}
-                    />
-                  )}
-                </View>
-              ))}
+              {prepared.preview && (
+                <Section title={t.newExpenseShares}>
+                  {prepared.preview.splits.map((s) => (
+                    <View key={s.userId} style={{ gap: spacing.small }}>
+                      <DetailRow
+                        key={s.userId}
+                        label={memberLabel(s.userId, s.displayName)}
+                        value={f.money(s.shareAmount)}
+                      />
+                      {s.originalShareAmount !== undefined && (
+                        <DetailRow
+                          label={t.originalAmount}
+                          value={f.originalAmount(
+                            s.originalShareAmount,
+                            prepared.preview!.currency!
+                          )}
+                        />
+                      )}
+                    </View>
+                  ))}
+                </Section>
+              )}
               <Action
                 testID="expense-maintain-confirm"
                 variant={remove ? 'danger' : 'primary'}
@@ -889,14 +946,6 @@ export function EditExpenseScreen({
               />
             </Card>
           )}
-          <Action
-            testID="expense-maintain-preview"
-            label={remove || mode === 'basic' ? t.reviewExpenseChangesAction : t.previewSplit}
-            variant={prepared ? 'secondary' : 'primary'}
-            busy={busy}
-            disabled={!online || Platform.OS === 'web' || !!latest}
-            onPress={() => void check()}
-          />
         </>
       ) : (
         <Action label={t.retry} busy={busy} disabled={!online} onPress={() => void load()} />

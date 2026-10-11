@@ -62,25 +62,50 @@ export async function withTripReadInDatabase<T>(
   db: mongo.Db,
   tripId: string,
   actorId: string,
-  read: (session: mongo.ClientSession) => Promise<T>
+  read: (session: mongo.ClientSession, options: () => mongo.FindOptions) => Promise<T>,
+  cursorReads = false
 ): Promise<T> {
+  // Driver 7.2's transaction CSOT leaks maxTimeMS onto non-awaitData getMore.
+  // For full cursor reads, use public per-operation CSOT against ONE absolute deadline,
+  // including explicit commit. Keep withTransaction retry, membership and snapshot isolation.
+  const deadline = performance.now() + 20_000;
+  const remaining = () => {
+    const ms = Math.ceil(deadline - performance.now());
+    if (ms <= 0) throw new mongo.MongoOperationTimeoutError('Trip read deadline exceeded');
+    return ms;
+  };
   return db.client.withSession((session) =>
     session.withTransaction(
       async () => {
-        const parent = await db.collection('trips').findOne(
-          {
-            _id: new mongo.ObjectId(tripId),
-            'members.user': new mongo.ObjectId(actorId),
-            expenseDeliveryDeleting: { $ne: true },
-          },
-          { session }
-        );
-        if (!parent) throw new TripWriteError('FORBIDDEN');
-        authorizeLedger(parent);
-        await validateLedgerChildren(db, parent, session);
-        return read(session);
+        const options = () => ({ session, ...(cursorReads ? { timeoutMS: remaining() } : {}) });
+        try {
+          const parent = await db.collection('trips').findOne(
+            {
+              _id: new mongo.ObjectId(tripId),
+              'members.user': new mongo.ObjectId(actorId),
+              expenseDeliveryDeleting: { $ne: true },
+            },
+            options()
+          );
+          if (!parent) throw new TripWriteError('FORBIDDEN');
+          authorizeLedger(parent);
+          await validateLedgerChildren(db, parent, session, cursorReads ? options : undefined);
+          const result = await read(session, options);
+          if (cursorReads) await session.commitTransaction({ timeoutMS: remaining() });
+          return result;
+        } catch (error) {
+          if (cursorReads && error instanceof mongo.MongoError && session.inTransaction())
+            await session.abortTransaction({
+              timeoutMS: Math.max(1, Math.ceil(deadline - performance.now())),
+            });
+          throw error;
+        }
       },
-      { readConcern: { level: 'snapshot' }, readPreference: 'primary', timeoutMS: 20_000 }
+      {
+        readConcern: { level: 'snapshot' },
+        readPreference: 'primary',
+        ...(cursorReads ? {} : { timeoutMS: 20_000 }),
+      }
     )
   );
 }

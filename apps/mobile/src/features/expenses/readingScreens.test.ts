@@ -6,10 +6,13 @@ import { money, formatDate } from '@/i18n/format';
 import { createMemberLabelIndex } from './rows';
 import { ExpenseListItem } from './ExpenseListItem';
 import { ExpenseRow } from './ExpenseRow';
+import { ExpenseBrowseSession } from './browse';
+import { ExpenseSearchReader } from './search';
 import { ExpensesScreen } from './ExpensesScreen';
 import { ExpenseDetailScreen } from './ExpenseDetailScreen';
 
 const h = vi.hoisted(() => ({
+  browse: null as ExpenseBrowseSession | null,
   width: 390,
   fontScale: 1,
   rowMeasurement: { viewportWidth: 390, width: 0 },
@@ -49,6 +52,9 @@ const h = vi.hoisted(() => ({
 vi.mock('react', async (original) => ({
   ...(await original<typeof import('react')>()),
   useMemo: (factory: () => unknown) => factory(),
+  useCallback: (fn: unknown) => fn,
+  useEffect: () => {},
+  useRef: () => ({ current: null }),
   useState: () => [
     h.rowMeasurement,
     (value: typeof h.rowMeasurement) => {
@@ -69,6 +75,7 @@ vi.mock('./useTripMembers', () => ({
   }),
 }));
 vi.mock('react-native', () => ({
+  AppState: { currentState: 'active' },
   useWindowDimensions: () => ({ width: h.width, fontScale: h.fontScale }),
   ...Object.fromEntries(
     ['ActivityIndicator', 'FlatList', 'Pressable', 'RefreshControl', 'Text', 'View'].map((n) => [
@@ -77,7 +84,10 @@ vi.mock('react-native', () => ({
     ])
   ),
 }));
-vi.mock('expo-router', () => ({ router: { push: h.push, dismissTo: h.dismissTo } }));
+vi.mock('expo-router', () => ({
+  router: { push: h.push, dismissTo: h.dismissTo },
+  useFocusEffect: () => {},
+}));
 vi.mock('@/components/frame', () => ({ ScreenFrame: 'ScreenFrame' }));
 vi.mock('@/components/screen', () => ({ PageHeader: 'PageHeader' }));
 vi.mock('@/features/navigation/TripContext', () => ({ TripContext: 'TripContext' }));
@@ -100,7 +110,11 @@ vi.mock('@/i18n/useMessages', async () => {
 });
 vi.mock('@/providers/useOnline', () => ({ useOnline: () => h.online }));
 vi.mock('@/features/auth/AuthProvider', () => ({
-  useAuth: () => ({ user: h.user, manager: { api: { environment: 'https://test/api/v1' } } }),
+  useAuth: () => ({
+    user: h.user,
+    status: 'signedIn',
+    manager: { api: { environment: 'https://test/api/v1' } },
+  }),
 }));
 vi.mock('@/features/localDrafts/provider', () => ({
   useDraftCatalog: () => ({ catalog: { isVisible: () => h.visible } }),
@@ -110,8 +124,11 @@ vi.mock('@/features/auth/errorMessage', () => ({
   errorMessage: () => 'Failure',
 }));
 vi.mock('./queries', () => ({
-  useExpenses: () => ({ query: h.query, refresh: h.refresh }),
+  useExpenses: () => ({ query: h.query, refresh: h.refresh, cancel: vi.fn() }),
   useExpense: () => h.detail,
+}));
+vi.mock('./browseProvider', () => ({
+  useExpenseBrowse: () => ({ session: h.browse!, state: h.browse!.getSnapshot() }),
 }));
 vi.mock('./entryProvider', () => ({ usePendingExpenses: () => ({ data: h.pending }) }));
 type Element = ReactElement<Record<string, unknown>>;
@@ -151,6 +168,10 @@ const detail = () => ExpenseDetailScreen({ tripId: 'trip', expenseId: 'fx' });
 const list = () => nodes(ExpensesScreen({ tripId: 'trip' })).find((e) => e.type === 'FlatList')!;
 beforeEach(() => {
   vi.clearAllMocks();
+  h.browse = new ExpenseBrowseSession(
+    new ExpenseSearchReader({ guard: async () => () => {}, read: vi.fn(), failure: async () => {} })
+  );
+  h.refresh.mockResolvedValue({ isError: false });
   h.width = 390;
   h.fontScale = 1;
   h.rowMeasurement = { viewportWidth: 390, width: 0 };
@@ -500,16 +521,16 @@ it('retries expenses and roster together from the error block', () => {
     true
   );
 });
-it('does not request hidden trip roster on pull-to-refresh or expense retry', () => {
+it('skips hidden trip pull-to-refresh; explicit retry rechecks both authorized sources', () => {
   h.visible = false;
   const tree = list();
   ((tree.props.refreshControl as Element).props.onRefresh as () => void)();
-  expect(h.refresh).toHaveBeenCalledOnce();
+  expect(h.refresh).not.toHaveBeenCalled();
   expect(h.memberRetry).not.toHaveBeenCalled();
   h.query.isError = true;
   press(find(list().props.ListHeaderComponent as ReactNode, 'expenses-retry'));
-  expect(h.refresh).toHaveBeenCalledTimes(2);
-  expect(h.memberRetry).not.toHaveBeenCalled();
+  expect(h.query.refetch).toHaveBeenCalledOnce();
+  expect(h.memberRetry).toHaveBeenCalledOnce();
 });
 
 it.each(['USD', 'JPY'] as const)(

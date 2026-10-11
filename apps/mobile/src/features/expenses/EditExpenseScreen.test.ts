@@ -939,3 +939,38 @@ it('backgrounding during the confirmation guard prevents freezing the invalidate
   expect(h.confirm).not.toHaveBeenCalled();
   expect(nodes(render()).some((n) => n.props.testID === 'expense-maintain-confirm')).toBe(false);
 });
+
+it('recalculation review keeps old removed-member shares and new shares in separate visible sections', async () => {
+  h.locale = 'en';
+  const ctx = structuredClone(advancedContext());
+  ctx.expense.splits = [
+    { userId: h.scope.accountId, displayName: 'A', shareAmount: 30 },
+    { userId: null, displayName: '', shareAmount: 70 },
+  ];
+  h.request.mockResolvedValue(ctx);
+  await loadForm();
+  findId('expense-maintain-resplit').onPress!();
+  expect(findId('expense-maintain-remove-missing')).toBeTruthy();
+  findId('expense-maintain-remove-missing').onPress!();
+  splitField('expense-split-mode-equal').onPress!();
+  h.request.mockImplementation(async (_user, path) =>
+    String(path).endsWith('/preview') ? previewFor('equal') : ctx
+  );
+  findId('expense-maintain-preview').onPress!();
+  await flush();
+  const review = nodes(render()).find(
+    (n) =>
+      n.props.children &&
+      nodes(n.props.children).some((child) => child.props.testID === 'expense-maintain-confirm')
+  )!;
+  const headings = nodes(review)
+    .filter((n) => 'title' in n.props)
+    .map((n) => (n.props as { title: string }).title);
+  expect(headings).toContain(messages.en.currentExpense);
+  expect(headings).toContain(messages.en.newExpenseShares);
+  expect(nodes(review).some((n) => n.props.value === 'NT$70')).toBe(true);
+  expect(nodes(review).some((n) => n.props.label?.includes(messages.en.removedMember))).toBe(true);
+  expect(h.confirm).not.toHaveBeenCalled();
+  findId('expense-maintain-amount').onChangeText!('200');
+  expect(nodes(render()).some((n) => n.props.testID === 'expense-maintain-confirm')).toBe(false);
+});

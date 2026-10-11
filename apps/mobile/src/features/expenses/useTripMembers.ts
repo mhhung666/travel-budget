@@ -24,6 +24,7 @@ export function useTripMembers(tripId: string, enabled = true) {
     denied,
     canRead,
     isFetching: query.isFetching,
+    error: query.error,
     // Routine list refresh must respect the catalog visibility gate.
     refresh: () => (enabled && allowed ? query.refetch() : undefined),
     // Explicit retry may recheck hidden trips through normal authorization/persistence.

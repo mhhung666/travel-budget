@@ -62,11 +62,13 @@ assets/                目前保留 Expo 模板圖示
 
 `components/frame.tsx` 按容器分配安全區域：全域列負責底部、旅行頁首負責頂部，FlatList 直接使用 ScreenFrame，不外包 ScrollView。`components/screen.tsx` 管理共用頁首與 FormPage 的鍵盤避讓，表單在分頁外仍沿用 feature 的 usePreventRemove 與 D 保存；命名旅行上下文與整個旅行空間受既有 catalog／HTTP 撤權限制，長名稱留在可捲動內容中。
 
+U3d-1 的 `ExpenseFormParts` 只組合共用 Card／Section 及付款人、選取人數與可展開選擇器；展開狀態只存在元件記憶體，不進 SQLite、preview key 或 E body。成員失效／驗證錯誤要求選擇器展開，警告／移除操作由上層放在外面；`SplitFields` 的模式與逐人輸入也在外，不隨收合卸載。新增仍由 DraftEditor 保存／previewReducer 失效；編輯仍由 maintenance prepareEdit 核對新 context／revision，確認區顯示完整舊／新份額。金額與適用匯率的 iOS accessory、說明 Next 到日期及原 FormPage 鍵盤避讓不變；沒有新 provider、請求、持久化欄位或金額算法。
+
 U3b-1 的 `ScrollChromeProvider` 只組合全域／旅行導覽的 React 節點；Page 將 `ScrollChrome` 放入原 ScrollView，旅行／支出列表放入原 FlatList header。字級倍率達 1.5 或量測標籤不能容納時，用有安全區與 ScrollView 的 Modal 選單取代固定列；安全區沿上層繼承，固定頁首只消耗頂部、固定底列只消耗底部。沒有新增業務 provider、外包列表的 ScrollView、路由 key 或資料持久化；同層選取仍由 `selectTab` 傳入父 trip ID。正常頁首的上下文選單也可讀完整名稱，撤權後立即拿掉上下文名稱／邀請，不改 catalog 重讀保護。
 
 U3b-2 的 `EntryGroup` 只呈現同 surface／分隔線的次入口，每列單一無障礙控制、至少 56 點且全文換行；概覽仍由呼叫端傳目前 trip ID，不另判斷管理權限。旅行列表與「我的」共用 `LocalWorkLink`／`useLocalWorkCounts`，收起零項、不掩蓋載入／儲存錯誤；沿用既有引擎的帳號／環境 Query key 與 SQLite 讀取，不新增遠端請求、預算快照或持久化狀態。
 
-U3c-1 的 `ExpenseListItem` 在既有 FlatList cell 內放 date-only 標題，再呈現單一 `ExpenseRow` 按鈕；兩份列表都以展平／去重後的相鄰日期判斷組首／組尾，不外包 scroller、不新增查詢或日總額。列元件只量測扣除內距與圖示後的容器，依字級／寬度切橫排或直排，沿既有基準幣別格式與上層成員索引。一般 Query 分頁與搜尋 reader 的 filters／summary／revision、權限守衛及生命週期不變；頁內協調另在 U3c-2 實作。
+U3c-1 的 `ExpenseListItem` 在既有 FlatList cell 內放 date-only 標題，再呈現單一 `ExpenseRow` 按鈕；兩份列表都以展平／去重後的相鄰日期判斷組首／組尾，不外包 scroller、不新增查詢或日總額。列元件只量測扣除內距與圖示後的容器，依字級／寬度切橫排或直排，沿既有基準幣別格式與上層成員索引。一般 Query 分頁與搜尋 reader 的 filters／summary／revision、權限守衛及生命週期不變；頁內協調見下方 G4b／U3c-2。
 
 支出清單使用 TanStack Query 的游標式無限查詢；下拉更新一起重讀名冊，支出只保留並重讀最新一頁，較舊頁面按需再載入。所有私人查詢的 key 以 `[API 環境, 帳號, 資源, 旅行…]` 開頭，換帳號不會讀到同一筆快取，登出仍會清除全部。 成員標籤在畫面上層建索引，閱讀頁共用 expense-options 的帳號／環境／旅行 key，observer 設定 refetchOnMount false，列與標籤不掛載查詢；TripChrome／表單仍重新核對選項。建立／編輯／還款 context 與最新衝突 context 各建索引，規則及歷史名冊限制見 [FEATURES 成員識別](FEATURES.md#成員識別)。
 
@@ -232,7 +234,9 @@ maintenance 純函式以歷史原額／幣別／String(rate) 初始化，讀 con
 
 ## G4b 搜尋與分析
 
-`trips/[id]/expense-search` 以環境／帳號／登入世代／旅行為 key，`ExpenseSearchScreen` 使用四語表單與既有列表列、同名標記及語系格式。`ExpenseSearchReader` 是畫面生命週期內的唯讀控制器：只存已套用條件、全量 summary 與載入列；換條件立即清舊結果、abort 舊請求，離焦取消、返回從第一頁刷新。不建立 React Query 私人快取、SQLite 表或搜尋歷史。
+U3c-2 的 `ExpenseBrowseProvider` 在既有根 providers 內維護一份按環境／帳號／登入世代建立的 registry，旅行各有 `ExpenseBrowseSession`／`ExpenseSearchReader`。`ExpensesScreen` 維持一份 FlatList，無條件用原 Query，非空已套用條件或開分析才切 reader；欄位與 applied filters 分開，`ExpenseSearchControls` 只呈現工具／同回應分析。名冊由既有上層 hook 提供，列不新增查詢。舊 `ExpenseSearchScreen` 只開啟該旅行工具並 `dismissTo` 原列表。
+
+返回／同旅行分頁不無條件 refetch 或丟頁；記憶體保存條件、頁與可恢復 offset。`refreshTripData` 同時通知對應 scope／trip registry 及失效 Query；搜尋停止追加、重讀原條件第一頁，讀取成功且失效世代仍相符才結案並回頂／提示。暫時失敗保留快照與 dirty，不形成自動重試迴圈；離焦／背景取消，前景僅續讀焦點中的未完成／失效搜尋。註冊清理支援 StrictMode effect replay；換登入世代／帳號／環境清除舊結果，catalog 隱藏也清掉條件與 offset，授權恢復不帶回舊搜尋。程序重啟回預設，不新增 Query 私人搜尋快取、SQLite 表或搜尋歷史。
 
 每次讀取先通過 `expenseReadGuard`，SQLite 後與 transport／refresh 重送前檢查登入、catalog 世代、前景／網路及持久共用等待。實際 429 保存原到期時間，保存失敗不能繞過；本機攔截不延長期限。舊回應以 generation 忽略；授權拒絕清結果，之後暫時故障不使私人資料重現。分頁只合併同 revision／單位，衝突保留上次結果並要求刷新，不拼接不同時點的總計與列表。後端契約與效能界線見 [G4b](BACKEND_CONTRACT.md#g4b-搜尋與分析)。
 
