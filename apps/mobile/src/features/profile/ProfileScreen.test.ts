@@ -20,6 +20,7 @@ const h = vi.hoisted(() => ({
 }));
 vi.mock('react', async (original) => ({
   ...(await original<typeof import('react')>()),
+  useCallback: (fn: unknown) => fn,
   useState: (v: unknown) => [typeof v === 'function' ? (v as () => unknown)() : v, vi.fn()],
   useRef: (v: unknown) => ({ current: v }),
   useEffect: (effect: () => void) => effect(),
@@ -40,7 +41,11 @@ vi.mock('react-native', () => ({
   Alert: { alert: h.alert },
   AppState: { currentState: 'active' },
 }));
-vi.mock('expo-router', () => ({ useNavigation: () => ({ dispatch: h.dispatch }) }));
+vi.mock('expo-router', () => ({
+  router: { push: vi.fn() },
+  useNavigation: () => ({ dispatch: h.dispatch }),
+  useFocusEffect: (fn: () => void) => fn(),
+}));
 vi.mock('expo-router/react-navigation', () => ({ usePreventRemove: h.guard }));
 vi.mock('@/features/auth/AuthProvider', () => ({
   useAuth: () => ({

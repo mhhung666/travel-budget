@@ -125,8 +125,8 @@
     },
     "email": {
       "title": "修改电子邮件",
-      "current": "当前电子邮件",
-      "currentHelp": "这是您当前的电子邮件地址",
+      "current": "目前邮箱：{email}",
+      "currentHelp": "输入接收验证码的新邮箱；确认成功后才会变更。",
       "new": "新电子邮件",
       "updateButton": "更新电子邮件",
       "updateSuccess": "电子邮件已更新",
@@ -145,7 +145,14 @@
       "tooManyAttempts": "尝试次数过多，请重新获取验证码。",
       "conflict": "此电子邮件已被其他账号使用。",
       "sameEmail": "这已经是您当前的电子邮件。",
-      "error": "发生错误，请稍后再试。"
+      "error": "发生错误，请稍后再试。",
+      "currentRead": "已读取目前邮箱。这不是原操作的收据，请核对后再决定。",
+      "readCurrent": "查询目前邮箱",
+      "unknown": "结果尚未确认，请先查询目前邮箱，不会自动重送。",
+      "stale": "其他操作已变更邮箱或验证码，请重读后再重新寄码。",
+      "deliveryFailed": "发送失败，原本可用的验证码仍保留。",
+      "rateLimited": "请等待后再手动重试；寄码与验码的等待分开计算。",
+      "cancelled": "已取消变更并作废验证码。"
     },
     "password": {
       "title": "修改密码",

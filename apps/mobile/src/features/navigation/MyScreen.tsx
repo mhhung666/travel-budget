@@ -60,6 +60,12 @@ export function MyScreen() {
               onPress: () => router.push('/profile'),
             },
             {
+              testID: 'my-email',
+              label: t.emailChangeTitle,
+              disabled: busy,
+              onPress: () => router.push('/email'),
+            },
+            {
               testID: 'my-password',
               label: t.passwordChangeTitle,
               disabled: busy,

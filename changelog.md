@@ -6,7 +6,9 @@
 
 ### 2026-10-11
 
-- Web／Mobile M3a：共用本人修改密碼與限流、原子衝突保護，修改／重設撤銷舊 Web／App 登入；手機新增安全表單、未知結果只轉登入核對，不落盤或自動重送密碼，保留本機草稿／原 UUID 工作。已補故障與隔離 HTTP／DB 回歸，已提交／未部署；iPhone／iPad 與 VoiceOver 由他人驗收，見 [M3a 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#m3a-修改密碼交接)，M3b／M4 未開始。
+- Web／Mobile M3b：共用新信箱寄碼／驗碼／取消服務，帳號獨立額度、原子更新與一次性碼、投遞候選保護重寄／取消競態，舊信箱重設碼不可套到新信箱；新增原生四語入口，未知結果只讀目前信箱、秘密不落盤。已補故障、隔離 DB／HTTP 與工程驗證，已提交／未部署；iPhone／iPad、VoiceOver 與真郵件由他人驗收，見 [M3b 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#m3b-email-變更交接)。E2 匿名配額風險及 F 仍另列，M4 未開始。
+
+- Web／Mobile M3a：共用本人修改密碼與限流、原子衝突保護，修改／重設撤銷舊 Web／App 登入；手機新增安全表單、未知結果只轉登入核對，不落盤或自動重送密碼，保留本機草稿／原 UUID 工作。已補故障與隔離 HTTP／DB 回歸，已提交／未部署；iPhone／iPad 與 VoiceOver 由他人驗收，見 [M3a 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#m3a-修改密碼交接)，M3b 已接續實作，M4 未開始。
 
 - Web／Mobile M2：本人公開頭像讀取、選圖預覽後確認替換／移除，共用型別／大小、本人 fence 與持久化清理；Native 固定 UUID、獨立 SQLite、重啟只查詢與手動續送／取消，保護衝突及換帳號。已補故障回歸與索引 migration，已提交／未部署／未執行遠端 migration；真 R2、iPhone／iPad 與 VoiceOver 交他人驗收，見 [M2 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#m2-頭像交接)。
 

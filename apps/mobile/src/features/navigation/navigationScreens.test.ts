@@ -223,7 +223,7 @@ it.each(['local', 'signedIn', 'signedOut', 'loading', 'error'])(
         nodes(protectedGroup)
           .filter((node) => node.props.name)
           .map((node) => node.props.name)
-      ).toEqual(['(tabs)', 'trips', 'record', 'profile', 'avatar', 'password']);
+      ).toEqual(['(tabs)', 'trips', 'record', 'profile', 'avatar', 'password', 'email']);
     }
   }
 );
@@ -310,6 +310,7 @@ it('keeps account controls available after logout fails, and prevents duplicate 
   element = render(MyScreen);
   for (const testID of [
     'my-profile',
+    'my-email',
     'my-password',
     'my-preferences',
     'my-local-work',
@@ -346,7 +347,14 @@ it('orders account, preferences/about and local work before logout, with existin
   expect(find(tree, 'testID', 'my-preferences').props.accessibilityLabel).toContain(
     'preferenceDark'
   );
-  for (const testID of ['my-profile', 'my-password', 'my-preferences', 'my-local-work', 'my-about'])
+  for (const testID of [
+    'my-profile',
+    'my-email',
+    'my-password',
+    'my-preferences',
+    'my-local-work',
+    'my-about',
+  ])
     expect(find(tree, 'testID', testID).props.disabled).toBe(false);
 });
 it('uses the shared keyboard form container and forwards the route guard callback', () => {

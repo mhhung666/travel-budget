@@ -339,7 +339,7 @@
             }
           }
         },
-        "description": "Six-digit string, including leading zeros; valid 15 minutes, five incorrect attempts, ten verification requests per email per rolling 15 minutes. Password update and code consumption are atomic; one concurrent success. Resend invalidates the previous code. Mobile sessions expire after password change; Web cookies do not. Timeout/5xx: try logging in with the new password."
+        "description": "Six-digit string, including leading zeros; valid 15 minutes, five incorrect attempts, ten verification requests per email per rolling 15 minutes. Password update and code consumption are atomic; one concurrent success. Resend invalidates the previous code. All previous Mobile sessions and Web cookies expire after password change. Timeout/5xx: try logging in with the new password."
       }
     },
     "/v2/auth/login": {
@@ -758,6 +758,399 @@
             }
           }
         }
+      }
+    },
+    "/v2/me/email/request": {
+      "post": {
+        "operationId": "requestEmailChangeV2",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailChangeRequestInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/EmailChangeSentSchema"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Ledger data or total outside the safe range",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+      }
+    },
+    "/v2/me/email/confirm": {
+      "post": {
+        "operationId": "confirmEmailChangeV2",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailChangeConfirmInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/EmailChangeResultSchema"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Ledger data or total outside the safe range",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+      }
+    },
+    "/v2/me/email/cancel": {
+      "post": {
+        "operationId": "cancelEmailChangeV2",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailChangeCancelInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/EmailChangeCancelledSchema"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Ledger data or total outside the safe range",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
       }
     },
     "/v2/me/password": {
@@ -13283,6 +13676,108 @@
         },
         "required": [
           "action"
+        ],
+        "additionalProperties": false
+      },
+      "EmailChangeRequestInput": {
+        "type": "object",
+        "properties": {
+          "new_email": {
+            "type": "string",
+            "maxLength": 254,
+            "format": "email",
+            "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+          },
+          "locale": {
+            "type": "string",
+            "enum": [
+              "zh",
+              "zh-CN",
+              "en",
+              "jp"
+            ]
+          }
+        },
+        "required": [
+          "new_email"
+        ],
+        "additionalProperties": false
+      },
+      "EmailChangeConfirmInput": {
+        "type": "object",
+        "properties": {
+          "new_email": {
+            "type": "string",
+            "maxLength": 254,
+            "format": "email",
+            "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^\\d{6}$"
+          }
+        },
+        "required": [
+          "new_email",
+          "code"
+        ],
+        "additionalProperties": false
+      },
+      "EmailChangeCancelInput": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "EmailChangeSentSchema": {
+        "type": "object",
+        "properties": {
+          "sent": {
+            "type": "boolean",
+            "const": true
+          },
+          "newEmail": {
+            "type": "string",
+            "maxLength": 254,
+            "format": "email",
+            "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+          }
+        },
+        "required": [
+          "sent",
+          "newEmail"
+        ],
+        "additionalProperties": false
+      },
+      "EmailChangeResultSchema": {
+        "type": "object",
+        "properties": {
+          "changed": {
+            "type": "boolean",
+            "const": true
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "format": "email",
+            "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+          }
+        },
+        "required": [
+          "changed",
+          "email"
+        ],
+        "additionalProperties": false
+      },
+      "EmailChangeCancelledSchema": {
+        "type": "object",
+        "properties": {
+          "cancelled": {
+            "type": "boolean",
+            "const": true
+          }
+        },
+        "required": [
+          "cancelled"
         ],
         "additionalProperties": false
       },

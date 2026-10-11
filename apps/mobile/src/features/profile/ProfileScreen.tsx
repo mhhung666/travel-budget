@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Alert, AppState } from 'react-native';
-import { router, useNavigation } from 'expo-router';
+import { router, useNavigation, useFocusEffect } from 'expo-router';
 import { usePreventRemove } from 'expo-router/react-navigation';
 import { onlineManager } from '@tanstack/react-query';
 import { useAuth } from '@/features/auth/AuthProvider';
@@ -38,7 +38,6 @@ function ProfileForm() {
   const mounted = useRef(false);
   useEffect(() => {
     mounted.current = true;
-    void editor.read();
     return () => {
       mounted.current = false;
       queueMicrotask(() => {
@@ -46,6 +45,11 @@ function ProfileForm() {
       });
     };
   }, [editor]);
+  useFocusEffect(
+    useCallback(() => {
+      void editor.read();
+    }, [editor])
+  );
   const dirty = !!state.profile && state.name !== state.profile.displayName;
   usePreventRemove(state.busy || dirty || state.uncertain, ({ data }) => {
     if (state.busy) return;
@@ -98,6 +102,13 @@ function ProfileForm() {
         <Card>
           <DetailRow label={t.username} value={state.profile.username} />
           <DetailRow label={t.email} value={state.profile.email} />
+          <Action
+            testID="profile-email"
+            label={t.emailChangeTitle}
+            variant="secondary"
+            disabled={state.busy || state.uncertain}
+            onPress={() => router.push('/email')}
+          />
           <TextField
             testID="profile-name"
             label={t.displayName}

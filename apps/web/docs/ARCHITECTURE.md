@@ -120,7 +120,7 @@ G6b receiptWrite.ts 新增私人附件意圖、短效 immutable PUT、HEAD 後�
 
 ## M1 本人資料服務
 
-Web `getCurrentUser`／名稱版 `updateProfile` 與 Mobile `/api/v2/me/profile` 共用 `lib/accountProfile.ts`。服務只接受由 adapter 驗證的 actor，讀取固定投影、原子 `$set displayName` 並回傳資料庫實值；名稱規則引用共用 contracts，私人 Email 僅本人端點，不擴充 member 或 session DTO。密碼／Email／通知／頭像設定與原 Web Cookie 語意不變；沒有 migration、金額計算或帳務 journal。
+Web `getCurrentUser`／名稱版 `updateProfile` 與 Mobile `/api/v2/me/profile` 共用 `lib/accountProfile.ts`。服務只接受由 adapter 驗證的 actor，讀取固定投影、原子 `$set displayName` 並回傳資料庫實值；名稱規則引用共用 contracts，私人 Email 僅本人端點，不擴充 member 或 session DTO。密碼／Email 另由 M3 共用服務處理；通知／頭像各自規則不變；沒有 migration、金額計算或帳務 journal。
 
 ## M2 頭像寫入與清理
 
@@ -133,3 +133,7 @@ Web `getCurrentUser`／名稱版 `updateProfile` 與 Mobile `/api/v2/me/profile`
 `accountPassword.ts` 共用 Web `updateProfile` 密碼分支及 Mobile HTTP adapter：本人非虛擬、共用 password schema、獨立 HMAC rolling quota，bcrypt 驗證後以原 hash compare-and-swap 更新 hash／authVersion。版本缺值為 0，不需 migration；Web `getSession`／`getSessionFromRequest` 在 cookie 驗簽後讀目前帳號版本，撤銷／刪除／虛擬均拒絕。簽 cookie 核對已驗證 hash，避免登入競態；E2 reset 在原碼消耗交易內一併加版。Native 沿既有 credentialHash 授權，不更改 token issuer 或 DTO。
 
 普通 session 讀取不寫資料；DB 讀取失敗不放行。修改成功後 cookie 刪除失敗仍回已提交成功，版本核對才是撤銷權威。Web 表單明確成功／未知與重新登入、限流與防雙擊，未知不重送；流程沒有持久化密碼 journal。契約見 [M3a](../../mobile/docs/BACKEND_CONTRACT.md#m3a-本人修改密碼)。
+
+## M3b 共用 Email 變更
+
+`accountEmail.ts` 是 Web RPC／Native adapter 的唯一 writer；本人 fence 和 snapshot majority 交易協調一次性驗碼、目標信箱／原信箱檢查、case-insensitive 唯一性及取消。Email provider 在交易外，未公布 candidate 不取代 active code，只有仍屬目前候選的投遞結果可公布，錯誤／取消／較新操作不復活舊碼。`EmailChangeSection` 取代舊 profile 內獨立 handlers：防雙擊、分開寄碼與驗碼期限、取消須 server 成功，未知先讀目前資料，無敏感 journal。共用額度、舊碼相容與索引／部署限制見 [M3b 契約](../../mobile/docs/BACKEND_CONTRACT.md#m3b-本人變更-email)。

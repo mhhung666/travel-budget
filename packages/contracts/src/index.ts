@@ -28,6 +28,26 @@ export const passwordChangeResultSchema = z
   .strict();
 export type PasswordChangeInput = z.infer<typeof passwordChangeInput>;
 const accountEmail = z.string().trim().toLowerCase().email().max(254);
+export const emailChangeRequestInput = z
+  .object({
+    new_email: accountEmail,
+    locale: z.enum(['zh', 'zh-CN', 'en', 'jp']).optional(),
+  })
+  .strict();
+export const emailChangeConfirmInput = z
+  .object({
+    new_email: accountEmail,
+    code: z.string().regex(/^\d{6}$/),
+  })
+  .strict();
+export const emailChangeCancelInput = z.object({}).strict();
+export const emailChangeSentSchema = z
+  .object({ sent: z.literal(true), newEmail: accountEmail })
+  .strict();
+export const emailChangeResultSchema = z
+  .object({ changed: z.literal(true), email: accountEmail })
+  .strict();
+export const emailChangeCancelledSchema = z.object({ cancelled: z.literal(true) }).strict();
 export const registerInput = z
   .object({
     username: z.string().trim().min(3).max(200),

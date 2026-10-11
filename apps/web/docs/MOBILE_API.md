@@ -167,4 +167,10 @@ replace 等待期限 24 小時，最後五分鐘不再簽發／完成，未完�
 
 已新增 bearer `POST /api/v2/me/password`，Web 與 Native 共用 `accountPassword.ts`；strict input、額度、結果未知與所有登入撤銷規則集中見 [M3a 契約](../../mobile/docs/BACKEND_CONTRACT.md#m3a-本人修改密碼)。E2 重設同步撤銷 Web cookie；舊使用者／cookie 版本缺值為 0，毋須 migration，也不修改既有 session／member DTO。
 
-`test:mobile-api` 核對真 HTTP 修改／丟回應後手動登入恢復、舊 access／refresh 失效及新密碼登入，另執行 6 項隔離資料庫案例：兩端共用額度、CAS 並行、cookie／所有裝置、舊 cookie／reset、身分與清 cookie 失敗。iOS、Web 操作及儲存故障見 [M3a 交接](../../mobile/docs/LOCAL_ACCEPTANCE.md#m3a-修改密碼交接)，M3b 寄碼／Email 仍未開始。
+`test:mobile-api` 核對真 HTTP 修改／丟回應後手動登入恢復、舊 access／refresh 失效及新密碼登入，另執行 6 項隔離資料庫案例：兩端共用額度、CAS 並行、cookie／所有裝置、舊 cookie／reset、身分與清 cookie 失敗。iOS、Web 操作及儲存故障見 [M3a 交接](../../mobile/docs/LOCAL_ACCEPTANCE.md#m3a-修改密碼交接)，M3b 已接續實作，見下方。
+
+## M3b 本人 Email
+
+新增 `/api/v2/me/email/request|confirm|cancel` POST，本人 bearer、嚴格共用 schemas、no-store／Vary Authorization；Web 舊 request／confirm RPC 相容並共用服務，新增 cancel adapter。配額、投遞候選／原子消耗、原信箱／新信箱核對、錯誤及相容／恢復集中於 [M3b 契約](../../mobile/docs/BACKEND_CONTRACT.md#m3b-本人變更-email)。一般身分／成員 DTO、密碼與 session 不變。
+
+`test:mobile-api` 核對未配置 sender 明確失敗、嚴格 HTTP、自身驗碼及丟回應後本人 GET，並執行十一項隔離 replica-set 故障／競態測試（provider mocked）。真 provider 投遞、四語郵件與 iOS／Web 操作由 [M3b 交接](../../mobile/docs/LOCAL_ACCEPTANCE.md#m3b-email-變更交接) 驗收；未操作遠端 mail／DB，E2 匿名額度風險未解。

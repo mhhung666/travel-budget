@@ -278,4 +278,8 @@ receiptFiles 用 Expo picker／manipulator／filesystem：圖片最長邊 2400�
 
 ## M3a 密碼生命週期
 
-`PasswordChanger` 捕捉本人／登入世代，只線上前景送出一次 v2 `/me/password`；SessionManager 的 opt-out 僅此流程禁止 401 refresh／重送，其他 API 語意保留。表單秘密只留 controller 記憶體，每次嘗試與卸載清除；結果不明只能明確轉登入，不建 receipt／SQLite。`endCredentialSession(version)` 本機清憑證及私人 query，使用世代守衛，原草稿／pending／附件檔案不刪除。成功與明確再登入允許返回守衛退出，取消未送出輸入不寫 HTTP。
+`PasswordChanger` 捕捉本人／登入世代，只線上前景送出一次 v2 `/me/password`；SessionManager 的 opt-out 在帳號密碼／Email 寫入禁止 401 refresh／重送，其他 API 語意保留。表單秘密只留 controller 記憶體，每次嘗試與卸載清除；結果不明只能明確轉登入，不建 receipt／SQLite。`endCredentialSession(version)` 本機清憑證及私人 query，使用世代守衛，原草稿／pending／附件檔案不刪除。成功與明確再登入允許返回守衛退出，取消未送出輸入不寫 HTTP。
+
+## M3b Email 生命週期
+
+`EmailChanger`／`EmailScreen` 是 signedIn Stack 的線上頁面，以環境／本人／登入世代建立；沒有新根 provider、持久化或私人 Email query。controller 分開 sendUntil／verifyUntil，所有入口檢查前景、連線、世代、busy、未知及期限，不靠按鈕控制限流；錯碼／投遞拒絕明示，未知鎖寫入，只允許明確本人讀取，沒有重播。嘗試後清碼，卸載清碼／新信箱／私人 profile；晚到結果不更新其他帳號。個人資料使用 focus 重讀，原 editor 保留未保存名稱，避免返回顯示舊信箱。後端及重啟語意見 [M3b 契約](BACKEND_CONTRACT.md#m3b-本人變更-email)。

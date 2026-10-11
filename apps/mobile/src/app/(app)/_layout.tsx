@@ -12,6 +12,7 @@ export default function AppLayout() {
         <Stack.Screen name="profile" />
         <Stack.Screen name="avatar" />
         <Stack.Screen name="password" />
+        <Stack.Screen name="email" />
       </Stack.Protected>
       <Stack.Screen name="(local)" />
     </Stack>

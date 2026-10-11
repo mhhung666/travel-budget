@@ -9,7 +9,11 @@ const boundaries = vi.hoisted(() => ({
   sendEmail: vi.fn().mockResolvedValue(true),
   emailTemplate: vi.fn().mockResolvedValue({ subject: 'test', html: 'test' }),
 }));
-vi.mock('@/lib/mongodb', () => ({ dbConnect: vi.fn() }));
+vi.mock('@/lib/mongodb', () => ({ dbConnect: async () => mongoose }));
+vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
+vi.mock('@/lib/env', () => ({
+  getEnv: () => ({ JWT_SECRET: 'isolated-index-email-secret-at-least-32-characters' }),
+}));
 vi.mock('@/lib/auth', () => ({ ...boundaries, deleteSession: vi.fn() }));
 vi.mock('@/lib/email', () => ({ sendEmail: boundaries.sendEmail }));
 vi.mock('@/lib/emailTemplates', () => ({
@@ -46,6 +50,7 @@ describe.skipIf(!uri || !allowed)('core indexes: real MongoDB account actions', 
     await db.createCollection('verification_owner');
     owned = true;
     await up(db);
+    await db.createCollection('accountentryattempts');
     await EmailChangeCode.createIndexes();
   });
   afterAll(async () => {
@@ -59,6 +64,10 @@ describe.skipIf(!uri || !allowed)('core indexes: real MongoDB account actions', 
     vi.restoreAllMocks();
     vi.clearAllMocks();
     boundaries.getSession.mockResolvedValue(null);
+    boundaries.createSession.mockResolvedValue(undefined);
+    boundaries.sendEmail.mockResolvedValue(true);
+    boundaries.emailTemplate.mockResolvedValue({ subject: 'test', html: 'test', text: 'test' });
+    await mongoose.connection.db!.collection('accountentryattempts').deleteMany({});
     await User.deleteMany({});
     await EmailChangeCode.deleteMany({});
   });
@@ -169,13 +178,6 @@ describe.skipIf(!uri || !allowed)('core indexes: real MongoDB account actions', 
       });
       codes.push(boundaries.emailTemplate.mock.calls.at(-1)![0].code);
     }
-    const wait = barrier();
-    const update = User.updateOne.bind(User);
-    vi.spyOn(User, 'updateOne').mockImplementation(((
-      ...args: Parameters<typeof User.updateOne>
-    ) => {
-      return wait().then(() => update(...args));
-    }) as unknown as typeof User.updateOne);
     boundaries.getSession
       .mockResolvedValueOnce({ userId: users[0]._id.toString() })
       .mockResolvedValueOnce({ userId: users[1]._id.toString() });

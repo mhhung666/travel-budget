@@ -1,6 +1,5 @@
 'use server';
 
-import crypto from 'crypto';
 import {
   AccountProfileError,
   readAccountDetails,
@@ -13,13 +12,17 @@ import {
   requestAccountReset,
   confirmAccountReset,
 } from '@/lib/accountEntry';
-import { accountEnvironment, deliverAccountReset } from '@/lib/accountAdapter';
+import { accountEnvironment, deliverAccountReset, deliverAccountEmail } from '@/lib/accountAdapter';
+import {
+  requestAccountEmail,
+  confirmAccountEmail,
+  cancelAccountEmail,
+  AccountEmailError,
+} from '@/lib/accountEmail';
 import { changeAccountPassword, AccountPasswordError } from '@/lib/accountPassword';
 import { dbConnect } from '@/lib/mongodb';
-import { User as UserModel, EmailChangeCode } from '@/models';
+import { User as UserModel } from '@/models';
 import { createSession, deleteSession, getSession } from '@/lib/auth';
-import { sendEmail } from '@/lib/email';
-import { buildEmailChangeEmail } from '@/lib/emailTemplates';
 import {
   loginSchema,
   notificationPrefsSchema,
@@ -27,8 +30,6 @@ import {
   requestPasswordResetSchema,
   resetPasswordSchema,
   updateProfileSchema,
-  requestEmailChangeSchema,
-  confirmEmailChangeSchema,
   type LoginInput,
   type RegisterInput,
   type RequestPasswordResetInput,
@@ -44,21 +45,6 @@ import { unstable_rethrow } from 'next/navigation';
 import { isAccountDuplicateKey } from '@/lib/mongoErrors';
 import { verifyCredentials } from '@/lib/credentials';
 
-// Email 驗證碼（忘記密碼 + 變更 Email 共用）：6 位數、15 分鐘有效、最多 5 次驗證嘗試。
-const CODE_TTL_MS = 15 * 60 * 1000;
-const CODE_EXPIRES_MINUTES = 15;
-const CODE_MAX_ATTEMPTS = 5;
-
-/** 產生 6 位數驗證碼（含前導零）。 */
-function generateVerificationCode(): string {
-  return crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
-}
-
-/** 驗證碼雜湊（不存明碼）。短效 + 次數上限已足以防暴力，sha256 即可、無 bcrypt 成本。 */
-function hashVerificationCode(code: string): string {
-  return crypto.createHash('sha256').update(code).digest('hex');
-}
-
 export type AuthUser = Pick<User, 'id' | 'username' | 'display_name'>;
 export type AuthUserWithCreatedAt = AuthUser & {
   created_at: string;
@@ -68,7 +54,6 @@ export type AuthUserWithCreatedAt = AuthUser & {
 };
 
 // 不分大小寫的精確比對（取代 Postgres ilike）
-const CI = { locale: 'en', strength: 2 } as const;
 
 /**
  * Get current authenticated user
@@ -342,151 +327,67 @@ function accountActionFailure(error: unknown): ActionResult<never> {
   return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
 }
 
-/**
- * 變更 Email — 步驟一：寄驗證碼到「新信箱」以確認其屬本人。
- *
- * 與忘記密碼不同，這裡使用者已登入、操作的是自己的帳號，故會直接回報「信箱已被占用 /
- * 與現用相同」等狀態（無列舉風險——本就是登入者主動變更自己的信箱）。每位使用者最多一筆
- * 待驗證變更（user 唯一 + upsert 覆寫），重新索取即作廢前一組碼，可換不同新信箱。
- * 寄信為 best-effort：未配置 Resend 時，非 production 會把碼寫進 log 以便本機測試。
- */
+// Web keeps the existing RPC results; all state transitions live in the shared service.
 export const requestEmailChange = withAuth(
   async (
     session,
     input: { new_email: string; locale?: string }
   ): Promise<ActionResult<{ message: string }>> => {
     try {
-      const validation = requestEmailChangeSchema.safeParse(input);
-      if (!validation.success) {
-        return {
-          success: false,
-          error: validation.error.issues[0].message,
-          code: 'VALIDATION_ERROR',
-        };
-      }
-
-      const { new_email, locale } = validation.data;
-      const normalizedEmail = new_email.toLowerCase().trim();
-
-      await dbConnect();
-
-      const me = await UserModel.findById(session.userId).select('email locale');
-      if (!me) {
-        return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
-      }
-
-      // 與目前信箱相同：無需變更。
-      if (me.email && me.email.toLowerCase() === normalizedEmail) {
-        return { success: false, error: 'SAME_EMAIL', code: 'VALIDATION_ERROR' };
-      }
-
-      // 已被其他帳號占用（不分大小寫，排除自己）。
-      const existingEmail = await UserModel.findOne({
-        email: normalizedEmail,
-        _id: { $ne: session.userId },
-      })
-        .collation(CI)
-        .select('_id');
-      if (existingEmail) {
-        return { success: false, error: 'CONFLICT', code: 'CONFLICT' };
-      }
-
-      const code = generateVerificationCode();
-      await EmailChangeCode.findOneAndUpdate(
-        { user: session.userId },
-        {
-          newEmail: normalizedEmail,
-          codeHash: hashVerificationCode(code),
-          expiresAt: new Date(Date.now() + CODE_TTL_MS),
-          attempts: 0,
-        },
-        { upsert: true }
-      );
-
-      const content = await buildEmailChangeEmail({
-        code,
-        locale: locale ?? me.locale ?? 'zh',
-        expiresMinutes: CODE_EXPIRES_MINUTES,
-      });
-      const sent = await sendEmail({ to: normalizedEmail, content });
-      if (!sent && process.env.NODE_ENV !== 'production') {
-        // 本機 / 未配置 Resend：把碼印到 log 方便測試（production 不印）。
-        logger.info(`[dev] email change code for ${normalizedEmail}: ${code}`);
-      }
-
+      const { db, context } = await accountEnvironment(await headers());
+      await requestAccountEmail(db, session.userId, input, context, deliverAccountEmail);
       return { success: true, data: { message: 'OK' } };
     } catch (error) {
-      logger.error('Request email change error', error);
-      return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
+      return emailFailure(error);
     }
   }
 );
-
-/**
- * 變更 Email — 步驟二：以寄到新信箱的 6 位數驗證碼套用變更。
- *
- * 失敗以穩定的 error token（INVALID_CODE / CODE_EXPIRED / TOO_MANY_ATTEMPTS）讓前端對應
- * 本地化訊息。套用前再查一次新信箱是否在這段期間被別人占用（避免競態）；成功後刪除驗證碼
- * （一次性）。
- */
 export const confirmEmailChange = withAuth(
-  async (session, input: ConfirmEmailChangeInput): Promise<ActionResult<{ message: string }>> => {
+  async (
+    session,
+    input: ConfirmEmailChangeInput
+  ): Promise<ActionResult<{ message: string; email: string }>> => {
     try {
-      const validation = confirmEmailChangeSchema.safeParse(input);
-      if (!validation.success) {
-        return {
-          success: false,
-          error: validation.error.issues[0].message,
-          code: 'VALIDATION_ERROR',
-        };
-      }
-
-      const { code } = validation.data;
-
-      await dbConnect();
-      const record = await EmailChangeCode.findOne({ user: session.userId });
-      if (!record) {
-        return { success: false, error: 'INVALID_CODE', code: 'VALIDATION_ERROR' };
-      }
-
-      if (record.expiresAt.getTime() < Date.now()) {
-        await EmailChangeCode.deleteOne({ _id: record._id });
-        return { success: false, error: 'CODE_EXPIRED', code: 'VALIDATION_ERROR' };
-      }
-
-      if ((record.attempts ?? 0) >= CODE_MAX_ATTEMPTS) {
-        await EmailChangeCode.deleteOne({ _id: record._id });
-        return { success: false, error: 'TOO_MANY_ATTEMPTS', code: 'VALIDATION_ERROR' };
-      }
-
-      if (record.codeHash !== hashVerificationCode(code)) {
-        await EmailChangeCode.updateOne({ _id: record._id }, { $inc: { attempts: 1 } });
-        return { success: false, error: 'INVALID_CODE', code: 'VALIDATION_ERROR' };
-      }
-
-      // 套用前再確認新信箱未在期間內被別人占用（競態保護）。
-      const existingEmail = await UserModel.findOne({
-        email: record.newEmail,
-        _id: { $ne: session.userId },
-      })
-        .collation(CI)
-        .select('_id');
-      if (existingEmail) {
-        await EmailChangeCode.deleteOne({ _id: record._id });
-        return { success: false, error: 'CONFLICT', code: 'CONFLICT' };
-      }
-
-      // 驗證通過：套用新信箱並作廢驗證碼（一次性）。
-      await UserModel.updateOne({ _id: session.userId }, { $set: { email: record.newEmail } });
-      await EmailChangeCode.deleteOne({ _id: record._id });
-
-      return { success: true, data: { message: 'Email 已更新' } };
+      const { db, context } = await accountEnvironment(await headers());
+      const result = await confirmAccountEmail(db, session.userId, input, context);
+      return { success: true, data: { message: 'OK', email: result.email } };
     } catch (error) {
-      if (isAccountDuplicateKey(error)) {
-        return { success: false, error: 'CONFLICT', code: 'CONFLICT' };
-      }
-      logger.error('Confirm email change error', error);
-      return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
+      return emailFailure(error);
     }
   }
 );
+export const cancelEmailChange = withAuth(
+  async (session): Promise<ActionResult<{ message: string }>> => {
+    try {
+      const { db } = await accountEnvironment(await headers());
+      await cancelAccountEmail(db, session.userId);
+      return { success: true, data: { message: 'OK' } };
+    } catch (error) {
+      return emailFailure(error);
+    }
+  }
+);
+function emailFailure(error: unknown): ActionResult<never> {
+  if (error instanceof AccountEntryError)
+    return {
+      success: false,
+      error: error.code,
+      code: 'RATE_LIMITED',
+      retryAfter: error.retryAfter,
+    };
+  if (error instanceof AccountEmailError)
+    return {
+      success: false,
+      error: error.code,
+      code:
+        error.code === 'CONFLICT'
+          ? 'CONFLICT'
+          : error.code === 'NOT_FOUND'
+            ? 'NOT_FOUND'
+            : error.code === 'RESOURCE_CHANGED'
+              ? 'RESOURCE_CHANGED'
+              : 'VALIDATION_ERROR',
+    };
+  logger.error('Email change failed');
+  return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };
+}

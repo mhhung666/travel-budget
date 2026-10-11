@@ -13,6 +13,7 @@ export {
   resetPassword,
   requestEmailChange,
   confirmEmailChange,
+  cancelEmailChange,
 } from './auth.actions';
 export type { AuthUser, AuthUserWithCreatedAt } from './auth.actions';
 

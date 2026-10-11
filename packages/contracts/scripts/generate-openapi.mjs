@@ -3,6 +3,12 @@ import { z } from 'zod';
 import {
   v2Schemas,
   loginInput,
+  emailChangeRequestInput,
+  emailChangeConfirmInput,
+  emailChangeCancelInput,
+  emailChangeSentSchema,
+  emailChangeResultSchema,
+  emailChangeCancelledSchema,
   passwordChangeInput,
   passwordChangeResultSchema,
   registerInput,
@@ -110,6 +116,12 @@ const schemas = Object.fromEntries(
     AvatarWriteState: avatarWriteStateSchema,
     AvatarUploadTicket: avatarUploadTicketSchema,
     AvatarWriteCommandInput: avatarWriteCommandInput,
+    EmailChangeRequestInput: emailChangeRequestInput,
+    EmailChangeConfirmInput: emailChangeConfirmInput,
+    EmailChangeCancelInput: emailChangeCancelInput,
+    EmailChangeSentSchema: emailChangeSentSchema,
+    EmailChangeResultSchema: emailChangeResultSchema,
+    EmailChangeCancelledSchema: emailChangeCancelledSchema,
     PasswordChangeInput: passwordChangeInput,
     PasswordChangeResult: passwordChangeResultSchema,
     AccountProfile: accountProfileSchema,
@@ -193,13 +205,28 @@ const templates = {
     post: {
       ...operation('resetPassword', 'PasswordResetResult', 'PasswordResetInput'),
       description:
-        'Six-digit string, including leading zeros; valid 15 minutes, five incorrect attempts, ten verification requests per email per rolling 15 minutes. Password update and code consumption are atomic; one concurrent success. Resend invalidates the previous code. Mobile sessions expire after password change; Web cookies do not. Timeout/5xx: try logging in with the new password.',
+        'Six-digit string, including leading zeros; valid 15 minutes, five incorrect attempts, ten verification requests per email per rolling 15 minutes. Password update and code consumption are atomic; one concurrent success. Resend invalidates the previous code. All previous Mobile sessions and Web cookies expire after password change. Timeout/5xx: try logging in with the new password.',
     },
   },
   '/auth/login': { post: operation('login', 'Session', 'LoginInput') },
   '/auth/refresh': { post: operation('refresh', 'Session', 'RefreshInput') },
   '/auth/logout': { post: operation('logout', 'Logout', 'RefreshInput') },
   '/me': { get: operation('me', 'User') },
+  '/me/email/request': {
+    post: operation('requestEmailChange', 'EmailChangeSentSchema', 'EmailChangeRequestInput', {
+      authenticated: true,
+    }),
+  },
+  '/me/email/confirm': {
+    post: operation('confirmEmailChange', 'EmailChangeResultSchema', 'EmailChangeConfirmInput', {
+      authenticated: true,
+    }),
+  },
+  '/me/email/cancel': {
+    post: operation('cancelEmailChange', 'EmailChangeCancelledSchema', 'EmailChangeCancelInput', {
+      authenticated: true,
+    }),
+  },
   '/me/password': {
     post: operation('changePassword', 'PasswordChangeResult', 'PasswordChangeInput', {
       authenticated: true,

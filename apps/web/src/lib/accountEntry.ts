@@ -67,6 +67,7 @@ interface Account {
   isVirtual?: boolean;
 }
 interface ResetCode {
+  email?: string;
   _id: mongo.ObjectId;
   user: mongo.ObjectId;
   codeHash: string;
@@ -212,14 +213,28 @@ export async function requestAccountReset(
       session.withTransaction(
         async () => {
           const codes = db.collection<ResetCode>('passwordresetcodes');
-          const previous = user ? await codes.findOne({ user: user._id }, { session }) : null;
+          // Serialize issuance with email changes and recheck the mailbox after the initial lookup.
+          const currentUser = user
+            ? await db
+                .collection<Account>('users')
+                .findOneAndUpdate(
+                  { _id: user._id, email: input.email, isVirtual: { $ne: true } },
+                  { $inc: { emailChangeFence: 1 } },
+                  { session, collation: CI, returnDocument: 'after' }
+                )
+            : null;
+          const prior = currentUser
+            ? await codes.findOne({ user: currentUser._id }, { session })
+            : null;
+          // A delayed request for the old mailbox must not protect a code from a different address.
+          const previous = prior?.email && prior.email !== input.email ? null : prior;
           const now = (context.now ?? Date.now)();
           const sends = db.collection<Attempt>(ACCOUNT_ATTEMPTS);
           const sendKey = attemptKey(context, 'send', input.email);
           const sendState = await sends.findOne({ _id: sendKey }, { session });
           const protectedUntil =
-            previous?.expiresAt ?? (!user ? sendState?.resetExpiresAt : undefined);
-          const failures = previous?.attempts ?? (!user ? sendState?.resetFailures : 0) ?? 0;
+            previous?.expiresAt ?? (!currentUser ? sendState?.resetExpiresAt : undefined);
+          const failures = previous?.attempts ?? (!currentUser ? sendState?.resetFailures : 0) ?? 0;
           // Covers codes issued before this policy and a delayed concurrent transaction.
           // A still-usable code must survive anonymous resends. A locked one may be replaced.
           if (
@@ -258,15 +273,16 @@ export async function requestAccountReset(
             },
             { session }
           );
-          if (!user) return null;
+          if (!currentUser) return null;
           let next: string;
           do {
             next = randomInt(0, 1_000_000).toString().padStart(6, '0');
-          } while (hashCode(next) === previous?.codeHash);
+          } while (hashCode(next) === prior?.codeHash);
           await codes.updateOne(
-            { user: user._id },
+            { user: currentUser._id },
             {
               $set: {
+                email: input.email,
                 codeHash: hashCode(next),
                 expiresAt: new Date(now + RESET_CODE_LIFETIME),
                 attempts: 0,
@@ -329,7 +345,7 @@ export async function confirmAccountReset(
             { $inc: { resetFailures: 1 } },
             { session }
           );
-        if (!user || !record) {
+        if (!user || !record || (record.email !== undefined && record.email !== input.email)) {
           // Unknown emails follow the same failed-code/reissue lifecycle. Otherwise the
           // early-resend exception would distinguish registered addresses after five guesses.
           const state = await sends.findOne({ _id: sendKey }, { session });

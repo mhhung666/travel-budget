@@ -1,7 +1,7 @@
 import { dbConnect } from './mongodb';
 import { getEnv } from './env';
 import { sendEmail } from './email';
-import { buildPasswordResetEmail } from './emailTemplates';
+import { buildPasswordResetEmail, buildEmailChangeEmail } from './emailTemplates';
 import { trustedAccountSource, type AccountContext } from './accountEntry';
 
 export async function accountEnvironment(headers: Pick<Headers, 'get'>) {
@@ -15,5 +15,10 @@ export async function accountEnvironment(headers: Pick<Headers, 'get'>) {
 }
 export async function deliverAccountReset(email: string, code: string, locale: string) {
   const content = await buildPasswordResetEmail({ code, locale, expiresMinutes: 15 });
+  return sendEmail({ to: email, content });
+}
+
+export async function deliverAccountEmail(email: string, code: string, locale: string) {
+  const content = await buildEmailChangeEmail({ code, locale, expiresMinutes: 15 });
   return sendEmail({ to: email, content });
 }

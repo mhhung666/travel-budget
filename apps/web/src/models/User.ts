@@ -8,6 +8,7 @@ const UserSchema = new Schema(
     password: { type: String, required: true },
     // Missing on legacy users/cookies means zero; password changes revoke every Web session.
     authVersion: { type: Number },
+    emailChangeFence: { type: Number },
     isVirtual: { type: Boolean, default: false },
     // 旅行地圖公開分享碼：opt-in，產生時才寫入。null/缺值代表未分享。
     // 解析方式與 Trip.hashCode 相同（短 hash code），見 actions/mapShare.actions.ts。

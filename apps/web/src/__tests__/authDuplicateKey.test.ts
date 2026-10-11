@@ -1,63 +1,32 @@
-import crypto from 'node:crypto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { isAccountDuplicateKey } from '@/lib/mongoErrors';
-
-const mocks = vi.hoisted(() => ({
-  create: vi.fn(),
-  updateOne: vi.fn(),
-  findOne: vi.fn(),
-  codeFind: vi.fn(),
-  codeDelete: vi.fn(),
-  session: vi.fn(),
+import { AccountEmailError } from '@/lib/accountEmail';
+const h = vi.hoisted(() => ({ confirm: vi.fn() }));
+vi.mock('@/lib/accountEmail', async (original) => ({
+  ...(await original<typeof import('@/lib/accountEmail')>()),
+  confirmAccountEmail: h.confirm,
 }));
-vi.mock('@/lib/mongodb', () => ({ dbConnect: vi.fn() }));
-vi.mock('@/lib/auth', () => ({
-  createSession: mocks.session,
-  deleteSession: vi.fn(),
-  getSession: vi.fn(),
+vi.mock('@/lib/accountAdapter', () => ({
+  accountEnvironment: async () => ({ db: {}, context: {} }),
 }));
+vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
 vi.mock('@/actions/withAuth', () => ({
   withAuth:
     (fn: (...args: unknown[]) => unknown) =>
     (...args: unknown[]) =>
-      fn({ userId: 'viewer' }, ...args),
-}));
-vi.mock('@/models', () => ({
-  User: { create: mocks.create, updateOne: mocks.updateOne, findOne: mocks.findOne },
-  PasswordResetCode: {},
-  EmailChangeCode: { findOne: mocks.codeFind, deleteOne: mocks.codeDelete },
-}));
-vi.mock('bcryptjs', () => ({ default: { hash: vi.fn().mockResolvedValue('hash') } }));
-vi.mock('@/lib/email', () => ({ sendEmail: vi.fn() }));
-vi.mock('@/lib/emailTemplates', () => ({
-  buildPasswordResetEmail: vi.fn(),
-  buildEmailChangeEmail: vi.fn(),
+      fn({ userId: 'a'.repeat(24) }, ...args),
 }));
 vi.mock('@/lib/logger', () => ({ logger: { error: vi.fn() } }));
-
 import { confirmEmailChange } from '@/actions/auth.actions';
-
-beforeEach(() => {
-  vi.resetAllMocks();
-  mocks.findOne.mockReturnValue({ collation: () => ({ select: async () => null }) });
-});
-
+beforeEach(() => vi.clearAllMocks());
 describe('account duplicate-key races', () => {
-  it('returns CONFLICT when another account claims a verified email before the write', async () => {
-    mocks.codeFind.mockResolvedValue({
-      _id: 'code-id',
-      newEmail: 'new@example.com',
-      expiresAt: new Date(Date.now() + 60000),
-      attempts: 0,
-      codeHash: crypto.createHash('sha256').update('123456').digest('hex'),
-    });
-    mocks.updateOne.mockRejectedValue({ code: 11000, keyPattern: { email: 1 } });
+  it('maps the shared service conflict to the existing Web CONFLICT result', async () => {
+    h.confirm.mockRejectedValue(new AccountEmailError('CONFLICT'));
     expect(await confirmEmailChange({ code: '123456' })).toMatchObject({
       success: false,
       code: 'CONFLICT',
     });
-    expect(mocks.updateOne).toHaveBeenCalled();
-    expect(mocks.codeDelete).not.toHaveBeenCalled();
+    expect(h.confirm).toHaveBeenCalledWith({}, 'a'.repeat(24), { code: '123456' }, {});
   });
   it('does not mask unrelated duplicate indexes or network failures', () => {
     for (const error of [
@@ -66,8 +35,7 @@ describe('account duplicate-key races', () => {
       { code: 11000 },
       { code: 11000, keyPattern: { mapShareCode: 1 } },
       { code: 11000, keyPattern: { email: 1, other: 1 } },
-    ]) {
+    ])
       expect(isAccountDuplicateKey(error)).toBe(false);
-    }
   });
 });

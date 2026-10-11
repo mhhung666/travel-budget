@@ -297,3 +297,21 @@ pending 固定 24 小時期限，最後 120 秒不再簽 PUT；取消／到期�
 成功以同一原子更新修改 bcrypt hash、遞增 `authVersion`；Web cookie 在認證入口讀目前版本，舊資料／舊 cookie 缺版本視為 0，第一次修改或重設才失效，無 migration。Native 沿既有 hash 綁定檢查，所有舊 access／refresh 在下次認證拒絕。E2 重設在既有碼消耗交易中也遞增版本，Web 登入檢查已驗證 hash 後才簽目前版本，避免舊憑證驗證與改密碼之間的競態。
 
 Mobile 明確提交一次，401 也不自動 refresh／重送；可能送達後的未知回應凍結表單，明確清當前登入、用新密碼核對，失敗再試舊密碼。密碼完全不落盤；重啟只走原 session 恢復，不重送修改。當前登入清理保留全部本機帳務工作，晚到舊世代結果不登出新帳號。
+
+## M3b 本人變更 Email
+
+已新增 bearer-only v2 端點，Web 舊 RPC 改用同一 `accountEmail.ts` 服務；全部 no-store／Vary Authorization，不接受 actor／UUID／ledger。登入、refresh、一般成員 DTO 不加入 Email。
+
+| 端點                     | 嚴格契約                                                                                                                                                 |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /me/email/request` | `{ new_email, locale? }`；Email trim／lowercase／有效格式／最多 254 字元，locale 四語。回 `{ sent: true, newEmail }`，只代表 provider 接受，不保證投遞。 |
+| `POST /me/email/confirm` | `{ new_email, code }`；六位數字字串（保留前導零），綁畫面新信箱。回 `{ changed: true, email }`。                                                         |
+| `POST /me/email/cancel`  | `{}`；本人 active code／delivery candidate 一起作廢，重複取消成功。回 `{ cancelled: true }`。                                                            |
+
+共用額度以已認證帳號 canonical ID 的 HMAC 作 key；寄碼 rolling 一小時 5 次、至少 60 秒間隔，驗碼 rolling 15 分鐘 10 次，單一碼另限五次錯誤。合法格式嘗試及投遞失敗仍計次；429 不延長原期限，與 E2／密碼額度分開。寄碼配額不以新信箱或任意 forwarded header 作身份，不能耗盡其他帳號 M3b 額度；E2 匿名配額風險仍未解。
+
+原信箱只有驗碼成功才改。User 本人 fence／snapshot majority 交易序列化寄碼、公布、確認與取消；更新信箱和消耗码同交易，case-insensitive 唯一索引保護多帳號爭同信箱。新碼只保存 hash，投遞在交易外，新 candidate 成功公布前不替換仍有效的 active code；投遞失敗保留舊碼及原到期／錯誤次數，過晚／已取消／已確認／被新寄碼取代的回應不復活舊候選。候選公布前即使已收到信，也須等服務完成或稍後明確驗碼。部署期間不可混跑舊版獨立 Email writer；沿用現有 `users.email_ci_unique`、`emailchangecodes.user` 唯一與 expiresAt TTL、accountentryattempts TTL 索引，不新增 migration。
+
+400 `VALIDATION_ERROR`／`SAME_EMAIL`／`INVALID_CODE`／`CODE_EXPIRED`／`TOO_MANY_ATTEMPTS`；409 `CONFLICT`／`RESOURCE_CHANGED`；503 `EMAIL_DELIVERY_FAILED`（未配置 sender 也失敗，不印碼或假稱寄出），401／404 身分失效，429 `RATE_LIMITED` 帶 Retry-After。Web 舊 confirm `{ code }` 相容，既有碼原到期仍有效；新 Web 同樣綁新信箱。成功不撤銷登入，不改密碼／authVersion；同交易作廢本人舊信箱的未用密碼重設碼，防止舊碼在新信箱重用。E2 發碼在同一本人 fence 交易內重查目前信箱，新碼也綁定寄送信箱：換信箱前已開始、卻延遲發碼的舊信箱請求，不能以該碼核對新信箱或阻擋新信箱寄碼；舊格式仍相容，匿名配額規則不變。
+
+原生寫入不自動 refresh／重送；未知回應鎖寫入，先 GET `/me/profile` 核對目前值，不能把查回資料稱為某次提交終局。輸入只記憶體，無原 UUID／journal，重啟先讀目前資料。取消未知也須先讀後明確重試取消，讀到舊 Email 不證明取消成功。

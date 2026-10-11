@@ -125,8 +125,8 @@
     },
     "email": {
       "title": "修改電子郵件",
-      "current": "目前電子郵件",
-      "currentHelp": "這是您目前的電子郵件地址",
+      "current": "目前信箱：{email}",
+      "currentHelp": "輸入要接收驗證碼的新信箱；確認成功後才會變更。",
       "new": "新電子郵件",
       "updateButton": "更新電子郵件",
       "updateSuccess": "電子郵件已更新",
@@ -145,7 +145,14 @@
       "tooManyAttempts": "嘗試次數過多，請重新索取驗證碼。",
       "conflict": "此電子郵件已被其他帳號使用。",
       "sameEmail": "這已經是您目前的電子郵件。",
-      "error": "發生錯誤，請稍後再試。"
+      "error": "發生錯誤，請稍後再試。",
+      "currentRead": "已讀取目前信箱。這不是原操作的收據，請核對後再決定。",
+      "readCurrent": "查詢目前信箱",
+      "unknown": "結果尚未確認，請先查詢目前信箱，不會自動重送。",
+      "stale": "其他操作已變更信箱或驗證碼，請重讀後再重新寄碼。",
+      "deliveryFailed": "寄送失敗，原本可用的驗證碼仍保留。",
+      "rateLimited": "請等待後再手動重試；寄碼與驗碼的等待分開計算。",
+      "cancelled": "已取消變更並作廢驗證碼。"
     },
     "password": {
       "title": "修改密碼",

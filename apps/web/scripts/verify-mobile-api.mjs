@@ -3485,6 +3485,93 @@ try {
   await me(m3Recovered);
   assert.equal((await db.collection('users').findOne({ _id: e2UserId })).authVersion, m3Before.authVersion + 1);
   pass('M3a lost HTTP acknowledgement: one committed password change, no replay and manual login recovery');
+  // No configured mail provider must fail explicitly. Seed a disposable verification code only
+  // for HTTP confirmation/recovery; provider acceptance/races are exercised by isolated DB cases.
+  const emailSendFailed = await request('/me/email/request', {
+    token: m3Recovered.accessToken,
+    method: 'POST',
+    body: { new_email: 'm3-email@example.invalid' },
+    status: 503,
+  });
+  assert.equal(emailSendFailed.error.code, 'EMAIL_DELIVERY_FAILED');
+  await request('/me/email/request', {
+    token: m3Recovered.accessToken,
+    method: 'POST',
+    body: { new_email: 'm3-email@example.invalid', userId: writerId },
+    status: 400,
+  });
+  const emailCodes = db.collection('emailchangecodes');
+  await emailCodes.insertOne({
+    user: e2UserId,
+    newEmail: 'm3-email@example.invalid',
+    codeHash: createHash('sha256').update('012345').digest('hex'),
+    expiresAt: new Date(Date.now() + 900000),
+    attempts: 0,
+  });
+  await request('/me/email/confirm', {
+    token: m3Recovered.accessToken,
+    method: 'POST',
+    body: { new_email: 'm3-email@example.invalid', code: '012345' },
+    schema: contracts.emailChangeResultSchema,
+  });
+  assert.equal(
+    (await db.collection('users').findOne({ _id: e2UserId })).email,
+    'm3-email@example.invalid'
+  );
+  await request('/me/email/confirm', {
+    token: m3Recovered.accessToken,
+    method: 'POST',
+    body: { new_email: 'm3-email@example.invalid', code: '012345' },
+    status: 400,
+  });
+  await me(m3Recovered);
+  await emailCodes.insertOne({
+    user: e2UserId,
+    originalEmail: 'm3-email@example.invalid',
+    newEmail: 'm3-email-lost@example.invalid',
+    codeHash: createHash('sha256').update('012346').digest('hex'),
+    expiresAt: new Date(Date.now() + 900000),
+    attempts: 0,
+  });
+  const emailSocket = connect(port, '127.0.0.1');
+  emailSocket.on('error', () => {});
+  await once(emailSocket, 'connect');
+  const emailText = JSON.stringify({ new_email: 'm3-email-lost@example.invalid', code: '012346' });
+  emailSocket.write(
+    `POST /api/v2/me/email/confirm HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nAuthorization: Bearer ${m3Recovered.accessToken}\r\nContent-Type: application/json\r\nContent-Length: ${Buffer.byteLength(emailText)}\r\nConnection: close\r\n\r\n${emailText}`
+  );
+  await eventually(
+    async () =>
+      (await db.collection('users').findOne({ _id: e2UserId })).email ===
+      'm3-email-lost@example.invalid',
+    'M3b lost confirmation did not commit',
+    20000
+  );
+  emailSocket.destroy();
+  const emailCurrent = await request('/me/profile', {
+    token: m3Recovered.accessToken,
+    schema: contracts.accountProfileSchema,
+  });
+  assert.equal(emailCurrent.data.email, 'm3-email-lost@example.invalid');
+  assert.equal(await emailCodes.countDocuments({ user: e2UserId }), 0);
+  await request('/me/email/cancel', {
+    token: m3Recovered.accessToken,
+    method: 'POST',
+    body: {},
+    schema: contracts.emailChangeCancelledSchema,
+  });
+  const emailCases = await exec(
+    'pnpm',
+    ['exec', 'vitest', 'run', 'src/__tests__/accountEmail.integration.test.ts'],
+    {
+      env: { ...process.env, MONGODB_MEMBER_TEST_URI: uri, MONGODB_MEMBER_TEST_ALLOW_WRITES: '1' },
+      maxBuffer: 1024 * 1024,
+    }
+  );
+  assert(emailCases.stdout.includes('11 passed'), 'Email DB cases did not run');
+  pass(
+    'M3b HTTP/isolated DB: explicit delivery refusal, atomic confirmation, one concurrent email owner, actor quotas, delayed delivery/cancel races and lost acknowledgement profile read; real delivery remains unverified'
+  );
   const passwordCases = await exec('pnpm', ['exec', 'vitest', 'run', 'src/__tests__/accountPassword.integration.test.ts'], {
     env: { ...process.env, MONGODB_MEMBER_TEST_URI: uri, MONGODB_MEMBER_TEST_ALLOW_WRITES: '1' }, maxBuffer: 1024 * 1024,
   });

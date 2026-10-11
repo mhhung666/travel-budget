@@ -13,6 +13,8 @@ import mongoose, { Schema, type InferSchemaType, type Model } from 'mongoose';
 const PasswordResetCodeSchema = new Schema(
   {
     user: { type: Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
+    // Newly issued codes are bound to the mailbox; legacy codes keep their original expiry.
+    email: { type: String },
     codeHash: { type: String, required: true },
     expiresAt: { type: Date, required: true },
     attempts: { type: Number, default: 0 },

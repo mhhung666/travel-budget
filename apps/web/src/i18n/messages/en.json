@@ -125,8 +125,8 @@
     },
     "email": {
       "title": "Change Email",
-      "current": "Current Email",
-      "currentHelp": "This is your current email address",
+      "current": "Current email: {email}",
+      "currentHelp": "Enter the new address that will receive the code. Your email changes only after confirmation.",
       "new": "New Email",
       "updateButton": "Update Email",
       "updateSuccess": "Email updated",
@@ -145,7 +145,14 @@
       "tooManyAttempts": "Too many attempts. Please request a new code.",
       "conflict": "This email is already in use by another account.",
       "sameEmail": "This is already your current email.",
-      "error": "Something went wrong. Please try again later."
+      "error": "Something went wrong. Please try again later.",
+      "currentRead": "Current email loaded. This is not a receipt for the earlier operation; check before deciding.",
+      "readCurrent": "Read current email",
+      "unknown": "Outcome unknown. Read the current email first. Nothing is resent automatically.",
+      "stale": "Another operation changed the email or code. Read the profile before requesting a new code.",
+      "deliveryFailed": "Sending failed. Any previously usable code is retained.",
+      "rateLimited": "Wait before manually retrying. Send and verification limits are separate.",
+      "cancelled": "Change cancelled and code invalidated."
     },
     "password": {
       "title": "Change Password",

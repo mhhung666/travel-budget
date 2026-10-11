@@ -10,6 +10,8 @@ import {
   registerInput,
   passwordResetRequestInput,
   passwordResetInput,
+  emailChangeRequestInput,
+  emailChangeConfirmInput,
 } from '@travel-budget/contracts';
 import { SUPPORTED_CURRENCY_CODES } from '@/constants/currencies';
 
@@ -234,14 +236,10 @@ export const updateProfileSchema = z
   );
 
 // 變更 Email 步驟一：以目前登入身分索取「新信箱」驗證碼。locale 帶入當前 UI 語系，供寄信決定語系。
-export const requestEmailChangeSchema = z.object({
-  new_email: z.string().email('請輸入有效的電子郵件'),
-  locale: z.enum(['en', 'zh', 'zh-CN', 'jp']).optional(),
-});
-
-// 變更 Email 步驟二：輸入寄到新信箱的 6 位數驗證碼以套用變更。
-export const confirmEmailChangeSchema = z.object({
-  code: z.string().regex(/^\d{6}$/, '驗證碼為 6 位數字'),
+export const requestEmailChangeSchema = emailChangeRequestInput;
+// Legacy Web callers may supply only code; new clients also bind the displayed destination.
+export const confirmEmailChangeSchema = emailChangeConfirmInput.extend({
+  new_email: emailChangeConfirmInput.shape.new_email.optional(),
 });
 
 // 通知偏好（Email 開關 + 寄信語系）。locale 收斂為支援語系，無效值由 action 端忽略。

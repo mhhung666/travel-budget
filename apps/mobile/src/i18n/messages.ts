@@ -1,4 +1,22 @@
 const zh = {
+  emailChangeTitle: '變更 Email',
+  emailChangeHint: '驗證新信箱後才會變更。驗證碼有效 15 分鐘，最多五次錯誤；輸入不保存在本機。',
+  emailChangeUnsaved: '離開會清除輸入，但不會取消已寄出的驗證碼。要作廢驗證碼，請使用取消變更。',
+  emailChangeNew: '新 Email',
+  emailChangeCurrentLabel: '目前 Email',
+  emailChangeConfirm: '確認變更',
+  emailChangeCancel: '取消變更並作廢驗證碼',
+  emailChangeUnknown: '結果尚未確認。請先查詢目前 Email，再核對信箱或明確重試；不會自動重送。',
+  emailChangeCurrent: '已讀取目前 Email；這不是原操作的收據。請核對後再決定。',
+  emailChangeSent: '寄信服務已接受驗證碼，請檢查新信箱；不保證已投遞。',
+  emailChangeDone: 'Email 已變更。',
+  emailChangeCancelled: '已取消變更並作廢驗證碼。',
+  emailChangeInvalid: '請輸入有效的 Email。',
+  emailChangeSame: '新信箱與目前信箱相同。',
+  emailChangeConflict: '此信箱已被使用，請改用其他信箱。',
+  emailChangeStale: '其他操作已變更信箱或驗證碼。請重讀目前資料，再重新寄碼。',
+  emailChangeDelivery: '寄送失敗，原本可用的驗證碼仍保留。請稍後重寄。',
+
   passwordChangeTitle: '修改密碼',
   passwordCurrent: '目前密碼',
   passwordChangeHint:
@@ -33,7 +51,8 @@ const zh = {
   avatarFileSize: '圖片需小於或等於 4 MiB。',
   avatarFileMissing: '已確認圖片檔案讀不到，可先查詢結果或取消操作。',
   profileTitle: '個人資料',
-  profileHint: '帳號與 Email 為唯讀。修改顯示名稱後，請明確保存；不建立離線草稿。',
+  profileHint:
+    '帳號為唯讀；Email 另由變更信箱入口驗證。修改顯示名稱後，請明確保存；不建立離線草稿。',
   profileNameInvalid: '顯示名稱需為 1–100 個字元，不能只有空白。',
   profileSave: '保存個人資料',
   profileSaved: '顯示名稱已保存。',
@@ -580,6 +599,24 @@ export type Messages = Record<keyof typeof zh, string>;
 export const messages = {
   zh,
   'zh-CN': {
+    emailChangeTitle: '变更 Email',
+    emailChangeHint: '验证新邮箱后才会变更。验证码有效 15 分钟，最多五次错误；输入不保存在本机。',
+    emailChangeUnsaved: '离开会清除输入，但不会取消已寄出的验证码。要作废验证码，请使用取消变更。',
+    emailChangeNew: '新 Email',
+    emailChangeCurrentLabel: '目前 Email',
+    emailChangeConfirm: '确认变更',
+    emailChangeCancel: '取消变更并作废验证码',
+    emailChangeUnknown: '结果尚未确认。请先查询目前 Email，再核对邮箱或明确重试；不会自动重送。',
+    emailChangeCurrent: '已读取目前 Email；这不是原操作的收据。请核对后再决定。',
+    emailChangeSent: '邮件服务已接受验证码，请检查新邮箱；不保证已投递。',
+    emailChangeDone: 'Email 已变更。',
+    emailChangeCancelled: '已取消变更并作废验证码。',
+    emailChangeInvalid: '请输入有效的 Email。',
+    emailChangeSame: '新邮箱与目前邮箱相同。',
+    emailChangeConflict: '此邮箱已被使用，请改用其他邮箱。',
+    emailChangeStale: '其他操作已变更邮箱或验证码。请重读目前资料，再重新寄码。',
+    emailChangeDelivery: '发送失败，原本可用的验证码仍保留。请稍后重发。',
+
     passwordChangeTitle: '修改密码',
     passwordCurrent: '当前密码',
     passwordChangeHint:
@@ -615,7 +652,8 @@ export const messages = {
     avatarFileSize: '图片需小于或等于 4 MiB。',
     avatarFileMissing: '已确认图片文件读不到，可先查询结果或取消操作。',
     profileTitle: '个人资料',
-    profileHint: '账号与 Email 为只读。修改显示名称后，请明确保存；不创建离线草稿。',
+    profileHint:
+      '账号为只读；Email 通过变更邮箱入口验证。修改显示名称后，请明确保存；不创建离线草稿。',
     profileNameInvalid: '显示名称需为 1–100 个字符，不能只有空白。',
     profileSave: '保存个人资料',
     profileSaved: '显示名称已保存。',
@@ -1156,6 +1194,31 @@ export const messages = {
     done: '完成',
   },
   en: {
+    emailChangeTitle: 'Change email',
+    emailChangeHint:
+      'Your current email changes only after verification. Codes last 15 minutes with five incorrect attempts. Inputs are not saved locally.',
+    emailChangeUnsaved:
+      'Leaving clears inputs but does not cancel a sent code. Use Cancel change to invalidate it.',
+    emailChangeNew: 'New email',
+    emailChangeCurrentLabel: 'Current email',
+    emailChangeConfirm: 'Confirm email change',
+    emailChangeCancel: 'Cancel change and invalidate code',
+    emailChangeUnknown:
+      'Outcome unknown. Read your current email first, then check your inbox or explicitly retry. Nothing is resent automatically.',
+    emailChangeCurrent:
+      'Current email loaded. This is not a receipt for the earlier operation; check it before deciding.',
+    emailChangeSent:
+      'The mail service accepted the code. Check your new inbox; delivery is not guaranteed.',
+    emailChangeDone: 'Email changed.',
+    emailChangeCancelled: 'Change cancelled and code invalidated.',
+    emailChangeInvalid: 'Enter a valid email address.',
+    emailChangeSame: 'The new email matches your current email.',
+    emailChangeConflict: 'This email is already in use. Choose another.',
+    emailChangeStale:
+      'Another operation changed the email or code. Read the current profile before requesting a new code.',
+    emailChangeDelivery:
+      'Sending failed. Any previously usable code is retained. Try resending later.',
+
     passwordChangeTitle: 'Change password',
     passwordCurrent: 'Current password',
     passwordChangeHint:
@@ -1198,7 +1261,7 @@ export const messages = {
       'The confirmed image file is missing. Check the result or cancel the operation.',
     profileTitle: 'Profile',
     profileHint:
-      'Username and email are read-only. Explicitly save a changed display name; no offline draft is created.',
+      'Username is read-only. Change email through the verification screen. Explicitly save a changed display name; no offline draft is created.',
     profileNameInvalid: 'Use 1–100 characters, with at least one non-space character.',
     profileSave: 'Save profile',
     profileSaved: 'Display name saved.',
@@ -1825,6 +1888,31 @@ export const messages = {
     done: 'Done',
   },
   jp: {
+    emailChangeTitle: 'メールアドレス変更',
+    emailChangeHint:
+      '新しいアドレスの確認後に変更します。コードは15分間有効で、誤入力は5回までです。入力は端末に保存しません。',
+    emailChangeUnsaved:
+      '戻ると入力は消えますが、送信済みコードは無効になりません。無効にするには変更の取消を選んでください。',
+    emailChangeNew: '新しいメールアドレス',
+    emailChangeCurrentLabel: '現在のメールアドレス',
+    emailChangeConfirm: '変更を確認',
+    emailChangeCancel: '変更を取り消してコードを無効化',
+    emailChangeUnknown:
+      '結果は未確認です。現在のアドレスを読み込み、受信箱を確認してから再試行してください。自動再送はしません。',
+    emailChangeCurrent:
+      '現在のアドレスを読み込みました。前の操作の結果を証明するものではありません。確認して判断してください。',
+    emailChangeSent:
+      'メールサービスがコードを受け付けました。受信箱をご確認ください。配達は保証されません。',
+    emailChangeDone: 'メールアドレスを変更しました。',
+    emailChangeCancelled: '変更を取り消し、コードを無効にしました。',
+    emailChangeInvalid: '有効なメールアドレスを入力してください。',
+    emailChangeSame: '現在と同じメールアドレスです。',
+    emailChangeConflict: 'このアドレスは使用中です。別のアドレスを指定してください。',
+    emailChangeStale:
+      '別の操作でアドレスまたはコードが変更されました。現在の情報を読み込んでから再送してください。',
+    emailChangeDelivery:
+      '送信に失敗しました。以前の有効なコードは保持しています。後で再送してください。',
+
     passwordChangeTitle: 'パスワード変更',
     passwordCurrent: '現在のパスワード',
     passwordChangeHint:
@@ -1867,7 +1955,7 @@ export const messages = {
       '確認済みの画像ファイルがありません。結果を照会するか操作を取り消してください。',
     profileTitle: 'プロフィール',
     profileHint:
-      'ユーザー名とメールは読み取り専用です。表示名の変更は保存してください。オフラインの下書きは作成しません。',
+      'ユーザー名は変更できません。メールは専用画面で確認して変更します。表示名の変更は保存してください。オフラインの下書きは作成しません。',
     profileNameInvalid: '表示名は空白のみを除く 1～100 文字で入力してください。',
     profileSave: 'プロフィールを保存',
     profileSaved: '表示名を保存しました。',
