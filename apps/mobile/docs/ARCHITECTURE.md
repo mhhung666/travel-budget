@@ -276,6 +276,8 @@ receiptFiles 用 Expo picker／manipulator／filesystem：圖片最長邊 2400�
 
 `avatarFiles` 使用既有 Expo picker／manipulator／filesystem，不新增依賴或照片庫寫入；壓縮後檔案保存在 App document 子目錄。Native PUT 為前景、120 秒逾時，含 If-None-Match，412 後仍由後端核對 HEAD。沒有 OS 背景同步，不承諾卸載後恢復、備份排除或登出立即抹除；實際 HEIC／方向、權限、SecureStore／SQLite 與 VoiceOver 留他人驗收。
 
+`AvatarCropper` 在選圖與確認上傳之間提供本機 Modal；調整與完整預覽的全螢幕 Modal 各自放入 SafeAreaProvider，重新量測狀態列／底部安全區，不沿用頁面已消耗的安全區。PanResponder 在容器量測後建立，以來源中心座標／縮放計算拖曳與 pinch，不依固定螢幕寬度。`avatarCrop` 共用邊界與整數裁切矩形，viewport 改變只重新投影；`avatarFiles` 先將來源轉成最多 2048 的 JPEG，使用轉換後實際尺寸，裁切再縮到最多 512。完成僅交回未確認檔案，取消保留上一份選擇；來源／成品以不同 UUID 檔名隔離，原始來源不覆寫，只有確認後的成品進既有 AvatarWriter／SQLite。頁面離開或登入世代改變不接收晚到結果，來源與未交接成品清理；遮罩、手勢、HEIC 實際方向與 VoiceOver 尚需原生驗收。
+
 ## M3a 密碼生命週期
 
 `PasswordChanger` 捕捉本人／登入世代，只線上前景送出一次 v2 `/me/password`；SessionManager 的 opt-out 在帳號密碼／Email 寫入禁止 401 refresh／重送，其他 API 語意保留。表單秘密只留 controller 記憶體，每次嘗試與卸載清除；結果不明只能明確轉登入，不建 receipt／SQLite。`endCredentialSession(version)` 本機清憑證及私人 query，使用世代守衛，原草稿／pending／附件檔案不刪除。成功與明確再登入允許返回守衛退出，取消未送出輸入不寫 HTTP。

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { Alert, AppState } from 'react-native';
+import { Alert, AppState, Pressable, View } from 'react-native';
 import { useNavigation } from 'expo-router';
 import { usePreventRemove } from 'expo-router/react-navigation';
 import { onlineManager, useQueryClient } from '@tanstack/react-query';
@@ -10,11 +10,14 @@ import { errorMessage } from '@/features/auth/errorMessage';
 import { ApiError } from '@/api/client';
 import { useMessages } from '@/i18n/useMessages';
 import { FormPage } from '@/components/screen';
-import { Action, Card, Copy, Notice } from '@/components/ui';
+import { Action, Card, Copy, Icon, Notice } from '@/components/ui';
+import { usePalette } from '@/theme/usePalette';
+import { sizing } from '@/theme/tokens';
 import { goBack } from '@/components/navigation';
 import { openAvatarWriteStore } from '@/storage/avatarWriteDatabase';
 import { AvatarWriter } from './AvatarWriter';
-import { AvatarImage } from './AccountAvatar';
+import { AvatarPreview } from './AvatarPreview';
+import { AvatarCropper } from './AvatarCropper';
 import { useAccountAvatar } from './useAccountAvatar';
 import {
   pickAvatar,
@@ -23,6 +26,7 @@ import {
   avatarFileUri,
   cleanupAvatarFiles,
   type SelectedAvatar,
+  type AvatarSource,
 } from './avatarFiles';
 export function AvatarScreen() {
   const { manager, status, user } = useAuth();
@@ -32,6 +36,7 @@ export function AvatarScreen() {
 function AvatarForm() {
   const { manager } = useAuth(),
     t = useMessages(),
+    palette = usePalette(),
     online = useOnline(),
     query = useAccountAvatar(),
     cache = useQueryClient(),
@@ -51,10 +56,13 @@ function AvatarForm() {
   );
   const state = useSyncExternalStore(writer.subscribe, writer.getSnapshot, writer.getSnapshot);
   const [selected, setSelected] = useState<SelectedAvatar | null>(null),
+    [cropSource, setCropSource] = useState<AvatarSource>(),
     [picking, setPicking] = useState(false),
     [error, setError] = useState<unknown>();
   const confirming = useRef(false);
   const selectedRef = useRef<SelectedAvatar | null>(null),
+    cropSourceRef = useRef<AvatarSource | undefined>(undefined),
+    cropVersion = useRef<number | undefined>(undefined),
     mounted = useRef(false),
     pickingRef = useRef(false);
   useEffect(() => {
@@ -68,11 +76,20 @@ function AvatarForm() {
       queueMicrotask(() => {
         if (!mounted.current && !confirming.current && selectedRef.current)
           void removeAvatarFile(selectedRef.current.file).catch(() => {});
+        if (!mounted.current && cropSourceRef.current)
+          void removeAvatarFile(cropSourceRef.current.file).catch(() => {});
       });
     };
   }, [writer]);
   const select = async () => {
-    if (pickingRef.current || confirming.current || state.busy || state.record || !state.loaded)
+    if (
+      pickingRef.current ||
+      confirming.current ||
+      cropSourceRef.current ||
+      state.busy ||
+      state.record ||
+      !state.loaded
+    )
       return;
     pickingRef.current = true;
     setPicking(true);
@@ -85,14 +102,41 @@ function AvatarForm() {
         await removeAvatarFile(file.file);
         return;
       }
-      if (selectedRef.current) await removeAvatarFile(selectedRef.current.file);
-      selectedRef.current = file;
-      setSelected(file);
+      cropSourceRef.current = file;
+      cropVersion.current = version;
+      setCropSource(file);
     } catch (e) {
       if (mounted.current && manager.getSignInVersion() === version) setError(e);
     } finally {
       pickingRef.current = false;
       if (mounted.current) setPicking(false);
+    }
+  };
+  const cancelCrop = () => {
+    const source = cropSourceRef.current;
+    cropSourceRef.current = undefined;
+    setCropSource(undefined);
+    if (source)
+      void removeAvatarFile(source.file).catch((e: unknown) => {
+        if (mounted.current) setError(e);
+      });
+  };
+  const finishCrop = async (file: SelectedAvatar) => {
+    const source = cropSourceRef.current;
+    if (!mounted.current || !source || manager.getSignInVersion() !== cropVersion.current) {
+      await removeAvatarFile(file.file);
+      return;
+    }
+    const previous = selectedRef.current;
+    selectedRef.current = file;
+    setSelected(file);
+    cropSourceRef.current = undefined;
+    setCropSource(undefined);
+    for (const name of [source.file, previous?.file]) {
+      if (name)
+        await removeAvatarFile(name).catch((e: unknown) => {
+          if (mounted.current) setError(e);
+        });
     }
   };
   const discard = async () => {
@@ -109,6 +153,7 @@ function AvatarForm() {
     if (
       confirming.current ||
       pickingRef.current ||
+      cropSourceRef.current ||
       !query.data ||
       !online ||
       state.busy ||
@@ -143,7 +188,8 @@ function AvatarForm() {
       ]);
   };
   const busy = state.busy || picking;
-  usePreventRemove(busy || !!selected, ({ data }) => {
+  usePreventRemove(busy || !!selected || !!cropSource, ({ data }) => {
+    if (cropSource) return;
     if (busy) return;
     Alert.alert(t.leaveFormTitle, t.avatarUnsaved, [
       { text: t.stayForm, style: 'cancel' },
@@ -170,36 +216,72 @@ function AvatarForm() {
       onBack={() => goBack('/profile')}
     >
       <Copy>{t.avatarPublicHint}</Copy>
+      {cropSource && (
+        <AvatarCropper
+          key={cropSource.file}
+          source={cropSource}
+          onCancel={cancelCrop}
+          onComplete={finishCrop}
+        />
+      )}
       {!online && <Notice tone="warning">{t.profileOffline}</Notice>}
       {!!failure && <Notice tone="danger">{message}</Notice>}
       {!!query.error && <Notice tone="danger">{errorMessage(query.error, t)}</Notice>}
       {!state.loaded && <Action label={t.retry} onPress={() => void writer.load()} busy={busy} />}
       <Card>
-        <AvatarImage
-          key={`${query.data?.avatarUrl ?? 'empty'}:${query.dataUpdatedAt}`}
-          url={query.data?.avatarUrl ?? null}
-        />
+        <View style={{ width: 160, maxWidth: '100%', alignSelf: 'center' }}>
+          <AvatarPreview
+            key={selected?.file ?? `${query.data?.avatarUrl ?? 'empty'}:${query.dataUpdatedAt}`}
+            url={selected ? avatarFileUri(selected.file) : (query.data?.avatarUrl ?? null)}
+          />
+          {!state.record && (
+            <Pressable
+              testID="avatar-pick"
+              accessibilityRole="button"
+              accessibilityLabel={t.avatarChoose}
+              accessibilityState={{ disabled: busy || !state.loaded, busy }}
+              disabled={busy || !state.loaded}
+              onPress={() => void select()}
+              style={({ pressed }) => ({
+                position: 'absolute',
+                right: 0,
+                bottom: 0,
+                width: sizing.touch,
+                height: sizing.touch,
+                borderRadius: sizing.touch / 2,
+                borderWidth: sizing.border,
+                borderColor: palette.surface,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor:
+                  busy || !state.loaded
+                    ? palette.disabled
+                    : pressed
+                      ? palette.primaryPressed
+                      : palette.primary,
+              })}
+            >
+              <Icon
+                name={busy ? 'spinner' : 'camera'}
+                color={busy || !state.loaded ? palette.onDisabled : palette.onPrimary}
+              />
+            </Pressable>
+          )}
+        </View>
         {query.isPending && <Notice>{t.loading}</Notice>}
-        <Action
-          label={t.refresh}
-          variant="secondary"
-          disabled={!online || busy}
-          onPress={() => void query.refetch()}
-        />
+        {(!!query.error ||
+          (result?.status === 'rejected' && result.code === 'RESOURCE_CHANGED')) && (
+          <Action
+            label={t.retry}
+            variant="secondary"
+            disabled={!online || busy}
+            onPress={() => void query.refetch()}
+          />
+        )}
         {!state.record && (
           <>
-            <Action
-              testID="avatar-pick"
-              label={t.avatarChoose}
-              variant="secondary"
-              busy={busy}
-              disabled={!state.loaded}
-              onPress={() => void select()}
-            />
             {selected && (
               <>
-                <Copy>{t.avatarPreview}</Copy>
-                <AvatarImage key={selected.file} url={avatarFileUri(selected.file)} />
                 <Action
                   testID="avatar-confirm"
                   label={t.avatarUpload}

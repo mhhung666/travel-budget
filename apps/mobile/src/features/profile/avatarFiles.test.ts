@@ -1,10 +1,11 @@
 import { beforeEach, expect, it, vi } from 'vitest';
-import { pickAvatar, uploadAvatarFile } from './avatarFiles';
+import { cropAvatar, pickAvatar, uploadAvatarFile } from './avatarFiles';
 const h = vi.hoisted(() => ({
   pick: vi.fn(),
   render: vi.fn(),
   save: vi.fn(),
   resize: vi.fn(),
+  crop: vi.fn(),
   copy: vi.fn(),
   remove: vi.fn(),
   release: vi.fn(),
@@ -15,7 +16,12 @@ vi.mock('expo-image-picker', () => ({ launchImageLibraryAsync: h.pick }));
 vi.mock('expo-image-manipulator', () => ({
   SaveFormat: { JPEG: 'jpeg' },
   ImageManipulator: {
-    manipulate: () => ({ resize: h.resize, renderAsync: h.render, release: h.release }),
+    manipulate: () => ({
+      resize: h.resize,
+      crop: h.crop,
+      renderAsync: h.render,
+      release: h.release,
+    }),
   },
 }));
 vi.mock('expo-crypto', () => ({ randomUUID: () => '11111111-1111-4111-8111-111111111111' }));
@@ -45,21 +51,74 @@ beforeEach(() => {
     canceled: false,
     assets: [{ uri: 'ph://library-original', width: 3024, height: 4032 }],
   });
-  h.render.mockResolvedValue({ saveAsync: h.save, release: h.release });
+  h.render.mockResolvedValue({ width: 1536, height: 2048, saveAsync: h.save, release: h.release });
   h.save.mockResolvedValue({ uri: 'file://cache/avatar.jpg' });
 });
-it('uses explicit system image selection, scales to 512 JPEG and cleans only cache copies', async () => {
-  expect(await pickAvatar()).toMatchObject({ contentType: 'image/jpeg', size: 100 });
+it('normalizes the selected source to JPEG and uses decoded dimensions for cropping, cleaning only cache copies', async () => {
+  expect(await pickAvatar()).toMatchObject({
+    contentType: 'image/jpeg',
+    size: 100,
+    width: 1536,
+    height: 2048,
+  });
   expect(h.pick).toHaveBeenCalledWith({
     mediaTypes: ['images'],
     allowsMultipleSelection: false,
     exif: false,
     quality: 1,
   });
-  expect(h.resize).toHaveBeenCalledWith({ height: 512 });
+  expect(h.resize).toHaveBeenCalledWith({ height: 2048 });
   expect(h.save).toHaveBeenCalledWith({ format: 'jpeg', compress: 0.8 });
   expect(h.remove).toHaveBeenCalledWith('file://cache/avatar.jpg');
   expect(h.remove).not.toHaveBeenCalledWith('ph://library-original');
+});
+it('crops the normalized source first, then limits the final square to 512 without modifying the source file', async () => {
+  const source = {
+      file: '22222222-2222-4222-8222-222222222222',
+      width: 1536,
+      height: 2048,
+      size: 100,
+      contentType: 'image/jpeg' as const,
+    },
+    rect = { originX: 300, originY: 500, width: 1000, height: 1000 };
+  expect(await cropAvatar(source, rect)).toEqual({
+    file: '11111111-1111-4111-8111-111111111111',
+    size: 100,
+    contentType: 'image/jpeg',
+  });
+  expect(h.crop).toHaveBeenCalledWith(rect);
+  expect(h.resize).toHaveBeenCalledWith({ width: 512 });
+  expect(h.crop.mock.invocationCallOrder[0]).toBeLessThan(h.resize.mock.invocationCallOrder[0]);
+  expect(h.remove).not.toHaveBeenCalledWith(expect.stringContaining(source.file));
+  expect(h.remove).toHaveBeenCalledWith('file://cache/avatar.jpg');
+  h.resize.mockClear();
+  await cropAvatar(source, { originX: 0, originY: 0, width: 200, height: 200 });
+  expect(h.resize).not.toHaveBeenCalled();
+});
+it('rejects invalid crop coordinates and oversize output without copying or uploading', async () => {
+  const source = {
+    file: '22222222-2222-4222-8222-222222222222',
+    width: 800,
+    height: 1200,
+    size: 100,
+    contentType: 'image/jpeg' as const,
+  };
+  for (const rect of [
+    { originX: -1, originY: 0, width: 400, height: 400 },
+    { originX: 500, originY: 0, width: 400, height: 400 },
+    { originX: 0, originY: 1000, width: 400, height: 400 },
+    { originX: 0, originY: 0, width: 400, height: 300 },
+    { originX: 0.1, originY: 0, width: 400, height: 400 },
+  ])
+    await expect(cropAvatar(source, rect)).rejects.toMatchObject({ code: 'AVATAR_PICK_FAILED' });
+  expect(h.crop).not.toHaveBeenCalled();
+  h.size = 4 * 1024 * 1024 + 1;
+  await expect(
+    cropAvatar(source, { originX: 0, originY: 0, width: 400, height: 400 })
+  ).rejects.toMatchObject({ code: 'AVATAR_FILE_SIZE' });
+  expect(h.copy).not.toHaveBeenCalled();
+  expect(h.upload).not.toHaveBeenCalled();
+  expect(h.release).toHaveBeenCalledTimes(2);
 });
 it('cancellation creates no local file; picker permission/access failure is actionable', async () => {
   h.pick.mockResolvedValueOnce({ canceled: true });

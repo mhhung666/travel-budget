@@ -4,16 +4,17 @@ import { Copy } from '@/components/ui';
 import { usePalette } from '@/theme/usePalette';
 import { useMessages } from '@/i18n/useMessages';
 import { useAccountAvatar } from './useAccountAvatar';
-export function AvatarImage({ url }: { url: string | null }) {
+export function AvatarImage({ url, size = 80 }: { url: string | null; size?: number }) {
   const [failed, setFailed] = useState(false);
   const palette = usePalette(),
     t = useMessages();
   return (
     <View
       style={{
-        width: 80,
-        minHeight: 80,
-        borderRadius: 40,
+        width: size,
+        maxWidth: '100%',
+        aspectRatio: 1,
+        borderRadius: size / 2,
         backgroundColor: palette.selected,
         justifyContent: 'center',
         alignItems: 'center',
@@ -23,7 +24,7 @@ export function AvatarImage({ url }: { url: string | null }) {
       {url && !failed ? (
         <Image
           source={{ uri: url }}
-          style={{ width: 80, height: 80 }}
+          style={{ width: '100%', height: '100%' }}
           accessibilityLabel={t.avatarTitle}
           onError={() => setFailed(true)}
         />

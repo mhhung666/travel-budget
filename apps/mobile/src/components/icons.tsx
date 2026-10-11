@@ -9,6 +9,7 @@ export type IconName =
   | 'sparkles'
   | 'ticket'
   | 'receipt'
+  | 'camera'
   | 'menu'
   | 'map-pin'
   | 'plus'
@@ -178,6 +179,13 @@ export function Icon({ name, color }: { name: IconName; color: string }) {
             <>
               {outline({ left: 4, top: 1, width: 12, height: 12, borderRadius: 6 })}
               {outline({ left: 8, top: 5, width: 4, height: 4, borderRadius: 2 })}
+            </>
+          )}
+          {name === 'camera' && (
+            <>
+              {outline({ left: 1, top: 5, width: 18, height: 13, borderRadius: 3 })}
+              {outline({ left: 6, top: 1, width: 8, height: 6, borderRadius: 2 })}
+              {outline({ left: 6, top: 8, width: 8, height: 8, borderRadius: 4 })}
             </>
           )}
           {(name === 'user' || name === 'user-plus') && (

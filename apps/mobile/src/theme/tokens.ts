@@ -1,5 +1,6 @@
 export const colors = {
   light: {
+    scrim: '#000000',
     background: '#F6F8F7',
     surface: '#FFFFFF',
     text: '#18181B',
@@ -27,6 +28,7 @@ export const colors = {
     focus: '#175BAB',
   },
   dark: {
+    scrim: '#000000',
     background: '#101817',
     surface: '#182321',
     text: '#F4FAF8',
