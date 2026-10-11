@@ -267,3 +267,11 @@ ReceiptWriteScreen／ReceiptWriter 先存後送；receiptWrites.ts 使用獨立 
 receiptFiles 用 Expo picker／manipulator／filesystem：圖片最長邊 2400、JPEG quality 0.85，PDF 原檔，1 byte–8 MiB。檔案複製到 App 私有 document 子目錄，SQLite 只存隨機檔名，不存 URL／憑證。清理 picker 副本只限 App cache；未確認離頁刪檔，已確認不因離頁／登出／換帳號丟失，只讓原帳號恢復。無參照且超過 24 小時的本機孤兒於進入管理頁清理。PUT 限前景且有逾時／取消，不提供 OS 背景同步或照片庫寫入。
 
 「我的 → 本機工作 → 待確認附件」可回原操作，即使支出已刪除；仍須成員資格，撤權不繞過授權。本機待確認檔案不是閱讀快取，不承諾備份排除或卸載後恢復；原生生命週期見 LOCAL_ACCEPTANCE。
+
+## M2 頭像與確認工作
+
+`useAccountAvatar` 於我的／個人資料上層共用 Query，key 包含環境、本人及登入世代，不在每列掛查詢。頭像是公開 URL，沒有 bearer 圖片 header，不擴充登入／refresh／成員身分或私人 Email 契約。`AvatarScreen` 僅 signedIn，按帳號／世代重建；`AvatarWriter` 的每次 HTTP／refresh replay／原生 PUT 重驗登入、前景及連線，晚到回應不跨帳號更新 Query。
+
+`avatarWrites` 使用獨立 `travel-budget-avatar-writes.db`，每個帳號／環境一筆不可變 input、UUID、隨機檔名、單向 cancel 與終局；C／D／E／收據資料不變。確認落盤前零請求，重啟只查詢，手動重試先 finish／HEAD、缺檔才取新 ticket 並 PUT，取消未開始的移除也不先執行移除。終局先保存再刪本機檔案，清理失敗保留紀錄。未確認選圖只留頁面記憶體／App 私有檔案，離頁刪除；換帳號碰到落盤中交接時保留已確認檔案。無參照超過 24 小時的本機孤兒於開啟頭像頁清理，未解決確認檔案不清。
+
+`avatarFiles` 使用既有 Expo picker／manipulator／filesystem，不新增依賴或照片庫寫入；壓縮後檔案保存在 App document 子目錄。Native PUT 為前景、120 秒逾時，含 If-None-Match，412 後仍由後端核對 HEAD。沒有 OS 背景同步，不承諾卸載後恢復、備份排除或登出立即抹除；實際 HEIC／方向、權限、SecureStore／SQLite 與 VoiceOver 留他人驗收。

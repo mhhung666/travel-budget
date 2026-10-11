@@ -62,6 +62,7 @@ O 已完成小型測試庫 before／after 並加入 additive migration；正式�
 
 | 檔案 | 內容 |
 | --- | --- |
+| `20261011090000-avatar-cleanup-jobs.js` | 新增本人頭像清理 availableAt 索引、永久退休 key 與工作；ownership 保護既有索引，down 不刪工作。先 migrate 再部署 M2 後端與 worker，未在遠端執行。 |
 | `20260916220000-normalize-expense-money.js` | 支出金額與 `splits.shareAmount` 收斂到分，小額尾差按 `normalizeShares` 同一規則分配（規則凍結於腳本，測試對照 `money.ts`）。原值備份於 `expense_money_migration_backups`；更新以原值為條件，不覆蓋並行編輯；大額不平衡、換匯不符、分攤給非成員只記錄不修正。down 只回復仍等於遷移結果者並刪除備份。套用前後讀取結果相同，可隨時執行、不需停寫。 |
 | `20260911090000-blob-cleanup-jobs.js` | 建立附件清理工作／永久 key tombstone 及 availableAt 索引；down 保留資料。停寫並排空舊請求，先 migrate 再部署全部 R3 writer／worker。 |
 | `20260910090000-trip-cleanup-jobs.js` | 建立持久化旅程清理工作及 availableAt 索引；ownership 保護既有索引，down 保留工作資料。需先 migrate 再部署 R3c。 |

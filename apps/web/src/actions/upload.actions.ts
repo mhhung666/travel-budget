@@ -1,5 +1,7 @@
 'use server';
 
+import { dbConnect } from '@/lib/mongodb';
+import { createWebAvatarUpload } from '@/lib/avatarWrite';
 import mongoose from 'mongoose';
 import { withPhotoUpdateTransaction } from '@/lib/photoUpdateTransaction';
 import { photoUploadJobs, PHOTO_UPLOAD_LEASE_MS } from '@/lib/photoUploadJobs';
@@ -219,9 +221,16 @@ export const createAvatarUploadUrl = withAuth(
         return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
       }
 
-      const key = buildObjectKey('avatar', session.userId, contentType);
-      const uploadUrl = await presignPut('avatars', key, contentType);
-      return { success: true, data: { uploadUrl, key } };
+      await dbConnect();
+      return {
+        success: true,
+        data: await createWebAvatarUpload(
+          mongoose.connection.db!,
+          session.userId,
+          contentType,
+          size
+        ),
+      };
     } catch (error) {
       logger.error('createAvatarUploadUrl error', error);
       return { success: false, error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' };

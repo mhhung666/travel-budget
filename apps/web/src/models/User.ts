@@ -12,6 +12,8 @@ const UserSchema = new Schema(
     mapShareCode: { type: String },
     // 頭像公開 URL（R2 公開 avatars bucket 的穩定網址）。null/缺值＝未設定。
     avatarUrl: { type: String },
+    avatarRevision: { type: Number },
+    avatarWriteFence: { type: Number },
     // Email 通知開關（opt-out）。預設開；缺值（舊資料）以讀取端 `!== false` 視為開啟，
     // 故無需遷移。關閉後 notify() 的 Email fan-out 會跳過此使用者（站內通知不受影響）。
     notifyByEmail: { type: Boolean, default: true },

@@ -1,3 +1,4 @@
+import { AccountAvatar } from '@/features/profile/AccountAvatar';
 import { useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { Action, Card, DetailRow, Notice, Page, Section, Title } from '@/components/ui';
@@ -46,6 +47,7 @@ export function MyScreen() {
       <Title>{t.myAccount}</Title>
       <Section title={t.accountSection}>
         <Card>
+          <AccountAvatar />
           <DetailRow label={t.displayName} value={user?.displayName ?? ''} />
           <DetailRow label={t.username} value={user ? `@${user.username}` : ''} />
         </Card>

@@ -121,3 +121,9 @@ G6b receiptWrite.ts 新增私人附件意圖、短效 immutable PUT、HEAD 後�
 ## M1 本人資料服務
 
 Web `getCurrentUser`／名稱版 `updateProfile` 與 Mobile `/api/v2/me/profile` 共用 `lib/accountProfile.ts`。服務只接受由 adapter 驗證的 actor，讀取固定投影、原子 `$set displayName` 並回傳資料庫實值；名稱規則引用共用 contracts，私人 Email 僅本人端點，不擴充 member 或 session DTO。密碼／Email／通知／頭像設定與原 Web Cookie 語意不變；沒有 migration、金額計算或帳務 journal。
+
+## M2 頭像寫入與清理
+
+`lib/avatarWrite` 共用 Web 頭像 adapters 與 Mobile v2 的本人授權、型別／大小限制、User fence 及退休 key 防線；普通 GET 僅唯讀。頭像修訂獨立於姓名、帳務與憑證，旧使用者缺 revision 視為初值，首次修改才寫入 counter；不重算任何金額。Native `avatarwrites` 以 actor:UUID 唯一 key 保存原內容與終局，完成／刪除及清理排程在同一 snapshot／majority 交易中提交；HEAD／簽名／實體刪除都在交易外。
+
+公開 avatars 與私人 receipts bucket 保持分離。`avatarcleanupjobs` 存本人 key、原操作 ID、到期／租約、退休 tombstone 與掃除進度；worker 從既有 trip-cleanup cron 有界執行，使用本人 fence 核對活參照，未完成操作按原 UUID 標 EXPIRED，不依賴掃描全部 journal。首次清理後 24 小時再掃一次，失敗保留工作；tombstone 及 receipt 不設 TTL。部署操作見 [M2 API](MOBILE_API.md#m2-本人頭像)，真儲存服務驗收另列。

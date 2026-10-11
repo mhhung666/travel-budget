@@ -29,7 +29,11 @@ describe.skipIf(!uri || !allowed)('M1 self profile on an owned database', () => 
   let owned = false;
   let token: Awaited<ReturnType<typeof loginMobile>>;
   beforeAll(async () => {
-    await mongoose.connect(uri!, { dbName: `tb_profile_${randomUUID().replaceAll('-', '')}` });
+    await mongoose.connect(uri!, {
+      autoCreate: false,
+      autoIndex: false,
+      dbName: `tb_profile_${randomUUID().replaceAll('-', '')}`,
+    });
     expect(await mongoose.connection.db!.listCollections().toArray()).toHaveLength(0);
     await mongoose.connection.db!.createCollection('verification_owner');
     owned = true;

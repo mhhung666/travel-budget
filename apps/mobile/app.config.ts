@@ -15,25 +15,26 @@ const config: ExpoConfig = {
     'zh-Hant': {
       ios: {
         NSCameraUsageDescription: '允許 Travel Budget 拍攝收據。',
-        NSPhotoLibraryUsageDescription: '允許 Travel Budget 選擇收據圖片。',
+        NSPhotoLibraryUsageDescription: '允許 Travel Budget 選擇收據或頭像圖片。',
       },
     },
     'zh-Hans': {
       ios: {
         NSCameraUsageDescription: '允许 Travel Budget 拍摄收据。',
-        NSPhotoLibraryUsageDescription: '允许 Travel Budget 选择收据图片。',
+        NSPhotoLibraryUsageDescription: '允许 Travel Budget 选择收据或头像图片。',
       },
     },
     en: {
       ios: {
         NSCameraUsageDescription: 'Allow Travel Budget to photograph receipts.',
-        NSPhotoLibraryUsageDescription: 'Allow Travel Budget to select receipt images.',
+        NSPhotoLibraryUsageDescription: 'Allow Travel Budget to select receipt or avatar images.',
       },
     },
     ja: {
       ios: {
         NSCameraUsageDescription: 'Travel Budgetによる領収書の撮影を許可します。',
-        NSPhotoLibraryUsageDescription: 'Travel Budgetによる領収書画像の選択を許可します。',
+        NSPhotoLibraryUsageDescription:
+          'Travel Budgetによる領収書やプロフィール画像の選択を許可します。',
       },
     },
   },
@@ -53,7 +54,7 @@ const config: ExpoConfig = {
       'expo-image-picker',
       {
         cameraPermission: 'Allow Travel Budget to photograph receipts.',
-        photosPermission: 'Allow Travel Budget to select receipt images.',
+        photosPermission: 'Allow Travel Budget to select receipt or avatar images.',
         microphonePermission: false,
       },
     ],

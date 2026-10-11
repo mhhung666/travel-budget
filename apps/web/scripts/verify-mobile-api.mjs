@@ -620,6 +620,19 @@ try {
   assert.equal((await me(first)).data.displayName, 'M1 HTTP');
   await request('/me/profile', { token: first.accessToken, method: 'PATCH', body: { displayName: originalProfile.displayName }, schema: contracts.accountProfileSchema });
   pass('M1 true HTTP: self-only private profile, strict PATCH, name trim, current identity and legacy /me unchanged');
+  const avatarBefore = (await request('/me/avatar', { token: first.accessToken, schema: contracts.avatarContextSchema })).data;
+  await request('/me/avatar', { status: 401 });
+  await request('/me/avatar/requests', { token: first.accessToken, method: 'POST', body: { action: 'remove', client_request_id: randomUUID(), expectedRevision: avatarBefore.revision, actor: first.user.id }, status: 400 });
+  const avatarRemove = { action: 'remove', client_request_id: randomUUID(), expectedRevision: avatarBefore.revision };
+  const avatarRemoved = (await request('/me/avatar/requests', { token: first.accessToken, method: 'POST', body: avatarRemove, schema: contracts.avatarWriteStateSchema })).data;
+  assert.equal(avatarRemoved.status, 'committed');
+  const avatarReplay = (await request('/me/avatar/requests', { token: first.accessToken, method: 'POST', body: avatarRemove, schema: contracts.avatarWriteStateSchema })).data;
+  assert.deepEqual(avatarReplay, avatarRemoved);
+  const avatarReadback = (await request(`/me/avatar/requests/${avatarRemove.client_request_id}`, { token: first.accessToken, schema: contracts.avatarWriteStateSchema })).data;
+  assert.deepEqual(avatarReadback, avatarRemoved);
+  assert.equal((await request('/me/avatar', { token: first.accessToken, schema: contracts.avatarContextSchema })).data.avatarUrl, null);
+  pass('M2 true HTTP: self avatar, strict confirmed removal, original UUID replay and result lookup');
+
 
   const listing = (
     await request(`/trips?page=1&date=${date}`, { token: first.accessToken, schema: tripsSchema })
@@ -3454,6 +3467,11 @@ try {
   });
   assert(profileCases.stdout.includes('4 passed'), 'Profile DB cases did not run');
   pass('M1 isolated DB: shared Web/mobile validation, self-only profile, private projection, identity refresh and credential preservation');
+  const avatarCases = await exec('pnpm', ['exec', 'vitest', 'run', 'src/__tests__/avatarWrite.integration.test.ts'], {
+    env: { ...process.env, MONGODB_MEMBER_TEST_URI: uri, MONGODB_MEMBER_TEST_ALLOW_WRITES: '1' }, maxBuffer: 1024 * 1024,
+  });
+  assert(avatarCases.stdout.includes('7 passed'), 'Avatar DB cases did not run');
+  pass('M2 isolated DB: atomic avatar/receipt, replay, shared Web fence, HEAD validation, account isolation and durable cleanup; storage mocked');
   const receiptWrites = await exec('pnpm', ['exec', 'vitest', 'run', 'src/__tests__/receiptWrite.integration.test.ts'], {
     env: { ...process.env, MONGODB_MEMBER_TEST_URI: uri, MONGODB_MEMBER_TEST_ALLOW_WRITES: '1' }, maxBuffer: 1024 * 1024,
   });

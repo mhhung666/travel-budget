@@ -145,3 +145,20 @@ U3c-2 修正 MongoDB 8／driver 7.2 的 transaction CSOT／getMore 相容性：�
 新增 bearer-only `GET /api/v2/me/profile` 與 `PATCH /api/v2/me/profile`；回應只有 `{ id, username, displayName, email }`，所有回應 no-store／Vary Authorization。PATCH 嚴格接受 `{ displayName }`（trim、1–100 字元），不接受目標使用者、帳號、Email、密碼或偏好欄位。本人資格由裝置 session 決定，虛擬／已刪除使用者不能操作。`lib/accountProfile.ts` 提供共用本人讀取與原子名稱更新；Web `getCurrentUser/updateProfile` 呼叫同一服務／名稱驗證，原 Cookie、密碼與 Email 變更流程不變。
 
 登入／refresh／`GET /me` 的原 user schema 保持不變，不加入私人 Email 或 ledger；一般成員／公開 DTO 不變。新增端點須先部署相容後端，再發布使用它的 App，沒有 v1／舊回應退路。名稱屬線上設定，沒有帳務 receipt／outbox；丟回應由使用者先讀目前資料再決定，讀到目前名稱不等於證明某次請求終局。
+
+## M2 本人頭像
+
+新增獨立、自身 bearer 的 v2 契約（全部 no-store、Vary Authorization）：
+
+| 端點 | 契約 |
+| --- | --- |
+| `GET /me/avatar` | `{ avatarUrl: string|null, revision }`；公開圖片 URL，不含 Email、密碼或 token。 |
+| `POST /me/avatar/requests` | 嚴格 `{ action: replace|remove, client_request_id, expectedRevision }`；replace 額外必填 contentType、size。回原 UUID 的 pending／committed／rejected。 |
+| `GET /me/avatar/requests/:uuid` | 只查詢原 receipt；不存在為 not_found，不推斷未執行。 |
+| `POST /me/avatar/requests/:uuid` | `{ action: upload|finish|cancel }`；upload 可帶 120 秒 PUT ticket，finish 重驗 HEAD。取消先消耗 UUID，未開始的 remove 不因此被送出。 |
+
+UUID 及白名單／1 byte–4 MiB／JPEG、PNG、WebP 由共用 schema 驗證；server 產生本人 key，不接受 URL、儲存 key、actor 或其他欄位。MongoDB 本人 fence 內原子寫入頭像、revision、終局與清理工作，已提交原 UUID 重播回原結果，不重新套用；同 UUID 不同內容回 IDEMPOTENCY_CONFLICT。衝突 RESOURCE_CHANGED、驗證拒絕、取消 CANCELLED、到期 EXPIRED 保存終局；未知 HTTP／儲存故障保留 pending，不換 UUID。GET 不修改 fence；HEAD 失敗與不存在分開，未上傳回 UPLOAD_INCOMPLETE 可手動續送。Native ticket 以 If-None-Match 防覆寫，412 後仍核對实际 size／type 與原確認值。
+
+replace 等待期限 24 小時，最後五分鐘不再簽發／完成，未完成與已撤換 key 使用 `avatarcleanupjobs` 延後刪除、失敗重試及第二次掃除。清理檢查仍被引用者，退役 tombstone 永不 TTL 刪除，不能再綁回；公開 URL 已交出或被快取不保證立即撤銷。既有 Web 頭像 adapters 共用驗證、本人 fence 與清理，Web ticket 保留原 headers 契約；它仍是原有 RPC，未新增 Web 本機 journal。登入／refresh／me、私人 me/profile 與一般成員 DTO 不變。
+
+部署前由操作人員套用 `20261011090000-avatar-cleanup-jobs.js`（availableAt 索引，down 保留工作）再部署相容後端／worker；本次沒有遠端 migration、R2 或 cron 設定。`test:mobile-api` 驗真 HTTP 讀取／移除／原 UUID，另執行 7 項可丟棄 replica-set 回歸（R2 mocked），包含提交原子性／回滾、並發重播、HEAD、Web 衝突、隔離及清理重試。真 R2、CORS、iOS 選圖與生命週期由 [M2 交接](../../mobile/docs/LOCAL_ACCEPTANCE.md#m2-頭像交接) 驗收。

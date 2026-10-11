@@ -283,3 +283,7 @@ pending 固定 24 小時期限，最後 120 秒不再簽 PUT；取消／到期�
 ## M1 本人資料
 
 本人 `GET/PATCH /api/v2/me/profile` 與共用服務、欄位／錯誤／相容規則見 [後端契約](../../web/docs/MOBILE_API.md#m1-本人資料)。私人 Email 不進登入 user、成員 DTO 或離線快照。帳號資料只線上明確保存，未知結果先查目前資料；與 C／D／E journal 無關，不建立離線重送工作。
+
+## M2 本人頭像
+
+已實作 v2 `GET /me/avatar`、`POST /me/avatar/requests` 及 `GET/POST /me/avatar/requests/:clientRequestId`，只有本人 bearer 身分，沒有旅行 ledger。頭像讀取、確認、原 UUID 終局、HEAD／revision／取消與清理規則集中於 [Web M2 契約](../../web/docs/MOBILE_API.md#m2-本人頭像)；runtime schema 與 OpenAPI 仍在 contracts，登入及 M1 私人本人資料回應不變。

@@ -280,6 +280,59 @@ export const expensePreviewSchema = z
   );
 // One UUID per user-confirmed submission, reused by every retry of that submission.
 export const clientRequestIdSchema = z.uuid();
+// Self-only public avatar; kept separate from auth and private email DTOs.
+export const MAX_AVATAR_UPLOAD_BYTES = 4 * 1024 * 1024;
+export const avatarContextSchema = z
+  .object({
+    avatarUrl: z.url().nullable(),
+    revision: z.string().regex(/^[a-f0-9]{64}$/),
+  })
+  .strict();
+export const avatarWriteInput = z.discriminatedUnion('action', [
+  z
+    .object({
+      action: z.literal('replace'),
+      client_request_id: clientRequestIdSchema.toLowerCase(),
+      expectedRevision: avatarContextSchema.shape.revision,
+      contentType: z.enum(['image/jpeg', 'image/png', 'image/webp']),
+      size: z.number().int().positive().max(MAX_AVATAR_UPLOAD_BYTES),
+    })
+    .strict(),
+  z
+    .object({
+      action: z.literal('remove'),
+      client_request_id: clientRequestIdSchema.toLowerCase(),
+      expectedRevision: avatarContextSchema.shape.revision,
+    })
+    .strict(),
+]);
+export const avatarWriteStateSchema = z
+  .object({
+    clientRequestId: clientRequestIdSchema,
+    status: z.enum(['not_found', 'pending', 'committed', 'rejected']),
+    code: z.enum(['RESOURCE_CHANGED', 'CANCELLED', 'EXPIRED', 'VALIDATION_ERROR']).optional(),
+    avatar: avatarContextSchema.optional(),
+  })
+  .strict();
+export const avatarUploadTicketSchema = avatarWriteStateSchema
+  .extend({
+    upload: z
+      .object({
+        url: z.url(),
+        contentType: z.enum(['image/jpeg', 'image/png', 'image/webp']),
+        expiresAt: z.number().int().positive(),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict();
+export const avatarWriteCommandInput = z
+  .object({ action: z.enum(['upload', 'finish', 'cancel']) })
+  .strict();
+export type AvatarContext = z.infer<typeof avatarContextSchema>;
+export type AvatarWriteInput = z.infer<typeof avatarWriteInput>;
+export type AvatarWriteState = z.infer<typeof avatarWriteStateSchema>;
+
 // Field names mirror the Web expense input; unknown fields (attachments, tags, itinerary days, ...)
 // are rejected rather than ignored.
 export const expenseCreateInput = z

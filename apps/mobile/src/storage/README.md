@@ -21,3 +21,5 @@ G2b 沿用 schema 8。expense_draft 的 raw JSON 可加 currency／rateText／ra
 B3 使用 schema 9，C／E envelope 保存 API 版與帳本單位，舊 frozen JSON 不重寫；草稿／快照與恢復規則集中見 [B3 架構](../../docs/ARCHITECTURE.md#b3mobile-帳本與舊資料恢復)。B5c-2 使用 schema 10，`expense_queue.api_version` 保存入列版本（舊列 v1、新列 v2），prepare 依此交 C。B5d-1 起 C／E insert 與 D prepare 只接受 v2，舊 v1 列照常解碼；`remove(…, 'abandoned')` 與 mutation `abandon` 只供使用者捨棄退役紀錄。
 
 `preferences.ts` 另開 `travel-budget-preferences.db`，單列 `device_preferences` 只存 version 1 的 language／appearance，與帳務 schema 10、限速、帳號 scope 及 SecureStore 分離。單一 UPSERT 原子替換，序列化由根層 PreferenceStore 負責；登出不清除。損壞或較新格式不得靜默覆寫，使用者可明確重設這兩項設定。`preferences.web.ts` 以 localStorage 保存非敏感偏好，不引入 SQLite wasm。Expo Go／development build／不同 App 容器不承諾互相搬移；卸載或清除 App 資料可能移除偏好。
+
+`avatarWrites.ts`／`avatarWriteDatabase.ts` 為獨立本人頭像確認紀錄，按環境／帳號隔離，固定原 UUID／body／隨機本機檔名，取消及終局單向保存；SQLite 失敗不送出。讀取損壞資料不靜默清除，終局保存後才清圖並確認移除提示。Web preview adapter 不引入 SQLite，未提供此原生寫入流程。照片與公開 URL 不進登入 credential；詳細恢復見 [M2 架構](../../docs/ARCHITECTURE.md#m2-頭像與確認工作)。

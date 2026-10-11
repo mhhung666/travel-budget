@@ -12,6 +12,11 @@ import {
   userSchema,
   accountProfileSchema,
   accountProfileInput,
+  avatarContextSchema,
+  avatarWriteInput,
+  avatarWriteStateSchema,
+  avatarUploadTicketSchema,
+  avatarWriteCommandInput,
   sessionSchema,
   logoutResultSchema,
   tripsSchema,
@@ -98,6 +103,11 @@ const schemas = Object.fromEntries(
     LoginInput: loginInput,
     RefreshInput: refreshInput,
     User: userSchema,
+    AvatarContext: avatarContextSchema,
+    AvatarWriteInput: avatarWriteInput,
+    AvatarWriteState: avatarWriteStateSchema,
+    AvatarUploadTicket: avatarUploadTicketSchema,
+    AvatarWriteCommandInput: avatarWriteCommandInput,
     AccountProfile: accountProfileSchema,
     AccountProfileInput: accountProfileInput,
     Session: sessionSchema,
@@ -194,6 +204,42 @@ const templates = {
       }),
       description:
         'Self-only display name update. Email and username are read-only. Explicit online save; on an unknown outcome read the profile before deciding whether to save again. No ledger/outbox operation.',
+    },
+  },
+  '/me/avatar': {
+    get: operation('accountAvatar', 'AvatarContext', undefined, { authenticated: true }),
+  },
+  '/me/avatar/requests': {
+    post: operation('beginAvatarWrite', 'AvatarWriteState', 'AvatarWriteInput', {
+      authenticated: true,
+      errors: [409],
+    }),
+  },
+  '/me/avatar/requests/{clientRequestId}': {
+    get: {
+      ...operation('avatarWriteStatus', 'AvatarWriteState', undefined, { authenticated: true }),
+      parameters: [
+        {
+          name: 'clientRequestId',
+          in: 'path',
+          required: true,
+          schema: { type: 'string', format: 'uuid' },
+        },
+      ],
+    },
+    post: {
+      ...operation('commandAvatarWrite', 'AvatarUploadTicket', 'AvatarWriteCommandInput', {
+        authenticated: true,
+        errors: [409],
+      }),
+      parameters: [
+        {
+          name: 'clientRequestId',
+          in: 'path',
+          required: true,
+          schema: { type: 'string', format: 'uuid' },
+        },
+      ],
     },
   },
   '/trips/join': {

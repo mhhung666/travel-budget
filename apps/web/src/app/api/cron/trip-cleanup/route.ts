@@ -1,3 +1,4 @@
+import { runAvatarCleanup } from '@/lib/avatarWrite';
 import { expireReceiptWrites } from '@/lib/receiptWrite';
 import { timingSafeEqual } from 'node:crypto';
 import mongoose from 'mongoose';
@@ -48,6 +49,11 @@ export async function GET(request: NextRequest) {
       results[`blobs_${result.status}`] = (results[`blobs_${result.status}`] ?? 0) + 1;
       if (result.status === 'idle') break;
     }
+    results.avatars_swept = await runAvatarCleanup(
+      mongoose.connection.db!,
+      (keys) => deleteObjects('avatars', keys, AbortSignal.timeout(5000)),
+      { deadline: Date.now() + 5000 }
+    );
     return NextResponse.json({ success: true, results });
   } catch {
     logger.error('Trip cleanup batch unavailable');

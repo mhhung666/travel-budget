@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Alert, AppState } from 'react-native';
-import { useNavigation } from 'expo-router';
+import { router, useNavigation } from 'expo-router';
 import { usePreventRemove } from 'expo-router/react-navigation';
 import { onlineManager } from '@tanstack/react-query';
 import { useAuth } from '@/features/auth/AuthProvider';
@@ -11,6 +11,7 @@ import { goBack } from '@/components/navigation';
 import { FormPage } from '@/components/screen';
 import { Action, Card, Copy, DetailRow, Notice, TextField } from '@/components/ui';
 import { ApiError } from '@/api/client';
+import { AccountAvatar } from './AccountAvatar';
 import { ProfileEditor } from './editor';
 
 export function ProfileScreen() {
@@ -66,6 +67,14 @@ function ProfileForm() {
       busy={state.busy}
       onBack={() => goBack('/me')}
     >
+      <AccountAvatar />
+      <Action
+        testID="profile-avatar"
+        label={t.avatarTitle}
+        variant="secondary"
+        disabled={state.busy}
+        onPress={() => router.push('/avatar')}
+      />
       <Copy>{t.profileHint}</Copy>
       {!online && <Notice tone="warning">{t.profileOffline}</Notice>}
       {!!state.error && !state.uncertain && <Notice tone="danger">{message}</Notice>}
