@@ -178,3 +178,7 @@ replace 等待期限 24 小時，最後五分鐘不再簽發／完成，未完�
 ## M4a 本人通知偏好
 
 新增 GET／PATCH `/api/v2/me/notification-preferences`，本人 bearer、嚴格部分更新及 no-store／Vary Authorization；Web RPC 與 Native 共用服務，通知語言與 Web cookie／Mobile 顯示語言獨立，身分／旅行 DTO 不變。欄位、舊值預設及未知結果恢復見 [M4a 契約](../../mobile/docs/BACKEND_CONTRACT.md#m4a-本人通知偏好)。`test:mobile-api` 增加本人隔離／非法欄位／部分保存與現值核對；真通知及 iOS 操作仍由他人驗收。
+
+## M4b 好友
+
+GET／POST `/api/v2/me/friends` 及 POST `/api/v2/me/friends/{friendshipId}` 提供本人關係與邀請／接受／拒絕／收回／移除；兩端共用服務及唯一 pair 狀態機，公開身分投影、bearer／角色隔離及 no-store。未知操作先查目前關係，不自動重送，不授予旅行權限；詳細欄位及錯誤見 [M4b 契約](../../mobile/docs/BACKEND_CONTRACT.md#m4b-好友)。工程案例列於 `test:mobile-api` 的真 HTTP 與六項隔離 DB 回歸；iOS 與真通知仍待他人驗收。

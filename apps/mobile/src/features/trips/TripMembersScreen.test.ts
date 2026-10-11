@@ -1,5 +1,6 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { TripMembersScreen } from './TripMembersScreen';
+import { router } from 'expo-router';
 import { ApiError } from '@/api/client';
 import type { TripMembers } from '@travel-budget/contracts';
 const h = vi.hoisted(() => ({
@@ -327,4 +328,30 @@ it('rejected rename restores only this trip and a still-virtual target, with a f
   expect(find('member-name').value).toBe('Restored');
   await press('members-check');
   expect(has('members-confirm')).toBe(true);
+});
+
+it('offers friend invitations only for other real members and carries the trip and target ID', async () => {
+  const peer = {
+    id: 'f'.repeat(24),
+    displayName: 'Peer',
+    isVirtual: false,
+    role: 'member' as const,
+    joinedAt: null,
+  };
+  h.request.mockImplementation(async (_a, _p, _s, options) => {
+    options?.beforeSend?.();
+    return { ...original, members: [...original.members, peer] };
+  });
+  await mount();
+  expect(has(`member-friend-${original.members[0].id}`)).toBe(false);
+  expect(has(`member-friend-${memberId}`)).toBe(false);
+  await press(`member-friend-${peer.id}`);
+  expect(router.push).toHaveBeenCalledWith({
+    pathname: '/friends',
+    params: { tripId, targetUserId: peer.id },
+  });
+  h.online = false;
+  expect(find(`member-friend-${peer.id}`).disabled).toBe(true);
+  h.visible = false;
+  expect(has(`member-friend-${peer.id}`)).toBe(false);
 });

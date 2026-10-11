@@ -141,3 +141,7 @@ Web `getCurrentUser`／名稱版 `updateProfile` 與 Mobile `/api/v2/me/profile`
 ## M4a 帳號通知偏好
 
 `accountNotifications.ts` 共用 Web cookie RPC 與 Native v2 本人偏好讀寫，固定投影、非虛擬本人條件與原子部分 `$set` 回傳實值；不調整資料形狀、登入身分或通知 fan-out。NotificationsSection 保存開關不再帶 UI locale，通知語言獨立選擇；讀失敗不開放假預設、未知寫入先重讀。`setLocale` 只寫 NEXT_LOCALE cookie，不再同步 User.locale，背景通知仍使用既有帳號 locale。詳細契約見 [M4a](../../mobile/docs/BACKEND_CONTRACT.md#m4a-本人通知偏好)。
+
+## M4b 好友共用服務
+
+`friends.ts` 抽出 Web RPC／Native v2 的讀取與原子狀態機，沿用 Friendship 唯一 pair、兩側索引與公開姓名／帳號／頭像投影。查詢採兩個固定批次 populate，沒有逐人成員／旅行查詢。相向接受固定原關係 ID 及 pending／收件人條件，確認成功才通知；唯一鍵競態重讀勝出關係，通知失敗不改已提交結果。Web RPC 回傳形狀與 pending 任一方取消保持相容，Native 拒絕與收回分別限收件／寄件人。契約與原生重讀策略見 [M4b](../../mobile/docs/BACKEND_CONTRACT.md#m4b-好友)。

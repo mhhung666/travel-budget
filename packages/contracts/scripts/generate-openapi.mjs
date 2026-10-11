@@ -22,6 +22,10 @@ import {
   accountProfileInput,
   notificationPreferencesSchema,
   notificationPreferencesInput,
+  friendsSchema,
+  friendInviteInput,
+  friendCommandInput,
+  friendMutationSchema,
   avatarContextSchema,
   avatarWriteInput,
   avatarWriteStateSchema,
@@ -130,6 +134,10 @@ const schemas = Object.fromEntries(
     AccountProfileInput: accountProfileInput,
     NotificationPreferences: notificationPreferencesSchema,
     NotificationPreferencesInput: notificationPreferencesInput,
+    Friends: friendsSchema,
+    FriendInviteInput: friendInviteInput,
+    FriendCommandInput: friendCommandInput,
+    FriendMutation: friendMutationSchema,
     Session: sessionSchema,
     Trips: tripsSchema,
     Landing: landingSchema,
@@ -235,6 +243,30 @@ const templates = {
     post: operation('changePassword', 'PasswordChangeResult', 'PasswordChangeInput', {
       authenticated: true,
     }),
+  },
+  '/me/friends': {
+    get: operation('friends', 'Friends', undefined, { authenticated: true }),
+    post: operation('inviteFriend', 'FriendMutation', 'FriendInviteInput', {
+      authenticated: true,
+      errors: [409],
+    }),
+  },
+  '/me/friends/{friendshipId}': {
+    post: {
+      ...operation('changeFriendship', 'FriendMutation', 'FriendCommandInput', {
+        authenticated: true,
+      }),
+      parameters: [
+        {
+          name: 'friendshipId',
+          in: 'path',
+          required: true,
+          schema: { type: 'string', pattern: '^[a-fA-F0-9]{24}$' },
+        },
+      ],
+      description:
+        'Recipient accepts/declines pending invitations; requester withdraws; either participant removes an accepted friendship. Unknown outcomes must be checked by reading current friends; never automatically resend.',
+    },
   },
   '/me/notification-preferences': {
     get: operation('notificationPreferences', 'NotificationPreferences', undefined, {

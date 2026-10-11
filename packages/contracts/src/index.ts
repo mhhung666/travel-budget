@@ -96,6 +96,33 @@ export const notificationPreferencesInput = notificationPreferencesSchema
 export type NotificationPreferences = z.infer<typeof notificationPreferencesSchema>;
 export type NotificationPreferencesInput = z.infer<typeof notificationPreferencesInput>;
 
+export const friendItemSchema = z
+  .object({
+    id: idSchema,
+    status: z.enum(['pending', 'accepted']),
+    requestedByMe: z.boolean(),
+    user: userSchema.extend({ avatarUrl: z.string().nullable() }).strict(),
+    createdAt: z.iso.datetime(),
+  })
+  .strict();
+export const friendsSchema = z
+  .object({
+    friends: z.array(friendItemSchema),
+    incoming: z.array(friendItemSchema),
+    outgoing: z.array(friendItemSchema),
+  })
+  .strict();
+export const friendInviteInput = z.object({ target_user_id: idSchema }).strict();
+export const friendCommandInput = z
+  .object({ action: z.enum(['accept', 'decline', 'withdraw', 'remove']) })
+  .strict();
+export const friendMutationSchema = z
+  .object({ status: z.enum(['pending', 'accepted', 'deleted']) })
+  .strict();
+export type FriendItem = z.infer<typeof friendItemSchema>;
+export type Friends = z.infer<typeof friendsSchema>;
+export type FriendCommand = z.infer<typeof friendCommandInput>['action'];
+
 export const logoutResultSchema = z.object({ loggedOut: z.literal(true) });
 export const sessionSchema = z.object({
   accessToken: z.string(),

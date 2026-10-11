@@ -66,6 +66,12 @@ export function MyScreen() {
               onPress: () => router.push('/email'),
             },
             {
+              testID: 'my-friends',
+              label: t.friendTitle,
+              disabled: busy,
+              onPress: () => router.push('/friends'),
+            },
+            {
               testID: 'my-password',
               label: t.passwordChangeTitle,
               disabled: busy,

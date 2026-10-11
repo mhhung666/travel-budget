@@ -289,3 +289,9 @@ receiptFiles 用 Expo picker／manipulator／filesystem：圖片最長邊 2400�
 ## M4a 通知偏好
 
 `NotificationEditor` 用 SessionManager.requestAs、登入世代與發送前 online／AppState guard 讀寫本人 v2 偏好；NotificationsScreen 依環境／帳號／登入世代重建表單。設定只留記憶體，不使用裝置 PreferencesStore、私人 Query cache、憑證或支出 outbox。控制器序列化讀寫及雙擊，部分更新只送改動欄位；未知結果禁止再送，成功重讀接受目前設定且不等同原操作 receipt。取消／登出不刪其他已確認工作。兩端 writer 及舊資料預設見 [M4a 契約](BACKEND_CONTRACT.md#m4a-本人通知偏好)。
+
+## M4b 好友
+
+`FriendsManager` 透過 SessionManager.requestAs、登入世代及 online／前景 guard 讀寫 v2 關係；FriendsScreen 依環境／帳號／世代／來源重建。私人清單只留頁面記憶體，不進 Query、SQLite、憑證或帳務 journal。未知寫入不重送，成功重讀只承認目前狀態；成功寫入後列表刷新失敗單獨標示且阻止重送。
+
+旅行成員頁只對其他真人提供入口；讀取及送出前各重讀名冊，捕捉 catalog 撤權世代，發送前及回應後重核可見性。撤權後不顯示邀請來源名冊／姓名，已有本人好友關係仍按好友契約可讀。來源只是原生入口，後端沿用 Web 已知目標 ID 的規則；好友沒有旅行權限。狀態機與欄位見 [M4b 契約](BACKEND_CONTRACT.md#m4b-好友)。

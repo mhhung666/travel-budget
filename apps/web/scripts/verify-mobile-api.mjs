@@ -3595,6 +3595,156 @@ try {
   const notificationAfter = await db.collection('users').findOne({ _id: e2UserId });
   assert.deepEqual({ ...notificationAfter, notifyByEmail: notificationBefore.notifyByEmail, locale: notificationBefore.locale }, notificationBefore);
   pass('M4a true HTTP: strict self preferences, independent partial fields and current-state recovery, no identity changes');
+  // M4b uses the same unique pair and state machine as Web; no trip privileges are added.
+  await db.collection('friendships').createIndex({ pairKey: 1 }, { unique: true });
+  await request('/me/friends', { status: 401 });
+  await request('/me/friends', {
+    token: m3Recovered.accessToken,
+    method: 'POST',
+    body: { target_user_id: writerId, actorId: writerId },
+    status: 400,
+  });
+  await request('/me/friends', {
+    token: m3Recovered.accessToken,
+    method: 'POST',
+    body: { target_user_id: e2UserId.toString() },
+    status: 400,
+  });
+  await request('/me/friends', {
+    token: m3Recovered.accessToken,
+    method: 'POST',
+    body: { target_user_id: virtualId },
+    status: 400,
+  });
+  const friendInvited = await request('/me/friends', {
+    token: m3Recovered.accessToken,
+    method: 'POST',
+    body: { target_user_id: writerId },
+    schema: contracts.friendMutationSchema,
+  });
+  assert.equal(friendInvited.data.status, 'pending');
+  await request('/me/friends', {
+    token: m3Recovered.accessToken,
+    method: 'POST',
+    body: { target_user_id: writerId },
+    status: 409,
+  });
+  const friendList = (
+    await request('/me/friends', {
+      token: m3Recovered.accessToken,
+      schema: contracts.friendsSchema,
+    })
+  ).data;
+  assert.equal(friendList.outgoing.length, 1);
+  assertKeys(
+    friendList.outgoing[0].user,
+    ['id', 'username', 'displayName', 'avatarUrl'],
+    'friend public identity'
+  );
+  const friendshipPath = `/me/friends/${friendList.outgoing[0].id}`;
+  await request(friendshipPath, {
+    token: m3Recovered.accessToken,
+    method: 'POST',
+    body: { action: 'accept' },
+    status: 404,
+  });
+  await request(friendshipPath, {
+    token: outsiderSession.accessToken,
+    method: 'POST',
+    body: { action: 'accept' },
+    status: 404,
+  });
+  assert.equal(
+    (
+      await request(friendshipPath, {
+        token: writerSession.accessToken,
+        method: 'POST',
+        body: { action: 'accept' },
+        schema: contracts.friendMutationSchema,
+      })
+    ).data.status,
+    'accepted'
+  );
+  await request(friendshipPath, {
+    token: writerSession.accessToken,
+    method: 'POST',
+    body: { action: 'accept' },
+    status: 404,
+  });
+  assert.equal(
+    (
+      await request('/me/friends', {
+        token: m3Recovered.accessToken,
+        schema: contracts.friendsSchema,
+      })
+    ).data.friends.length,
+    1
+  );
+  await request(tripPath + '/members', { token: m3Recovered.accessToken, status: 404 });
+  await request(friendshipPath, {
+    token: m3Recovered.accessToken,
+    method: 'POST',
+    body: { action: 'remove' },
+    schema: contracts.friendMutationSchema,
+  });
+  await request(friendshipPath, {
+    token: m3Recovered.accessToken,
+    method: 'POST',
+    body: { action: 'remove' },
+    status: 404,
+  });
+  const friendPair = [e2UserId.toString(), writerId].sort().join(':');
+  assert.equal(await db.collection('friendships').countDocuments({ pairKey: friendPair }), 0);
+  // Read current relations before issuing distinct explicit decline/withdraw commands.
+  await request('/me/friends', {
+    token: writerSession.accessToken,
+    method: 'POST',
+    body: { target_user_id: e2UserId.toString() },
+    schema: contracts.friendMutationSchema,
+  });
+  const received = (
+    await request('/me/friends', {
+      token: m3Recovered.accessToken,
+      schema: contracts.friendsSchema,
+    })
+  ).data.incoming[0];
+  await request(`/me/friends/${received.id}`, {
+    token: m3Recovered.accessToken,
+    method: 'POST',
+    body: { action: 'decline' },
+    schema: contracts.friendMutationSchema,
+  });
+  await request('/me/friends', {
+    token: m3Recovered.accessToken,
+    method: 'POST',
+    body: { target_user_id: writerId },
+    schema: contracts.friendMutationSchema,
+  });
+  const sentFriend = (
+    await request('/me/friends', {
+      token: m3Recovered.accessToken,
+      schema: contracts.friendsSchema,
+    })
+  ).data.outgoing[0];
+  await request(`/me/friends/${sentFriend.id}`, {
+    token: m3Recovered.accessToken,
+    method: 'POST',
+    body: { action: 'withdraw' },
+    schema: contracts.friendMutationSchema,
+  });
+  assert.equal(await db.collection('friendships').countDocuments({ pairKey: friendPair }), 0);
+  const friendCases = await exec(
+    'pnpm',
+    ['exec', 'vitest', 'run', 'src/__tests__/friends.integration.test.ts'],
+    {
+      env: { ...process.env, MONGODB_MEMBER_TEST_URI: uri, MONGODB_MEMBER_TEST_ALLOW_WRITES: '1' },
+      maxBuffer: 1024 * 1024,
+    }
+  );
+  assert(friendCases.stdout.includes('6 passed'), 'Friend relationship DB cases did not run');
+  pass(
+    'M4b HTTP/isolated DB: shared Web/native relationships, unique pairs, opposite/duplicate invitation races, processed/wrong-role rejection, public identity and no trip authorization'
+  );
   const passwordCases = await exec('pnpm', ['exec', 'vitest', 'run', 'src/__tests__/accountPassword.integration.test.ts'], {
     env: { ...process.env, MONGODB_MEMBER_TEST_URI: uri, MONGODB_MEMBER_TEST_ALLOW_WRITES: '1' }, maxBuffer: 1024 * 1024,
   });

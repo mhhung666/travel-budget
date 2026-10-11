@@ -323,3 +323,17 @@ Mobile 明確提交一次，401 也不自動 refresh／重送；可能送達後�
 沿用既有 `User.notifyByEmail`／`User.locale`，舊資料缺通知開關視為開啟、語言缺值／不支援視為 zh，沒有資料形狀變動或 migration。通知語言用於背景 Email 及既有 Web Push；站內通知依檢視語言渲染。Web UI cookie 與 Mobile 裝置顯示語言獨立，不隨顯示語言切換改動通知設定；關閉 Email 不關閉驗證碼／帳號安全信件、站內通知或 Web Push。
 
 本片採線上明確保存（Web 仍各欄即時保存），手機表單僅記憶體，不入 SQLite／SecureStore／帳務 journal。只送相對於已讀設定改動的欄位；一般重讀保留使用者改動的欄位，未改欄採最新值。未知結果凍結寫入，讀目前值成功後解除並顯示「目前設定」，不宣稱它是原操作 receipt；查詢失敗仍阻擋，自動重送不啟用。重啟只讀目前值，不自動寫入；返回提醒未保存／未知狀態。登入世代及帳號／環境隔離晚到回應，離線／背景不發起保存，429 沿既有 transport Retry-After。
+
+## M4b 好友
+
+| HTTP                                     | 契約與行為                                                                                                                                                               |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| GET `/api/v2/me/friends`                 | `{ friends, incoming, outgoing }`；每列含關係 `id`、`status`、`requestedByMe`、`createdAt` 及 `user: { id, username, displayName, avatarUrl }`，不含 Email／偏好／旅行。 |
+| POST `/api/v2/me/friends`                | 嚴格 `{ target_user_id }`，不能指定 actor；須為存在的其他真人。無關係建立 pending，自己已寄回 REQUEST_PENDING，已是好友回 ALREADY_FRIENDS，相向 pending 原子接受。       |
+| POST `/api/v2/me/friends/{friendshipId}` | 嚴格 `{ action: "accept" \| "decline" \| "withdraw" \| "remove" }`；收件人接受／拒絕 pending，寄件人收回 pending，accepted 任一方移除。                                  |
+
+成功命令回 `{ status: "pending" | "accepted" | "deleted" }`。v2 bearer 與 Web cookie adapter 共用 `friends.ts` 及 Friendship 唯一 pair 索引；只讀本人相關關係，固定批次投影公開身分，缺失／虛擬 counterpart 不回傳。非法目標／額外欄位 400 VALIDATION_ERROR；缺失、非參與者、錯誤方向／已處理 404 NOT_FOUND；重複狀態 409 ALREADY_FRIENDS／REQUEST_PENDING。本人端點 no-store／Vary Authorization，無帳本單位。
+
+相向接受固定原關係 ID 及 pending／recipient 條件，matchedCount 成功才通知；建立撞唯一鍵時重讀勝出關係走同一狀態機，不把相向競態一律誤判為重複邀請。通知為提交後 best-effort，不將通知失敗回報為關係失敗。Web 原本共用的拒絕／收回 RPC 仍限 pending 任一參與者；Native 命令分開方向。
+
+沿用 Web 已知真人 ID 的邀請規則，未增加共同旅行作為後端授權條件，也不提供全站搜尋；Mobile 從旅行成員進入並在送出前重核來源名冊／catalog。好友不自動加入旅行，也不授予旅行權限。有限關係流程不進帳務 UUID journal：丟回應／5xx 不自動重送，先 GET 目前關係；讀失敗仍鎖住，成功讀只承認現況。重啟只讀，之後由使用者明確選擇新操作，不宣稱已查得原操作收據。

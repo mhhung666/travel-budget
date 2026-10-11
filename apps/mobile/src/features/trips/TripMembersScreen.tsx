@@ -355,6 +355,20 @@ export function TripMembersScreen({ tripId, source }: { tripId: string; source?:
                                 value={format.instant(new Date(m.joinedAt).getTime())}
                               />
                             )}
+                            {!m.isVirtual && m.id !== scope?.accountId && (
+                              <Action
+                                variant="secondary"
+                                testID={`member-friend-${m.id}`}
+                                label={t.friendInvite}
+                                disabled={busy || !online}
+                                onPress={() =>
+                                  router.push({
+                                    pathname: '/friends',
+                                    params: { tripId, targetUserId: m.id },
+                                  })
+                                }
+                              />
+                            )}
                             {context.role === 'admin' && m.isVirtual && (
                               <Action
                                 variant="secondary"

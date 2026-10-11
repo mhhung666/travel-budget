@@ -232,6 +232,7 @@ it.each(['local', 'signedIn', 'signedOut', 'loading', 'error'])(
         'password',
         'email',
         'notifications',
+        'friends',
       ]);
     }
   }
@@ -321,6 +322,7 @@ it('keeps account controls available after logout fails, and prevents duplicate 
     'my-profile',
     'my-email',
     'my-password',
+    'my-friends',
     'my-preferences',
     'my-local-work',
     'my-about',
@@ -360,6 +362,7 @@ it('orders account, preferences/about and local work before logout, with existin
     'my-profile',
     'my-email',
     'my-password',
+    'my-friends',
     'my-preferences',
     'my-local-work',
     'my-about',

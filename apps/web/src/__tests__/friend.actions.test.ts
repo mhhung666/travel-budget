@@ -48,6 +48,7 @@ import {
   declineFriendRequest,
   removeFriend,
 } from '@/actions/friend.actions';
+import { deleteFriend } from '@/lib/friends';
 
 // sendFriendRequest 用 mongoose 真實的 isValidObjectId 驗證輸入，
 // 所以 id 必須是合法 24 字 hex 字串。
@@ -97,6 +98,7 @@ function userRef(id: string, name: string) {
 beforeEach(() => {
   vi.clearAllMocks();
   getSession.mockResolvedValue({ userId: ME });
+  notify.mockResolvedValue(undefined);
 });
 
 describe('getFriends', () => {
@@ -224,7 +226,7 @@ describe('sendFriendRequest', () => {
   it('returns ALREADY_FRIENDS when the pair is already accepted', async () => {
     userFindById.mockReturnValue(chainSelectLean({ isVirtual: false }));
     friendshipFindOne.mockReturnValue(
-      chainSelectLean({ status: 'accepted', requester: { toString: () => ME } })
+      chainSelectLean({ _id: FRIENDSHIP_ID, status: 'accepted', requester: { toString: () => ME } })
     );
 
     const result = await sendFriendRequest(OTHER);
@@ -236,7 +238,7 @@ describe('sendFriendRequest', () => {
   it('returns REQUEST_PENDING when my own invitation is still pending', async () => {
     userFindById.mockReturnValue(chainSelectLean({ isVirtual: false }));
     friendshipFindOne.mockReturnValue(
-      chainSelectLean({ status: 'pending', requester: { toString: () => ME } })
+      chainSelectLean({ _id: FRIENDSHIP_ID, status: 'pending', requester: { toString: () => ME } })
     );
 
     const result = await sendFriendRequest(OTHER);
@@ -248,7 +250,11 @@ describe('sendFriendRequest', () => {
   it('auto-accepts when the target already invited me (reverse pending)', async () => {
     userFindById.mockReturnValue(chainSelectLean({ isVirtual: false }));
     friendshipFindOne.mockReturnValue(
-      chainSelectLean({ status: 'pending', requester: { toString: () => OTHER } })
+      chainSelectLean({
+        _id: FRIENDSHIP_ID,
+        status: 'pending',
+        requester: { toString: () => OTHER },
+      })
     );
     friendshipUpdateOne.mockResolvedValue({ matchedCount: 1 });
 
@@ -256,7 +262,7 @@ describe('sendFriendRequest', () => {
 
     expect(result).toEqual({ success: true, data: { status: 'accepted' } });
     expect(friendshipUpdateOne).toHaveBeenCalledWith(
-      { pairKey: PAIR_KEY, status: 'pending', recipient: ME },
+      { _id: FRIENDSHIP_ID, pairKey: PAIR_KEY, status: 'pending', recipient: ME },
       { $set: { status: 'accepted' } }
     );
     expect(friendshipCreate).not.toHaveBeenCalled();
@@ -287,7 +293,11 @@ describe('sendFriendRequest', () => {
 
   it('maps a duplicate-key race on create to REQUEST_PENDING', async () => {
     userFindById.mockReturnValue(chainSelectLean({ isVirtual: false }));
-    friendshipFindOne.mockReturnValue(chainSelectLean(null));
+    friendshipFindOne
+      .mockReturnValueOnce(chainSelectLean(null))
+      .mockReturnValueOnce(
+        chainSelectLean({ _id: FRIENDSHIP_ID, status: 'pending', requester: ME })
+      );
     friendshipCreate.mockRejectedValue(Object.assign(new Error('E11000'), { code: 11000 }));
 
     const result = await sendFriendRequest(OTHER);
@@ -390,3 +400,58 @@ describe('removeFriend', () => {
     });
   });
 });
+
+it('does not accept or notify after a reverse invitation was concurrently processed', async () => {
+  userFindById.mockReturnValue(chainSelectLean({ isVirtual: false }));
+  friendshipFindOne.mockReturnValue(
+    chainSelectLean({ _id: FRIENDSHIP_ID, status: 'pending', requester: OTHER })
+  );
+  friendshipUpdateOne.mockResolvedValue({ matchedCount: 0 });
+  expect(await sendFriendRequest(OTHER)).toEqual({
+    success: false,
+    error: 'NOT_FOUND',
+    code: 'NOT_FOUND',
+  });
+  expect(notify).not.toHaveBeenCalled();
+});
+it('rechecks an opposite-direction duplicate-key winner and accepts exactly its invitation', async () => {
+  userFindById.mockReturnValue(chainSelectLean({ isVirtual: false }));
+  friendshipFindOne
+    .mockReturnValueOnce(chainSelectLean(null))
+    .mockReturnValueOnce(
+      chainSelectLean({ _id: FRIENDSHIP_ID, status: 'pending', requester: OTHER })
+    );
+  friendshipCreate.mockRejectedValue(Object.assign(new Error('duplicate'), { code: 11000 }));
+  friendshipUpdateOne.mockResolvedValue({ matchedCount: 1 });
+  expect(await sendFriendRequest(OTHER)).toEqual({ success: true, data: { status: 'accepted' } });
+  expect(friendshipUpdateOne).toHaveBeenCalledWith(
+    { _id: FRIENDSHIP_ID, pairKey: PAIR_KEY, status: 'pending', recipient: ME },
+    { $set: { status: 'accepted' } }
+  );
+  expect(notify).toHaveBeenCalledOnce();
+});
+it('returns committed success even if the secondary notification fails', async () => {
+  userFindById.mockReturnValue(chainSelectLean({ isVirtual: false }));
+  friendshipFindOne.mockReturnValue(chainSelectLean(null));
+  friendshipCreate.mockResolvedValue({});
+  notify.mockRejectedValue(new Error('notice unavailable'));
+  expect(await sendFriendRequest(OTHER)).toEqual({ success: true, data: { status: 'pending' } });
+});
+it('rejects case-insensitive self IDs and forged non-string action arguments', async () => {
+  for (const id of [ME.toUpperCase(), 123, null, {}]) {
+    expect(await sendFriendRequest(id as string)).toMatchObject({ code: 'VALIDATION_ERROR' });
+  }
+  expect(userFindById).not.toHaveBeenCalled();
+});
+it.each(['decline', 'withdraw'] as const)(
+  'enforces the correct participant direction for %s',
+  async (action) => {
+    friendshipDeleteOne.mockResolvedValue({ deletedCount: 1 });
+    await deleteFriend(ME, FRIENDSHIP_ID, action);
+    expect(friendshipDeleteOne).toHaveBeenCalledWith({
+      _id: FRIENDSHIP_ID,
+      status: 'pending',
+      [action === 'decline' ? 'recipient' : 'requester']: ME,
+    });
+  }
+);
