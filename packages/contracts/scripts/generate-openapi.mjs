@@ -10,6 +10,8 @@ import {
   passwordResetResultSchema,
   refreshInput,
   userSchema,
+  accountProfileSchema,
+  accountProfileInput,
   sessionSchema,
   logoutResultSchema,
   tripsSchema,
@@ -96,6 +98,8 @@ const schemas = Object.fromEntries(
     LoginInput: loginInput,
     RefreshInput: refreshInput,
     User: userSchema,
+    AccountProfile: accountProfileSchema,
+    AccountProfileInput: accountProfileInput,
     Session: sessionSchema,
     Trips: tripsSchema,
     Landing: landingSchema,
@@ -182,6 +186,16 @@ const templates = {
   '/auth/refresh': { post: operation('refresh', 'Session', 'RefreshInput') },
   '/auth/logout': { post: operation('logout', 'Logout', 'RefreshInput') },
   '/me': { get: operation('me', 'User') },
+  '/me/profile': {
+    get: operation('accountProfile', 'AccountProfile', undefined, { authenticated: true }),
+    patch: {
+      ...operation('updateAccountProfile', 'AccountProfile', 'AccountProfileInput', {
+        authenticated: true,
+      }),
+      description:
+        'Self-only display name update. Email and username are read-only. Explicit online save; on an unknown outcome read the profile before deciding whether to save again. No ledger/outbox operation.',
+    },
+  },
   '/trips/join': {
     post: operation('joinTrip', 'TripMutationResult', 'TripJoinInput', {
       authenticated: true,

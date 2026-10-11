@@ -18,6 +18,7 @@ export type AuthState = {
 export class SessionManager {
   private session: Session | null = null;
   private revision = 0;
+  private identityRevision = 0;
   private refreshFlight: Promise<void> | null = null;
   private refreshRevision = 0;
   private restoreFlight: Promise<void> | null = null;
@@ -49,20 +50,53 @@ export class SessionManager {
     this.storageQueue = result.catch(() => {});
     return result;
   }
-  private async accept(session: Session, revision: number) {
+  private async accept(
+    session: Session,
+    revision: number,
+    identityRevision = this.identityRevision
+  ) {
     if (revision !== this.revision) throw new ApiError('CANCELLED');
     try {
-      await this.storage(() =>
-        revision === this.revision
-          ? this.store.set(session.refreshToken, session.user)
-          : Promise.resolve()
-      );
-    } catch {
-      throw new ApiError('STORAGE');
+      await this.storage(async () => {
+        if (revision !== this.revision) throw new ApiError('CANCELLED');
+        // A refresh started before profile confirmation may carry the old name. Keep the newer
+        // self-profile while accepting the newly rotated credentials, in the same atomic envelope.
+        if (identityRevision !== this.identityRevision && this.session?.user.id === session.user.id)
+          session = { ...session, user: this.session.user };
+        await this.store.set(session.refreshToken, session.user);
+        if (revision === this.revision) {
+          if (
+            identityRevision !== this.identityRevision &&
+            this.session?.user.id === session.user.id
+          )
+            session = { ...session, user: this.session.user };
+          this.session = session;
+        }
+      });
+    } catch (error) {
+      throw error instanceof ApiError ? error : new ApiError('STORAGE');
     }
     if (revision !== this.revision) throw new ApiError('CANCELLED');
-    this.session = session;
-    this.publish({ status: 'signedIn', user: session.user });
+    this.publish({ status: 'signedIn', user: this.session!.user });
+  }
+  /** Update only self identity, retaining the current token even if a rotation is in flight. */
+  async updateUser(user: User, revision: number) {
+    const current = () => revision === this.revision && this.session?.user.id === user.id;
+    if (!current()) throw new ApiError('CANCELLED');
+    this.identityRevision++;
+    this.session = { ...this.session!, user };
+    this.publish({ status: 'signedIn', user });
+    try {
+      await this.storage(async () => {
+        if (!current()) throw new ApiError('CANCELLED');
+        // Read tokens/user inside the storage queue, never write a captured refresh token.
+        await this.store.set(this.session!.refreshToken, this.session!.user);
+      });
+    } catch (error) {
+      if (!current()) throw new ApiError('CANCELLED');
+      throw error instanceof ApiError ? error : new ApiError('STORAGE');
+    }
+    if (!current()) throw new ApiError('CANCELLED');
   }
   private revoke(refreshToken: string) {
     return this.api.request('/auth/logout', z.object({ loggedOut: z.literal(true) }), {
@@ -139,6 +173,7 @@ export class SessionManager {
     const revision = this.revision;
     this.refreshRevision = revision;
     const expectedUser = this.session?.user.id ?? localAccountId;
+    const identityRevision = this.identityRevision;
     this.refreshFlight = (async () => {
       try {
         let session: Session;
@@ -158,7 +193,7 @@ export class SessionManager {
         if (expectedUser && session.user.id !== expectedUser)
           throw new ApiError('UNAUTHORIZED', 401);
         try {
-          await this.accept(session, revision);
+          await this.accept(session, revision, identityRevision);
         } catch (error) {
           // Rotation has consumed the saved token. Never keep using or restoring it.
           try {

@@ -46,6 +46,11 @@ export type PasswordResetRequestInput = z.infer<typeof passwordResetRequestInput
 export type PasswordResetInput = z.infer<typeof passwordResetInput>;
 export const refreshInput = z.object({ refreshToken: z.string().min(1).max(2048) }).strict();
 export const userSchema = z.object({ id: idSchema, username: z.string(), displayName: z.string() });
+// Private, self-only profile. Keep auth/member DTOs unchanged for installed clients.
+export const displayNameInputSchema = z.string().trim().min(1).max(100);
+export const accountProfileInput = z.object({ displayName: displayNameInputSchema }).strict();
+export const accountProfileSchema = userSchema.extend({ email: z.string() }).strict();
+export type AccountProfile = z.infer<typeof accountProfileSchema>;
 export const logoutResultSchema = z.object({ loggedOut: z.literal(true) });
 export const sessionSchema = z.object({
   accessToken: z.string(),

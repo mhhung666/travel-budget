@@ -279,3 +279,7 @@ mode=equal 的 changes 可成對新增 currency／exchange_rate，original_amoun
 upload 簽名 120 秒，須以相同 Content-Type、`If-None-Match: *` PUT，不攜帶 API token。獨立 signer 使用 WHEN_REQUIRED checksum，避免 SDK 簽入空檔案 checksum；conditional header 綁定簽名，舊連結不可覆寫已存在物件。412 仍需 finish／HEAD 核對，不直接當成功。支援依 [R2 官方表](https://developers.cloudflare.com/r2/api/s3/api/)，指定測試 bucket 的實際 PUT／HEAD／CORS 仍待驗。
 
 pending 固定 24 小時期限，最後 120 秒不再簽 PUT；取消／到期／支出已刪除／上限拒絕保存終局，無引用 key 交既有 blobcleanupjobs／trip-cleanup cron 雙次清理。cron 每次最多處理 25 筆過期操作，撤權或旅行消失也可清理；終局與 tombstone 不 TTL 刪除，避免重播復活。共用引用不刪其他支出仍使用的物件。沒有遠端 migration 或 R2 設定變更。
+
+## M1 本人資料
+
+本人 `GET/PATCH /api/v2/me/profile` 與共用服務、欄位／錯誤／相容規則見 [後端契約](../../web/docs/MOBILE_API.md#m1-本人資料)。私人 Email 不進登入 user、成員 DTO 或離線快照。帳號資料只線上明確保存，未知結果先查目前資料；與 C／D／E journal 無關，不建立離線重送工作。

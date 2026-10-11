@@ -80,6 +80,12 @@ U3c-1 的 `ExpenseListItem` 在既有 FlatList cell 內放 date-only 標題，�
 
 `api` 負責 transport、headers、timeout、錯誤映射；feature hooks 負責 query key 與快取失效。表單輸入由 `DraftEditor` 管理並持久化，遠端狀態交給 Query；沒有跨頁需求時不增加全域狀態框架。
 
+## M1 本人資料
+
+`features/profile/ProfileEditor` 是頁面內的線上控制器；`/profile` 在 signedIn stack，按環境／帳號／登入世代重建，沒有新根 provider、SQLite 或 Query 持久化。`GET/PATCH /api/v2/me/profile` 用獨立私人契約，`/me` 與登入／refresh 的 user DTO 不變。未確認名稱與 Email 只留頁面記憶體，名稱保存前共用 schema 驗證；beforeSend 每次檢查目前登入、連線／前景，雙擊合併、晚到回應不跨登入世代。結果不明凍結保存，明確 GET 後才允許使用者決定；GET 不是原寫入的 receipt，不宣稱證明某次請求成功或失敗。
+
+`SessionManager.updateUser` 只更新當前帳號的非敏感 user，憑證／身分快照經原 storage queue 原子保存。refresh 保留同世代較新的本人資料，憑證輪替與姓名保存互相等待時不寫回舊 token；本機保存失敗不撤銷未變動的憑證，顯示名稱仍在記憶體更新並可單獨重試。重試取當前 session 身分，不以舊頁面快照覆蓋較新名字。成功落盤才保證離線重啟的名稱；線上重新登入／refresh／本人讀取可取最新資料。偏好維持裝置範圍，關於拆 `/about`，本機 C／D／E／附件路徑與資料保持原流程。
+
 ## 資料能力與後續工作
 
 | 類型         | 目標責任                                              | 實作時機           |

@@ -1,3 +1,4 @@
+import { displayNameInputSchema } from '@travel-budget/contracts';
 import { expenseSplitInput, virtualMemberNameSchema } from '@travel-budget/contracts';
 import { MAX_ACTIVITIES_PER_DAY } from '@/lib/itineraryLimits';
 import { isCalendarDate, MAX_ITINERARY_DAY_NUMBER } from '@/lib/itineraryDayTarget';
@@ -216,7 +217,7 @@ export const resetPasswordSchema = passwordResetInput;
 // （requestEmailChange / confirmEmailChange），故此處不再接受 new_email。
 export const updateProfileSchema = z
   .object({
-    display_name: z.string().min(1, '顯示名稱不能為空').optional(),
+    display_name: displayNameInputSchema.optional(),
     current_password: z.string().optional(),
     new_password: z.string().min(6, '新密碼至少需要 6 個字元').optional(),
   })

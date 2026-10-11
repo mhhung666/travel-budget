@@ -1,4 +1,17 @@
 const zh = {
+  profileTitle: '個人資料',
+  profileHint: '帳號與 Email 為唯讀。修改顯示名稱後，請明確保存；不建立離線草稿。',
+  profileNameInvalid: '顯示名稱需為 1–100 個字元，不能只有空白。',
+  profileSave: '保存個人資料',
+  profileSaved: '顯示名稱已保存。',
+  profileCurrent: '已讀取目前資料，請核對目前名稱後再決定是否保存。',
+  profileCurrentName: '目前顯示名稱',
+  profileOffline: '離線或 App 不在前景，無法讀取或保存個人資料。',
+  profileUnknown: '保存結果尚未確認。請先查詢目前資料，再決定是否重新保存。',
+  profileLocalFailed:
+    '目前資料已取得，但本機身分快照保存失敗。首頁已更新；請重試本機保存，避免離線重啟顯示舊名稱。',
+  profileUnsaved: '尚有未保存的顯示名稱，離開會捨棄輸入。',
+
   receiptManage: '管理收據',
   receiptWriteHint:
     '每筆支出最多 10 份，每份上限 8 MB。圖片轉為 JPEG；確認後上傳，待確認檔案保留於本機直到結案。',
@@ -534,6 +547,19 @@ export type Messages = Record<keyof typeof zh, string>;
 export const messages = {
   zh,
   'zh-CN': {
+    profileTitle: '个人资料',
+    profileHint: '账号与 Email 为只读。修改显示名称后，请明确保存；不创建离线草稿。',
+    profileNameInvalid: '显示名称需为 1–100 个字符，不能只有空白。',
+    profileSave: '保存个人资料',
+    profileSaved: '显示名称已保存。',
+    profileCurrent: '已读取当前资料，请核对当前名称后再决定是否保存。',
+    profileCurrentName: '当前显示名称',
+    profileOffline: '离线或 App 不在前台，无法读取或保存个人资料。',
+    profileUnknown: '保存结果尚未确认。请先查询当前资料，再决定是否重新保存。',
+    profileLocalFailed:
+      '已获取当前资料，但本机身份快照保存失败。首页已更新；请重试本机保存，避免离线重启显示旧名称。',
+    profileUnsaved: '还有未保存的显示名称，离开会丢弃输入。',
+
     receiptManage: '管理收据',
     receiptWriteHint:
       '每笔支出最多 10 份，每份上限 8 MB。图片转为 JPEG；确认后上传，待确认文件保留于本机直到结案。',
@@ -1063,6 +1089,22 @@ export const messages = {
     done: '完成',
   },
   en: {
+    profileTitle: 'Profile',
+    profileHint:
+      'Username and email are read-only. Explicitly save a changed display name; no offline draft is created.',
+    profileNameInvalid: 'Use 1–100 characters, with at least one non-space character.',
+    profileSave: 'Save profile',
+    profileSaved: 'Display name saved.',
+    profileCurrent:
+      'Current profile loaded. Check the current name before deciding whether to save again.',
+    profileCurrentName: 'Current display name',
+    profileOffline: 'Go online and bring the app to the foreground to read or save your profile.',
+    profileUnknown:
+      'The save result is unknown. Read the current profile before deciding whether to save again.',
+    profileLocalFailed:
+      'Current profile received, but the local identity could not be saved. The home page is updated. Retry local saving to avoid an old name after an offline restart.',
+    profileUnsaved: 'Your display name has unsaved changes. Leaving discards the input.',
+
     receiptManage: 'Manage receipts',
     receiptWriteHint:
       'Up to 10 files per expense, 8 MB each. Images become JPEG. Confirm before uploading; pending files stay on this device until resolved.',
@@ -1676,6 +1718,21 @@ export const messages = {
     done: 'Done',
   },
   jp: {
+    profileTitle: 'プロフィール',
+    profileHint:
+      'ユーザー名とメールは読み取り専用です。表示名の変更は保存してください。オフラインの下書きは作成しません。',
+    profileNameInvalid: '表示名は空白のみを除く 1～100 文字で入力してください。',
+    profileSave: 'プロフィールを保存',
+    profileSaved: '表示名を保存しました。',
+    profileCurrent:
+      '現在の情報を読み込みました。現在の名前を確認してから、再保存するか決めてください。',
+    profileCurrentName: '現在の表示名',
+    profileOffline: 'オンラインでアプリを前面にしてから、情報の読み込みや保存を行ってください。',
+    profileUnknown: '保存結果が不明です。現在の情報を確認してから、再保存するか決めてください。',
+    profileLocalFailed:
+      '現在の情報を取得しましたが、端末の本人情報を保存できませんでした。ホームは更新済みです。オフライン再起動で古い名前が出ないよう、端末への保存を再試行してください。',
+    profileUnsaved: '表示名に未保存の変更があります。離れると入力が破棄されます。',
+
     receiptManage: '領収書を管理',
     receiptWriteHint:
       '支出ごとに最大10件、各8 MBまで。画像はJPEGに変換します。確認後にアップロードし、未確認ファイルは完了まで端末に保存します。',

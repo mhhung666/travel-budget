@@ -136,6 +136,9 @@ vi.mock('@/components/ui', () => ({
   styles: { page: {} },
   usePalette: () => ({ surface: '#fff', background: '#fff' }),
 }));
+vi.mock('@/features/preferences/context', () => ({
+  usePreferences: () => ({ value: { language: 'system', appearance: 'dark' }, loaded: true }),
+}));
 vi.mock('@/features/auth/AuthProvider', () => ({
   useAuth: () => ({
     status: h.status,
@@ -220,7 +223,7 @@ it.each(['local', 'signedIn', 'signedOut', 'loading', 'error'])(
         nodes(protectedGroup)
           .filter((node) => node.props.name)
           .map((node) => node.props.name)
-      ).toEqual(['(tabs)', 'trips', 'record']);
+      ).toEqual(['(tabs)', 'trips', 'record', 'profile']);
     }
   }
 );
@@ -305,7 +308,7 @@ it('keeps account controls available after logout fails, and prevents duplicate 
   press(find(element, 'testID', 'logout'));
   expect(h.logout).toHaveBeenCalledOnce();
   element = render(MyScreen);
-  for (const testID of ['my-preferences', 'my-local-work']) {
+  for (const testID of ['my-profile', 'my-preferences', 'my-local-work', 'my-about']) {
     expect(find(element, 'testID', testID).props.disabled).toBe(true);
     press(find(element, 'testID', testID));
   }
@@ -319,6 +322,10 @@ it('keeps account controls available after logout fails, and prevents duplicate 
   expect(h.push).toHaveBeenLastCalledWith('/preferences');
   press(find(element, 'testID', 'my-local-work'));
   expect(h.push).toHaveBeenLastCalledWith('/work');
+  press(find(element, 'testID', 'my-profile'));
+  expect(h.push).toHaveBeenLastCalledWith('/profile');
+  press(find(element, 'testID', 'my-about'));
+  expect(h.push).toHaveBeenLastCalledWith('/about');
 });
 it('orders account, preferences/about and local work before logout, with existing offline destinations', () => {
   h.online = false;
@@ -326,12 +333,12 @@ it('orders account, preferences/about and local work before logout, with existin
   const sections = nodes(tree)
     .filter((node) => node.type === 'Section')
     .map((node) => node.props.title);
-  expect(sections).toEqual(['accountSection', 'preferencesAndAbout', 'localWork']);
+  expect(sections).toEqual(['accountSection', 'preferences']);
   expect(find(tree, 'label', 'displayName').props.value).toBe('TEST account');
   expect(find(tree, 'testID', 'my-preferences').props.accessibilityLabel).toContain(
-    'preferenceAbout'
+    'preferenceDark'
   );
-  for (const testID of ['my-preferences', 'my-local-work'])
+  for (const testID of ['my-profile', 'my-preferences', 'my-local-work', 'my-about'])
     expect(find(tree, 'testID', testID).props.disabled).toBe(false);
 });
 it('uses the shared keyboard form container and forwards the route guard callback', () => {

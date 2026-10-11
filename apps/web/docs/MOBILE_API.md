@@ -139,3 +139,9 @@ U3c-2 修正 MongoDB 8／driver 7.2 的 transaction CSOT／getMore 相容性：�
 ## G6b 私人附件寫入
 
 新增 attachment-requests POST 與原 UUID GET／command POST；舊 expense DTO／body 不變。簽名不接受客戶端 key，參照與終局同交易，取消／到期沿既有 blob 清理。狀態、限額、相容、CORS／真 bucket 待驗見 [G6b 共用契約](../../mobile/docs/BACKEND_CONTRACT.md#g6b-收據附件寫入)。
+
+## M1 本人資料
+
+新增 bearer-only `GET /api/v2/me/profile` 與 `PATCH /api/v2/me/profile`；回應只有 `{ id, username, displayName, email }`，所有回應 no-store／Vary Authorization。PATCH 嚴格接受 `{ displayName }`（trim、1–100 字元），不接受目標使用者、帳號、Email、密碼或偏好欄位。本人資格由裝置 session 決定，虛擬／已刪除使用者不能操作。`lib/accountProfile.ts` 提供共用本人讀取與原子名稱更新；Web `getCurrentUser/updateProfile` 呼叫同一服務／名稱驗證，原 Cookie、密碼與 Email 變更流程不變。
+
+登入／refresh／`GET /me` 的原 user schema 保持不變，不加入私人 Email 或 ledger；一般成員／公開 DTO 不變。新增端點須先部署相容後端，再發布使用它的 App，沒有 v1／舊回應退路。名稱屬線上設定，沒有帳務 receipt／outbox；丟回應由使用者先讀目前資料再決定，讀到目前名稱不等於證明某次請求終局。

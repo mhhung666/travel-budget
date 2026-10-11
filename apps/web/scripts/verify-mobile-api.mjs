@@ -611,6 +611,16 @@ try {
     .findOne({ _id: new mongoose.Types.ObjectId(decodeJwt(first.accessToken).sid) });
   assert(stored.refreshHash && !JSON.stringify(stored).includes(first.refreshToken));
   pass('real credential login, /me, hashed refresh storage, no-store headers');
+  const originalProfile = (await request('/me/profile', { token: first.accessToken, schema: contracts.accountProfileSchema })).data;
+  assert.deepEqual(Object.keys(originalProfile).sort(), ['displayName', 'email', 'id', 'username']);
+  await request('/me/profile', { status: 401 });
+  await request('/me/profile', { token: first.accessToken, method: 'PATCH', body: { displayName: ' ', email: 'forged@example.invalid' }, status: 400 });
+  const renamedProfile = (await request('/me/profile', { token: first.accessToken, method: 'PATCH', body: { displayName: '  M1 HTTP  ' }, schema: contracts.accountProfileSchema })).data;
+  assert.equal(renamedProfile.displayName, 'M1 HTTP');
+  assert.equal((await me(first)).data.displayName, 'M1 HTTP');
+  await request('/me/profile', { token: first.accessToken, method: 'PATCH', body: { displayName: originalProfile.displayName }, schema: contracts.accountProfileSchema });
+  pass('M1 true HTTP: self-only private profile, strict PATCH, name trim, current identity and legacy /me unchanged');
+
   const listing = (
     await request(`/trips?page=1&date=${date}`, { token: first.accessToken, schema: tripsSchema })
   ).data;
@@ -3439,6 +3449,11 @@ try {
   pass(
     'E2: anonymous registration, unique fields, UTF-8 boundary, identical send acceptance/rate limit, one concurrent reset, old session invalidation, lost-response login recovery'
   );
+  const profileCases = await exec('pnpm', ['exec', 'vitest', 'run', 'src/__tests__/accountProfile.integration.test.ts'], {
+    env: { ...process.env, MONGODB_MEMBER_TEST_URI: uri, MONGODB_MEMBER_TEST_ALLOW_WRITES: '1' }, maxBuffer: 1024 * 1024,
+  });
+  assert(profileCases.stdout.includes('4 passed'), 'Profile DB cases did not run');
+  pass('M1 isolated DB: shared Web/mobile validation, self-only profile, private projection, identity refresh and credential preservation');
   const receiptWrites = await exec('pnpm', ['exec', 'vitest', 'run', 'src/__tests__/receiptWrite.integration.test.ts'], {
     env: { ...process.env, MONGODB_MEMBER_TEST_URI: uri, MONGODB_MEMBER_TEST_ALLOW_WRITES: '1' }, maxBuffer: 1024 * 1024,
   });

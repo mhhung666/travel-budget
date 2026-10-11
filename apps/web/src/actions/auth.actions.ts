@@ -1,6 +1,11 @@
 'use server';
 
 import crypto from 'crypto';
+import {
+  AccountProfileError,
+  readAccountDetails,
+  updateAccountProfile,
+} from '@/lib/accountProfile';
 import { headers } from 'next/headers';
 import {
   AccountEntryError,
@@ -75,23 +80,23 @@ export async function getCurrentUser(): Promise<ActionResult<AuthUserWithCreated
       return { success: true, data: null };
     }
 
-    await dbConnect();
-    const user = await UserModel.findById(session.userId)
-      .select('username displayName email createdAt avatarUrl notifyByEmail')
-      .lean();
-
-    if (!user) {
-      return { success: true, data: null };
+    let user;
+    try {
+      user = await readAccountDetails(session.userId);
+    } catch (error) {
+      if (error instanceof AccountProfileError && error.code === 'NOT_FOUND')
+        return { success: true, data: null };
+      throw error;
     }
 
     return {
       success: true,
       data: {
-        id: user._id.toString(),
+        id: user.id,
         username: user.username,
         display_name: user.displayName,
         email: user.email,
-        created_at: user.createdAt.toISOString(),
+        created_at: user.createdAt,
         avatar_url: user.avatarUrl ?? null,
         // 缺值（舊資料）視為開啟，與 notify() 的 `!== false` 判定一致。
         notify_by_email: user.notifyByEmail !== false,
@@ -210,19 +215,21 @@ export const updateProfile = withAuth(
 
       const { display_name, current_password, new_password } = validation.data;
 
-      await dbConnect();
-
       // Update display name（Email 變更改走 requestEmailChange / confirmEmailChange 寄碼驗證流程）
       if (display_name !== undefined) {
-        await UserModel.updateOne(
-          { _id: session.userId },
-          { $set: { displayName: display_name.trim() } }
-        );
+        try {
+          await updateAccountProfile(session.userId, { displayName: display_name });
+        } catch (error) {
+          if (error instanceof AccountProfileError)
+            return { success: false, error: error.code, code: error.code };
+          throw error;
+        }
 
         return { success: true, data: { message: '個人資料已更新' } };
       }
 
       // Update password
+      await dbConnect();
       if (current_password && new_password) {
         const user = await UserModel.findById(session.userId).select('password');
 

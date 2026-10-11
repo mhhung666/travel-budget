@@ -9,6 +9,7 @@ export default function AppLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="trips" />
         <Stack.Screen name="record" />
+        <Stack.Screen name="profile" />
       </Stack.Protected>
       <Stack.Screen name="(local)" />
     </Stack>

@@ -117,3 +117,7 @@ Web update／delete action 抽成 `expenseMaintenance.ts` 的 actor service，�
 `receiptRead.ts` 在 `withTripReadInDatabase` 授權快照中只讀 expense 附件投影，HTTP metadata mapper 去除 key，以 opaque id 定位。每次檢視重用 Web receipt key 規則、R2 strict HEAD 與 300 秒 `presignGet`；儲存等待後重讀授權與參照，避免發出已撤權／移除附件的連結。Mobile signer 選用 private no-store response override，Web signer 預設不變。沒有新模型／migration 或帳務寫入；端點與不能即時撤銷已交出 URL 的界線見 [G6a 契約](../../mobile/docs/BACKEND_CONTRACT.md#g6a-私人收據閱讀)。
 
 G6b receiptWrite.ts 新增私人附件意圖、短效 immutable PUT、HEAD 後參照提交與獨立原 UUID 終局。沿 Web MIME／大小、Trip fence、reference／retirement 及 blobcleanupjobs；不改 Web 上傳呼叫或財務欄位。trip-cleanup cron 加入過期附件工作。詳細契約與限制見 [G6b](../../mobile/docs/BACKEND_CONTRACT.md#g6b-收據附件寫入)。
+
+## M1 本人資料服務
+
+Web `getCurrentUser`／名稱版 `updateProfile` 與 Mobile `/api/v2/me/profile` 共用 `lib/accountProfile.ts`。服務只接受由 adapter 驗證的 actor，讀取固定投影、原子 `$set displayName` 並回傳資料庫實值；名稱規則引用共用 contracts，私人 Email 僅本人端點，不擴充 member 或 session DTO。密碼／Email／通知／頭像設定與原 Web Cookie 語意不變；沒有 migration、金額計算或帳務 journal。

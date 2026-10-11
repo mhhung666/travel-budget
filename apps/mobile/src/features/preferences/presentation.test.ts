@@ -7,6 +7,7 @@ import { useDisplayFormat } from '@/i18n/useDisplayFormat';
 import { usePalette } from '@/theme/usePalette';
 import { colors } from '@/theme/tokens';
 import { PreferencesScreen } from './PreferencesScreen';
+import { AboutScreen } from './AboutScreen';
 import { AppAppearance } from './AppAppearance';
 import { websiteUrl } from './website';
 import { version } from '../../../package.json';
@@ -114,10 +115,14 @@ it('wires language/theme/reset controls and reads the package version', async ()
   (find('preference-appearance-light').props.onPress as () => void)();
   await vi.waitFor(() => expect(h.store.getSnapshot().value.appearance).toBe('light'));
   expect(find('preference-language-zh-CN').props.selected).toBe(true);
-  expect(nodes(PreferencesScreen()).some((n) => n.props.value === version)).toBe(true);
+  expect(nodes(PreferencesScreen()).some((n) => n.props.value === version)).toBe(false);
+  expect(nodes(AboutScreen()).some((n) => n.props.value === version)).toBe(true);
   (find('preferences-reset').props.onPress as () => void)();
   await vi.waitFor(() => expect(h.store.getSnapshot().value).toEqual(defaults));
-  (find('preferences-website').props.onPress as () => void)();
+  (
+    nodes(AboutScreen()).find((n) => n.props.testID === 'preferences-website')!.props
+      .onPress as () => void
+  )();
   expect(h.open).toHaveBeenCalledWith('https://web.example.test/');
 });
 it('disables selection after read failure but offers retry and reset', async () => {
