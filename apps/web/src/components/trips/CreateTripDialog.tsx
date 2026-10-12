@@ -2,9 +2,10 @@
 import { ledgerErrorMessage } from '@/lib/ledgerErrorMessage';
 import { QueryStatus } from '@/components/common/QueryStatus';
 
-import { confirmWebWrite } from '@/lib/confirmedWebWrites';
+import { captureConfirmedWebScope } from '@/lib/confirmedWebWrites';
+import { useTripCreationConfirmation } from '@/hooks/useTripCreationConfirmation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { ChevronDown, Loader2 } from 'lucide-react';
 import LocationAutocomplete, { LocationOption } from '@/components/location/LocationAutocomplete';
@@ -62,6 +63,17 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
   const tLedger = useTranslations('ledger');
   const client = useQueryClient();
   const online = useOnlineStatus();
+  const confirmation = useTripCreationConfirmation(open);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  const handled = useRef(new Set<string>());
+  const [submittedId, setSubmittedId] = useState<string | null>(null);
+  const [restored, setRestored] = useState<{ id: string; isCurrent: () => boolean } | null>(null);
   const isDesktop = useMediaQuery('(min-width: 768px)');
   const locale = useLocale();
   const tCurrency = useTranslations('currencyPicker');
@@ -93,18 +105,24 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
     : getCurrencyLabel(baseCurrency, locale);
   const selectedText =
     selectedLabel === baseCurrency ? baseCurrency : `${baseCurrency} · ${selectedLabel}`;
-  const invalidCurrency = !!capabilities.data && !codes.includes(baseCurrency);
+  const invalidCurrency =
+    !confirmation.frozen && !!capabilities.data && !codes.includes(baseCurrency);
   const readOnlyCurrency =
     !pickerOpen && codes.length === 1 && codes[0] === 'TWD' && baseCurrency === 'TWD';
   const canChoose = !!capabilities.data && codes.length > 0;
   const capabilityReady = online && capabilities.isSuccess && capabilities.fetchStatus === 'idle';
   const canSubmit =
-    open && online && !pickerOpen && capabilityCanCreate(capabilities, baseCurrency);
+    open &&
+    online &&
+    confirmation.ready &&
+    !confirmation.frozen &&
+    !pickerOpen &&
+    capabilityCanCreate(capabilities, baseCurrency);
   const closePicker = () => {
     setPickerOpen(false);
   };
   const changeCurrency = (code: string) => {
-    if (!inFlight.current && codes.includes(code)) setBaseCurrency(code);
+    if (!inFlight.current && !confirmation.frozen && codes.includes(code)) setBaseCurrency(code);
   };
 
   const [formData, setFormData] = useState({
@@ -127,7 +145,7 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
   const friends = friendsData?.friends ?? [];
 
   const toggleFriend = (id: string) => {
-    if (inFlight.current) return;
+    if (inFlight.current || confirmation.frozen) return;
     setSelectedFriends((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -136,7 +154,7 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
     });
   };
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setPickerOpen(false);
     setBaseCurrency('TWD');
     setDraftRetained(false);
@@ -145,11 +163,19 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
     setDestinationLocation(null);
     setSelectedFriends(new Set());
     setDetailsOpen(false);
-  };
+  }, []);
   const handleClose = () => {
+    if (!isConfirmationCurrent()) {
+      onClose();
+      return;
+    }
     if (inFlight.current) return;
     if (pickerOpen) {
       closePicker();
+      return;
+    }
+    if (confirmation.frozen) {
+      onClose();
       return;
     }
     setDraftRetained(
@@ -166,6 +192,78 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
     onClose();
   };
 
+  const { acknowledge, current: isConfirmationCurrent } = confirmation;
+  const record = confirmation.record;
+  if (restored && !restored.isCurrent()) {
+    setRestored(null);
+    setSubmittedId(null);
+    resetForm();
+    setError('');
+  }
+  if (
+    record?.request.operation === 'trip.create' &&
+    (!restored || restored.id !== record.request.body.client_request_id || !restored.isCurrent())
+  ) {
+    setRestored({
+      id: record.request.body.client_request_id,
+      isCurrent: captureConfirmedWebScope(client),
+    });
+    const body = record.request.body;
+    setBaseCurrency(body.base_currency);
+    setFormData({
+      name: body.name,
+      description: body.description,
+      start_date: body.start_date ?? '',
+      end_date: body.end_date ?? '',
+    });
+    setDestinationLocation(record.request.destination ?? null);
+    setDraftRetained(false);
+    if (submittedId !== body.client_request_id) setSelectedFriends(new Set());
+  }
+  const finish = useCallback(
+    async (result: unknown, uuid: string, companions: boolean) => {
+      const owner = captureConfirmedWebScope(client);
+      if (!mounted.current || !owner() || handled.current.has(uuid)) return;
+      const id = result && typeof result === 'object' && 'id' in result ? result.id : undefined;
+      if (typeof id !== 'string' || !/^[a-f0-9]{24}$/.test(id))
+        throw new Error('LEDGER_DATA_INVALID');
+      handled.current.add(uuid);
+      if (companions && selectedFriends.size > 0) {
+        // The trip is already committed. Optional companion delivery cannot turn it into a failure.
+        try {
+          const added = await addFriendsToTrip(id, { friend_ids: [...selectedFriends] });
+          if (added.success) trackProductEvent('activation_step', { step: 'companion_added' });
+        } catch {
+          /* Existing travel remains successful; members can be added from its settings. */
+        }
+      }
+      if (!mounted.current || !owner()) return;
+      trackProductEvent('activation_step', { step: 'trip_created' });
+      acknowledge();
+      resetForm();
+      onClose();
+      const createdTrip = { id };
+      onSuccess(createdTrip);
+    },
+    [client, onClose, onSuccess, selectedFriends, acknowledge, resetForm]
+  );
+  useEffect(() => {
+    if (
+      open &&
+      !submitting &&
+      !confirmation.recovering &&
+      record?.status === 'done' &&
+      isConfirmationCurrent()
+    ) {
+      void finish(record.result, record.request.body.client_request_id, false).catch(
+        (err: unknown) => {
+          if (mounted.current && isConfirmationCurrent())
+            setError(err instanceof Error ? err.message : String(err));
+        }
+      );
+    }
+  }, [open, submitting, confirmation.recovering, isConfirmationCurrent, record, finish]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (
@@ -175,50 +273,36 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
       !capabilityCanCreate(client.getQueryState<Capabilities>(CAPABILITIES_KEY), baseCurrency)
     )
       return;
+    const owner = captureConfirmedWebScope(client);
     inFlight.current = true;
     setError('');
     setSubmitting(true);
-
+    const uuid = crypto.randomUUID();
+    setSubmittedId(uuid);
     try {
-      const result = (await confirmWebWrite(client, {
+      const result = await confirmation.confirm({
         operation: 'trip.create',
         body: {
-          client_request_id: crypto.randomUUID(),
+          client_request_id: uuid,
           base_currency: baseCurrency,
           ...formData,
           start_date: formData.start_date || null,
           end_date: formData.end_date || null,
         },
         destination: destinationLocation || null,
-      })) as Pick<Trip, 'id'>;
-      const createdTrip = result;
-      trackProductEvent('activation_step', { step: 'trip_created' });
-
-      // 建立成功後，把勾選的好友直接加入新旅程（best-effort：即使失敗旅程仍已建立，
-      // 使用者可事後在成員頁補加，故不因此擋下流程）。
-      if (selectedFriends.size > 0) {
-        const addResult = await addFriendsToTrip(createdTrip.id, {
-          friend_ids: [...selectedFriends],
-        });
-        if (addResult.success) {
-          trackProductEvent('activation_step', { step: 'companion_added' });
-        }
-      }
-
-      resetForm();
-      onClose();
-      onSuccess(createdTrip);
+      });
+      if (mounted.current && owner()) await finish(result, uuid, true);
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError(tCommon('error.unknown'));
-      }
+      if (mounted.current && owner())
+        setError(err instanceof Error ? err.message : tCommon('error.unknown'));
     } finally {
-      setSubmitting(false);
+      if (mounted.current && owner()) setSubmitting(false);
       inFlight.current = false;
     }
   };
+  const locked = submitting || confirmation.frozen;
+  const shownError = confirmation.error || error;
+  const translatedError = ledgerErrorMessage(shownError, tLedger);
 
   const currencyTrigger = (
     <Button
@@ -233,11 +317,11 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
       aria-invalid={invalidCurrency || undefined}
       aria-haspopup="dialog"
       aria-expanded={pickerOpen}
-      disabled={submitting || !canChoose}
+      disabled={locked || !canChoose}
       onClick={
         !isDesktop
           ? () => {
-              if (!inFlight.current && canChoose) setPickerOpen(true);
+              if (!inFlight.current && !confirmation.frozen && canChoose) setPickerOpen(true);
             }
           : undefined
       }
@@ -271,7 +355,7 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
                   codes={codes}
                   value={baseCurrency}
                   title={tCreation('title')}
-                  disabled={submitting}
+                  disabled={locked}
                   autoFocusSearch={false}
                   enterSelection="navigated"
                   layout="sheet"
@@ -291,7 +375,7 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
             type="button"
             variant="outline"
             onClick={handleClose}
-            disabled={submitting}
+            disabled={(submitting || confirmation.recovering) && isConfirmationCurrent()}
             className="max-md:hidden"
           >
             {tCommon('cancel')}
@@ -299,7 +383,7 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
           <Button
             type="submit"
             form={FORM_ID}
-            disabled={submitting || !canSubmit}
+            disabled={locked || !canSubmit}
             className="max-md:h-12 max-md:w-full max-md:text-base"
           >
             {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -308,234 +392,293 @@ export default function CreateTripDialog({ open, onClose, onSuccess }: CreateTri
         </>
       }
     >
-      <form id={FORM_ID} onSubmit={handleSubmit}>
-        <fieldset
-          disabled={submitting || pickerOpen}
-          inert={pickerOpen || undefined}
-          className="min-w-0 space-y-4"
-        >
-          {draftRetained && (
+      {!isConfirmationCurrent() ? (
+        <p role="alert">{tCreation('scopeLost')}</p>
+      ) : (
+        <>
+          {(confirmation.frozen || confirmation.query.isError || !confirmation.ready) && (
             <Alert>
-              <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
-                <span>{t('create.draftRetained')}</span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => {
-                    if (!inFlight.current) resetForm();
-                  }}
-                  disabled={submitting}
-                >
-                  {t('create.clearDraft')}
-                </Button>
+              <AlertDescription className="space-y-2">
+                <p>
+                  {record?.status === 'done'
+                    ? tCreation('openingCreated')
+                    : confirmation.frozen
+                      ? tLedger('writeUnknown')
+                      : confirmation.query.isError
+                        ? tLedger('storageInvalid')
+                        : tCreation('readingConfirmation')}
+                </p>
+                {confirmation.frozen && record?.status !== 'done' && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={submitting || confirmation.recovering || !online}
+                    onClick={() => void confirmation.recover()}
+                  >
+                    {tLedger('recover')}
+                  </Button>
+                )}
+                {confirmation.query.isError && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={submitting || confirmation.query.isFetching}
+                    onClick={() => void confirmation.query.refetch()}
+                  >
+                    {tCommon('retry')}
+                  </Button>
+                )}
               </AlertDescription>
             </Alert>
           )}
-          {error && (
-            <Alert variant="destructive">
-              <AlertTitle>{tCommon('errorTitle')}</AlertTitle>
-              <AlertDescription>{ledgerErrorMessage(error, tLedger)}</AlertDescription>
-            </Alert>
-          )}
-
-          <div className="space-y-2">
-            <Label htmlFor="name">{t('create.name')}</Label>
-            <Input
-              id="name"
-              maxLength={100}
-              value={formData.name}
-              placeholder={t('create.namePlaceholder')}
-              onChange={(e) => {
-                if (!inFlight.current) setFormData({ ...formData, name: e.target.value });
-              }}
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="trip-base" id="trip-base-label">
-              {tLedger('baseCurrency')}
-            </Label>
-            {readOnlyCurrency ? (
-              <div
-                id="trip-base"
-                ref={(node) => {
-                  currencyField.current = node;
-                }}
-                role="group"
-                tabIndex={0}
-                aria-labelledby="trip-base-label trip-base-value"
-                aria-describedby="trip-base-help trip-base-status"
-                className="flex min-h-[52px] items-center rounded-xl border border-input bg-background px-3 py-3 text-base"
-              >
-                <span id="trip-base-value" className="break-words">
-                  {selectedText}
-                </span>
-              </div>
-            ) : isDesktop ? (
-              <CurrencyPicker
-                open={pickerOpen}
-                onOpenChange={(next) => {
-                  if (next) {
-                    if (!inFlight.current && canChoose) setPickerOpen(true);
-                  } else closePicker();
-                }}
-                codes={codes}
-                value={baseCurrency}
-                onSelect={changeCurrency}
-                title={tCreation('title')}
-                disabled={submitting}
-                trigger={currencyTrigger}
-                onCloseAutoFocus={(event) => {
-                  event.preventDefault();
-                  if (!wasPickerOpen.current) currencyField.current?.focus({ preventScroll: true });
-                }}
-              />
-            ) : (
-              currencyTrigger
-            )}
-            <p id="trip-base-help" className="text-sm text-foreground">
-              {tCreation('description')}
-            </p>
-            <div
-              id="trip-base-status"
-              role="status"
-              className="space-y-1 text-sm text-muted-foreground"
+          <form id={FORM_ID} onSubmit={handleSubmit}>
+            <fieldset
+              disabled={locked || pickerOpen}
+              inert={pickerOpen || undefined}
+              className="min-w-0 space-y-4"
             >
-              {!online ? (
-                <p>{tCreation('offline')}</p>
-              ) : capabilities.isError || (capabilityReady && codes.length === 0) ? (
-                <p>{tCreation('unavailable')}</p>
-              ) : !capabilityReady ? (
-                <p>{tCreation('loading')}</p>
-              ) : readOnlyCurrency ? (
-                <p>{tCreation('onlyTwd', { currency: selectedText })}</p>
-              ) : null}
-              {(capabilities.isError || (capabilityReady && codes.length === 0)) && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="min-h-12 px-0 text-sm"
-                  disabled={!online || submitting || capabilities.isFetching}
-                  onClick={() => void capabilities.refetch()}
-                >
-                  {tCommon('retry')}
-                </Button>
+              {draftRetained && (
+                <Alert>
+                  <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+                    <span>{t('create.draftRetained')}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        if (!inFlight.current && !confirmation.frozen) {
+                          acknowledge();
+                          resetForm();
+                        }
+                      }}
+                      disabled={locked}
+                    >
+                      {t('create.clearDraft')}
+                    </Button>
+                  </AlertDescription>
+                </Alert>
               )}
-            </div>
-            {invalidCurrency && (
-              <p id="trip-base-error" role="alert" className="text-sm text-destructive">
-                {tCreation('notAllowed', { currency: baseCurrency })}
-              </p>
-            )}
-          </div>
-          <LocationAutocomplete
-            value={destinationLocation}
-            onChange={(value) => {
-              if (!inFlight.current) setDestinationLocation(value);
-            }}
-            disabled={submitting || pickerOpen}
-            label={t('create.destination')}
-            placeholder={t('create.destinationPlaceholder')}
-            helperText={t('create.destinationHelp')}
-          />
+              {shownError && (
+                <Alert variant="destructive">
+                  <AlertTitle>{tCommon('errorTitle')}</AlertTitle>
+                  <AlertDescription>
+                    {translatedError !== shownError
+                      ? translatedError
+                      : record?.status === 'rejected'
+                        ? tLedger('writeRejected')
+                        : confirmation.frozen
+                          ? tLedger('writeUnknown')
+                          : tCreation('preparationFailed')}
+                  </AlertDescription>
+                </Alert>
+              )}
 
-          <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
-            <CollapsibleTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                className="w-full justify-between px-2 text-muted-foreground"
-              >
-                <span>
-                  {friends.length > 0
-                    ? t('create.moreDetailsWithFriends')
-                    : t('create.moreDetails')}
-                </span>
-                <ChevronDown
-                  className={cn('h-4 w-4 transition-transform', detailsOpen && 'rotate-180')}
-                />
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-4 pt-4">
               <div className="space-y-2">
-                <Label htmlFor="description">{t('create.description')}</Label>
-                <Textarea
-                  id="description"
-                  maxLength={2000}
-                  value={formData.description}
-                  placeholder={t('create.descriptionPlaceholder')}
+                <Label htmlFor="name">{t('create.name')}</Label>
+                <Input
+                  id="name"
+                  maxLength={100}
+                  value={formData.name}
+                  placeholder={t('create.namePlaceholder')}
                   onChange={(e) => {
-                    if (!inFlight.current)
-                      setFormData({ ...formData, description: e.target.value });
+                    if (!inFlight.current && !confirmation.frozen)
+                      setFormData({ ...formData, name: e.target.value });
                   }}
-                  rows={2}
+                  required
                 />
               </div>
 
-              {/* 旅遊時間區間 */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="min-w-0 space-y-2">
-                  <Label htmlFor="start_date">{t('create.startDate')}</Label>
-                  <Input
-                    id="start_date"
-                    type="date"
-                    value={formData.start_date}
-                    onChange={(e) => {
-                      if (!inFlight.current)
-                        setFormData({ ...formData, start_date: e.target.value });
+              <div className="space-y-2">
+                <Label htmlFor="trip-base" id="trip-base-label">
+                  {tLedger('baseCurrency')}
+                </Label>
+                {readOnlyCurrency ? (
+                  <div
+                    id="trip-base"
+                    ref={(node) => {
+                      currencyField.current = node;
+                    }}
+                    role="group"
+                    tabIndex={0}
+                    aria-labelledby="trip-base-label trip-base-value"
+                    aria-describedby="trip-base-help trip-base-status"
+                    className="flex min-h-[52px] items-center rounded-xl border border-input bg-background px-3 py-3 text-base"
+                  >
+                    <span id="trip-base-value" className="break-words">
+                      {selectedText}
+                    </span>
+                  </div>
+                ) : isDesktop ? (
+                  <CurrencyPicker
+                    open={pickerOpen}
+                    onOpenChange={(next) => {
+                      if (next) {
+                        if (!inFlight.current && !confirmation.frozen && canChoose)
+                          setPickerOpen(true);
+                      } else closePicker();
+                    }}
+                    codes={codes}
+                    value={baseCurrency}
+                    onSelect={changeCurrency}
+                    title={tCreation('title')}
+                    disabled={locked}
+                    trigger={currencyTrigger}
+                    onCloseAutoFocus={(event) => {
+                      event.preventDefault();
+                      if (!wasPickerOpen.current)
+                        currencyField.current?.focus({ preventScroll: true });
                     }}
                   />
+                ) : (
+                  currencyTrigger
+                )}
+                <p id="trip-base-help" className="text-sm text-foreground">
+                  {tCreation('description')}
+                </p>
+                <div
+                  id="trip-base-status"
+                  role="status"
+                  className="space-y-1 text-sm text-muted-foreground"
+                >
+                  {!online ? (
+                    <p>{tCreation('offline')}</p>
+                  ) : capabilities.isError || (capabilityReady && codes.length === 0) ? (
+                    <p>{tCreation('unavailable')}</p>
+                  ) : !capabilityReady ? (
+                    <p>{tCreation('loading')}</p>
+                  ) : readOnlyCurrency ? (
+                    <p>{tCreation('onlyTwd', { currency: selectedText })}</p>
+                  ) : null}
+                  {(capabilities.isError || (capabilityReady && codes.length === 0)) && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="min-h-12 px-0 text-sm"
+                      disabled={!online || submitting || capabilities.isFetching}
+                      onClick={() => void capabilities.refetch()}
+                    >
+                      {tCommon('retry')}
+                    </Button>
+                  )}
                 </div>
-                <div className="min-w-0 space-y-2">
-                  <Label htmlFor="end_date">{t('create.endDate')}</Label>
-                  <Input
-                    id="end_date"
-                    type="date"
-                    value={formData.end_date}
-                    onChange={(e) => {
-                      if (!inFlight.current) setFormData({ ...formData, end_date: e.target.value });
-                    }}
-                    min={formData.start_date}
-                  />
-                </div>
+                {invalidCurrency && (
+                  <p id="trip-base-error" role="alert" className="text-sm text-destructive">
+                    {tCreation('notAllowed', { currency: baseCurrency })}
+                  </p>
+                )}
               </div>
+              <LocationAutocomplete
+                value={destinationLocation}
+                onChange={(value) => {
+                  if (!inFlight.current && !confirmation.frozen) setDestinationLocation(value);
+                }}
+                disabled={locked || pickerOpen}
+                label={t('create.destination')}
+                placeholder={t('create.destinationPlaceholder')}
+                helperText={t('create.destinationHelp')}
+              />
 
-              {/* 從好友挑選一起加入（有好友時才顯示） */}
-              {open && detailsOpen && <QueryStatus query={friendsQuery} />}
-              {friends.length > 0 && (
-                <div className="space-y-2">
-                  <Label>{t('create.inviteFriends')}</Label>
-                  <ScrollArea className="max-h-40 rounded-md border">
-                    <div className="space-y-1 p-2">
-                      {friends.map((f) => (
-                        <label
-                          key={f.user.id}
-                          className="flex cursor-pointer items-center gap-3 rounded-md p-2 transition-colors hover:bg-accent"
-                        >
-                          <Checkbox
-                            checked={selectedFriends.has(f.user.id)}
-                            onCheckedChange={() => toggleFriend(f.user.id)}
-                          />
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={f.user.avatar_url ?? ''} alt={f.user.display_name} />
-                            <AvatarFallback className="bg-primary text-xs font-medium text-primary-foreground">
-                              {f.user.display_name.charAt(0).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="min-w-0 flex-1 truncate text-sm">
-                            {f.user.display_name}
-                          </span>
-                        </label>
-                      ))}
+              <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
+                <CollapsibleTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full justify-between px-2 text-muted-foreground"
+                  >
+                    <span>
+                      {friends.length > 0
+                        ? t('create.moreDetailsWithFriends')
+                        : t('create.moreDetails')}
+                    </span>
+                    <ChevronDown
+                      className={cn('h-4 w-4 transition-transform', detailsOpen && 'rotate-180')}
+                    />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="description">{t('create.description')}</Label>
+                    <Textarea
+                      id="description"
+                      maxLength={2000}
+                      value={formData.description}
+                      placeholder={t('create.descriptionPlaceholder')}
+                      onChange={(e) => {
+                        if (!inFlight.current)
+                          setFormData({ ...formData, description: e.target.value });
+                      }}
+                      rows={2}
+                    />
+                  </div>
+
+                  {/* 旅遊時間區間 */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="min-w-0 space-y-2">
+                      <Label htmlFor="start_date">{t('create.startDate')}</Label>
+                      <Input
+                        id="start_date"
+                        type="date"
+                        value={formData.start_date}
+                        onChange={(e) => {
+                          if (!inFlight.current)
+                            setFormData({ ...formData, start_date: e.target.value });
+                        }}
+                      />
                     </div>
-                  </ScrollArea>
-                </div>
-              )}
-            </CollapsibleContent>
-          </Collapsible>
-        </fieldset>
-      </form>
+                    <div className="min-w-0 space-y-2">
+                      <Label htmlFor="end_date">{t('create.endDate')}</Label>
+                      <Input
+                        id="end_date"
+                        type="date"
+                        value={formData.end_date}
+                        onChange={(e) => {
+                          if (!inFlight.current && !confirmation.frozen)
+                            setFormData({ ...formData, end_date: e.target.value });
+                        }}
+                        min={formData.start_date}
+                      />
+                    </div>
+                  </div>
+
+                  {/* 從好友挑選一起加入（有好友時才顯示） */}
+                  {open && detailsOpen && <QueryStatus query={friendsQuery} />}
+                  {friends.length > 0 && (
+                    <div className="space-y-2">
+                      <Label>{t('create.inviteFriends')}</Label>
+                      <ScrollArea className="max-h-40 rounded-md border">
+                        <div className="space-y-1 p-2">
+                          {friends.map((f) => (
+                            <label
+                              key={f.user.id}
+                              className="flex cursor-pointer items-center gap-3 rounded-md p-2 transition-colors hover:bg-accent"
+                            >
+                              <Checkbox
+                                checked={selectedFriends.has(f.user.id)}
+                                onCheckedChange={() => toggleFriend(f.user.id)}
+                              />
+                              <Avatar className="h-8 w-8">
+                                <AvatarImage
+                                  src={f.user.avatar_url ?? ''}
+                                  alt={f.user.display_name}
+                                />
+                                <AvatarFallback className="bg-primary text-xs font-medium text-primary-foreground">
+                                  {f.user.display_name.charAt(0).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="min-w-0 flex-1 truncate text-sm">
+                                {f.user.display_name}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
+            </fieldset>
+          </form>
+        </>
+      )}
     </ResponsiveFormSheet>
   );
 }

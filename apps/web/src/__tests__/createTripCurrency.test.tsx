@@ -23,7 +23,13 @@ const h = vi.hoisted(() => ({
   friends: [] as { user: { id: string; display_name: string; avatar_url: null } }[],
 }));
 vi.mock('@/actions', () => ({ getLedgerCapabilities: h.read, addFriendsToTrip: h.add }));
-vi.mock('@/lib/confirmedWebWrites', () => ({ confirmWebWrite: h.confirm }));
+vi.mock('@/lib/confirmedWebWrites', () => ({
+  confirmedWebKey: ['confirmedWebWrites'],
+  captureConfirmedWebScope: () => () => true,
+  readConfirmedWebWrites: async () => ({}),
+  resumeConfirmedWebWrite: vi.fn(),
+  confirmWebWrite: h.confirm,
+}));
 vi.mock('@/lib/productEvents', () => ({ trackProductEvent: vi.fn() }));
 vi.mock('@/hooks/useMediaQuery', () => ({ useMediaQuery: () => h.desktop }));
 vi.mock('@/hooks/useOnlineStatus', () => ({ useOnlineStatus: () => h.online }));

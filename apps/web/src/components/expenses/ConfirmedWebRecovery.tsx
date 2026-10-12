@@ -16,6 +16,7 @@ export function ConfirmedWebRecovery() {
     queryKey: confirmedWebKey,
     queryFn: () => readConfirmedWebWrites(client),
     staleTime: Infinity,
+    networkMode: 'always',
   });
   const [busy, setBusy] = useState(false),
     [error, setError] = useState<{ id: string; message: string } | null>(null);
@@ -38,7 +39,7 @@ export function ConfirmedWebRecovery() {
         <div key={e.request.body.client_request_id} className="flex items-center gap-3">
           <span>
             {t(`operations.${e.request.operation.replace('.', '_')}`)}
-            {'tripId' in e.request ? ` · ${e.request.body.base_currency}` : ''}
+            {'base_currency' in e.request.body ? ` · ${e.request.body.base_currency}` : ''}
           </span>
           <Button
             disabled={busy}

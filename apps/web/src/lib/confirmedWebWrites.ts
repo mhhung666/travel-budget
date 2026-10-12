@@ -95,11 +95,21 @@ export const confirmedWebKey = ['confirmedWebWrites'] as const;
 type Journal = Record<string, ConfirmedWebEntry>;
 const bindings = new WeakMap<QueryClient, { key: string; active: boolean; waitUntil?: number }>();
 export function bindConfirmedWebWrites(client: QueryClient, scope: string) {
+  const previous = bindings.get(client);
+  if (previous) previous.active = false;
   bindWebWriteCoordination(client, scope);
+  const key = `travel-budget-confirmed-v2:${encodeURIComponent(scope)}`;
   bindings.set(client, {
-    key: `travel-budget-confirmed-v2:${encodeURIComponent(scope)}`,
+    key,
     active: true,
+    ...(previous?.key === key ? { waitUntil: previous.waitUntil } : {}),
   });
+  if (previous) void client.resetQueries({ queryKey: confirmedWebKey, exact: true });
+}
+/** Opaque login-generation guard; callers cannot carry a late result into a new binding. */
+export function captureConfirmedWebScope(client: QueryClient): () => boolean {
+  const owner = bindings.get(client);
+  return () => !!owner?.active && bindings.get(client) === owner;
 }
 export function stopConfirmedWebWrites(client: QueryClient) {
   const b = bindings.get(client);
@@ -354,11 +364,17 @@ function validateRequest(request: ConfirmedWebWrite) {
 function canonicalTrip(client: QueryClient, id: string) {
   return client.getQueryData<TripShell>(tripKeys.shell(id))?.id ?? id;
 }
-export async function confirmWebWrite(client: QueryClient, request: ConfirmedWebWrite) {
+export async function confirmWebWrite(
+  client: QueryClient,
+  request: ConfirmedWebWrite,
+  onPersisted?: (entry: ConfirmedWebEntry) => void
+) {
+  const owner = captureConfirmedWebScope(client);
   if (!onlineManager.isOnline()) throw new Error('ledger.onlineOnly');
   validateRequest(request);
   await readConfirmedWebWrites(client);
   await assertCooldown(client);
+  if (!owner()) throw new Error('UNAUTHORIZED');
   if ('tripId' in request) {
     const c = await readExpenseOutbox(client);
     if (
@@ -370,11 +386,13 @@ export async function confirmWebWrite(client: QueryClient, request: ConfirmedWeb
     )
       throw new Error('ledger.pendingWrite');
   }
+  if (!owner()) throw new Error('UNAUTHORIZED');
   const durable = await writeEntry(
     client,
     { version: 2, request: structuredClone(request), status: 'pending', savedAt: Date.now() },
     true
   );
+  onPersisted?.(durable);
   return resumeConfirmedWebWrite(client, durable);
 }
 export async function assertNoConfirmedWebWrite(client: QueryClient, tripId: string) {

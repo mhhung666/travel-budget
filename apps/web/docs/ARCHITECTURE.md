@@ -52,7 +52,7 @@ Next.js App Router 與 React 組成介面，TanStack Query 負責查詢、重新
 
 Web 畫面只透過在 v2 context 執行的 Server Action 身分（`withLedgerAuth`，如 `getLedger*`、`createLedgerExpense`）及 `/api/public/v2/trips/:code/*` 分享 adapter；舊版 bundle 用的 v1 Server Action 身分已於 B5d-3 刪除。舊公開路徑 `/api/public/trips/*` 已於 B5e 刪除（404）。AI 草稿與行程匯入 route 也在 v2 context 讀旅行（行程匯入於 B5e 補上，非 TWD 旅行不再回 500）。共用服務只有一套 v2 路徑：v1 分支已於 B5 後續整理移除，`lib/ledger.ts` 不再提供版本判斷，沒有 context 時需要單位的讀寫直接回 `LEDGER_DATA_INVALID`，不會退回 v1；不接受 header 切換單位。無版本的 receipt 是 v1 留下的，查詢或重送都回 `CLIENT_UPGRADE_REQUIRED`。寫入的首次回應即是保存的終局（含 `ledger`），重播結果與首次相同。新版公開財務讀取使用唯一 URL 與 no-store，避免舊 service worker 回傳 TWD 快取；公開輸出仍不含私人預算、收據 key 或私人 revision。11 組公開 v2 route 使用中立 handler（唯讀快照 `lib/publicTripReads.ts`、匿名認領 `lib/publicMemberClaims.ts`），以 `withPublicLedgerV2` 在帳本 context 執行，不讀 session。PWA 離線佇列中缺 `contractVersion` 的舊紀錄（舊 bundle 存的 v1 body）只解碼列出、不再送出，也不計入本機預估，僅能由使用者匯出或明確捨棄。
 
-建立／加入、修改／刪除支出、登記／撤銷還款及預算／幣別設定先將固定 UUID、原 body、版本、單位及 revision 存入帳號／環境隔離的 IndexedDB，才查詢原 receipt；只有 `not_found` 重送相同操作。不明結果保留，透過全域恢復提示補查，不換 UUID 或讓使用者捨棄。明確的寫入拒絕（包含服務驗證前拒絕）先將 journal 終局保存為 rejected，再解除旅行保留，允許使用者修正並重新確認。手動恢復被拒時，保留四語說明直到使用者關閉提示；關閉不刪除 journal，結果不明仍可補查。receipt 補查的拒絕不能推斷原寫入失敗。C 新增只呼叫一次寫入 action，由服務先查原 receipt，再於交易內核對，避免瀏覽器重複補查。終局衝突重讀後須再次確認；支出、設定與結算各有 HMAC revision。修改／刪除活動與 receipt 同交易，重播不增加紀錄。設定使用同一 `actor:UUID` receipt 唯一 namespace，其中 `budget.set` 由 Web 與 Mobile 共用，`currency.set` 保留 Web 設定路徑。
+建立／加入、修改／刪除支出、登記／撤銷還款及預算／幣別設定先將固定 UUID、原 body、版本、單位及 revision 存入帳號／環境隔離的 IndexedDB，才查詢原 receipt；只有 `not_found` 重送相同操作。不明結果保留，透過全域恢復提示補查，不換 UUID 或讓使用者捨棄。明確的寫入拒絕（包含服務驗證前拒絕）先將 journal 終局保存為 rejected，再解除旅行保留，允許使用者修正並重新確認。手動恢復被拒時，保留四語說明直到使用者關閉提示；關閉不刪除 journal，結果不明仍可補查。receipt 補查的拒絕不能推斷原寫入失敗。BC1c 建立表單透過 `useTripCreationConfirmation` 追蹤同一 journal，恢復後完成回呼只處理一次；本機來源離線仍可讀，登入世代失效便遮蔽舊確認與晚到結果。選配好友不在建立 journal 內，恢復不自動重送。C 新增只呼叫一次寫入 action，由服務先查原 receipt，再於交易內核對，避免瀏覽器重複補查。終局衝突重讀後須再次確認；支出、設定與結算各有 HMAC revision。修改／刪除活動與 receipt 同交易，重播不增加紀錄。設定使用同一 `actor:UUID` receipt 唯一 namespace，其中 `budget.set` 由 Web 與 Mobile 共用，`currency.set` 保留 Web 設定路徑。
 
 同旅行的 Web C 支出佇列與新版操作共用原子寫入保留紀錄；結果未知不自動到期，只在終局落盤後釋放；若頁面在落盤與釋放之間關閉，下一筆操作依相同 UUID 的已保存終局解除保留。伺服器要求的等待期限按帳號保存，receipt 補查／C 送出也遵守；保存期限失敗仍保留記憶體期限。登出停止目前世代，原 UUID 與終局歷史保留給原帳號，以便恢復並解除中斷的保留紀錄。query cache 的 `PERSIST_BUSTER` 更新為帳本版，C outbox 在淘汰舊讀取快取前恢復；舊 C body／UUID 保留供匯出或明確捨棄，不再送出。雙分頁留下較舊讀取快取時，使用其後已保存且同單位的提交基線恢復摘要；較新的快取不被舊基線覆蓋。
 
@@ -106,11 +106,9 @@ Web update／delete action 抽成 `expenseMaintenance.ts` 的 actor service，�
 
 `budgetRead.ts` 在 `withTripReadInDatabase` 的授權快照讀本人設定及全旅行支出，呼叫 Web 同一個 `computeBudgetProgress`；只回本人預算、分類進度及 HMAC revision。Mobile `/api/v2/trips/:id/budget` 寫入直接呼叫既有 `writeWebSettings`／`normalizeBudget`，因此 Web 並行修改使用同一 revision、交易與 actor／UUID 指紋。原 receipt 不改寫，手機查詢 adapter 只補 resourceId；隱私、輸入及恢復契約見 [G4a](../../mobile/docs/BACKEND_CONTRACT.md#g4a-個人預算)。
 
-
 ## G4b 授權搜尋 API
 
 `expenseSearch.ts` 在 `withTripReadInDatabase` 同一授權快照讀全旅行必要支出欄位、解析顯示名稱／虛擬旗標，共用 Web `toExpenseDto`／`filterExpenses`／`computeTripStats` 後才切 20 筆頁面。未知分類沿 native other，隱藏標籤不參與搜尋；同一回應帶全量總計及本人份額。游標綁 actor／trip／ledger／條件／內容 revision，資料變動拒絕拼頁，沒有跨請求快照或新索引。`mobile/expenseSearch.ts` 與具名 operation 處理嚴格 query、授權及 409；隱私／查詢界線見 [G4b 契約](../../mobile/docs/BACKEND_CONTRACT.md#g4b-搜尋與分析)。
-
 
 ## G6a 私人收據
 
@@ -145,7 +143,6 @@ Web `getCurrentUser`／名稱版 `updateProfile` 與 Mobile `/api/v2/me/profile`
 ## M4b 好友共用服務
 
 `friends.ts` 抽出 Web RPC／Native v2 的讀取與原子狀態機，沿用 Friendship 唯一 pair、兩側索引與公開姓名／帳號／頭像投影。查詢採兩個固定批次 populate，沒有逐人成員／旅行查詢。相向接受固定原關係 ID 及 pending／收件人條件，確認成功才通知；唯一鍵競態重讀勝出關係，通知失敗不改已提交結果。Web RPC 回傳形狀與 pending 任一方取消保持相容，Native 拒絕與收回分別限收件／寄件人。契約與原生重讀策略見 [M4b](../../mobile/docs/BACKEND_CONTRACT.md#m4b-好友)。
-
 
 ## T1 旅行列表排序
 

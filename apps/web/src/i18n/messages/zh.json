@@ -2027,7 +2027,11 @@
       "unavailable": "無法確認可用幣別，請重試。",
       "offline": "請連線後確認可用幣別並建立旅行。",
       "notAllowed": "目前無法以 {currency} 建立旅行，請重新選擇。",
-      "creating": "建立中…"
+      "creating": "建立中…",
+      "readingConfirmation": "正在讀取已確認的建立操作…",
+      "preparationFailed": "無法保存或確認建立操作。輸入已保留，請重試。",
+      "scopeLost": "帳號已變更或登入已失效，請重新開啟建立旅行。",
+      "openingCreated": "旅行已建立，正在開啟…"
     }
   }
 }

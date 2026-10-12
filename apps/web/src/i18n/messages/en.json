@@ -2034,7 +2034,11 @@
       "unavailable": "Unable to confirm available currencies. Please retry.",
       "offline": "Connect to confirm available currencies and create a trip.",
       "notAllowed": "You cannot currently create a trip in {currency}. Please choose again.",
-      "creating": "Creating…"
+      "creating": "Creating…",
+      "readingConfirmation": "Reading confirmed trip creation…",
+      "preparationFailed": "Unable to save or confirm trip creation. Your input is kept. Please retry.",
+      "scopeLost": "The account changed or the session expired. Please reopen trip creation.",
+      "openingCreated": "The trip is created. Opening…"
     }
   }
 }
