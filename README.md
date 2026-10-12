@@ -21,7 +21,7 @@ cp apps/mobile/.env.example apps/mobile/.env.local
 pnpm dev:web
 ```
 
-另一個終端機執行 `pnpm dev:mobile`。Web 的 MongoDB／JWT 設定留在 `apps/web/.env`；手機僅設定公開 API 位址 `EXPO_PUBLIC_API_BASE_URL`，不放後端密鑰。iOS 模擬器可用 `http://localhost:3000/api/v1`，Android 模擬器用 `http://10.0.2.2:3000/api/v1`，真機使用電腦的 LAN IP；正式 bundle 要求 HTTPS。
+另一個終端機執行 `pnpm dev:mobile`。Web 的 MongoDB／JWT 設定留在 `apps/web/.env`；手機僅設定公開 API 位址 `EXPO_PUBLIC_API_BASE_URL`，不放後端密鑰。iOS 模擬器可用 `http://localhost:3000`，Android 模擬器用 `http://10.0.2.2:3000`，真機使用電腦的 LAN IP；只填 origin，App 自動使用 `/api/v2`，正式 bundle 要求 HTTPS。
 
 | 根目錄指令                                          | 用途                                                |
 | --------------------------------------------------- | --------------------------------------------------- |

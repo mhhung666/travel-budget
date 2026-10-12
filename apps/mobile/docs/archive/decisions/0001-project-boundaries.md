@@ -1,6 +1,6 @@
 # ADR 0001：先建立獨立手機專案，共用既有後端
 
-日期：2026-10-02。狀態：已被 [repository 整併決策](../../../../docs/decisions/0001-monorepo.md) 取代。
+日期：2026-10-02。狀態：已被 [repository 整併決策](../../../../../docs/decisions/0001-monorepo.md) 取代。
 
 ## 原始決策
 

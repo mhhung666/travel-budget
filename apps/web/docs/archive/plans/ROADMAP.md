@@ -1,7 +1,7 @@
 # 功能 Roadmap
 
 > 更新日期：2026-09-04
-> 歷史候選，不作現行排程；行程 PDF 後續已實作，見 [交付摘要](../../plans/ITINERARY_PDF_EXPORT.md)。
+> 歷史候選，不作現行排程；行程 PDF 後續已實作，見 [交付摘要](../history/ITINERARY.md#pdf-匯出)。
 > 原規劃列出的產品能力如下。已實作內容見 [FEATURES.md](../../FEATURES.md)，技術債見 [IMPROVEMENTS.md](IMPROVEMENTS.md)。
 
 狀態：`idea` 尚未設計、`ready` 範圍清楚可排程、`in-progress` 正在依規格驗收、`research` 需先查證規則或方案、`paused` 暫緩且不列入當前排程。

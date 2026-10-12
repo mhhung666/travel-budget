@@ -1,12 +1,18 @@
-# 階段 D：歷史相簿盤點與儲存檔 hash 回填
+# 相簿維運：上傳部署、盤點與 hash 回填
 
-日期：2026-10-01。對應 [研究文件](PHOTO_UPLOAD_RESEARCH.md) 階段 D。
+現行操作手冊。2026-10-01 的 A–D 實作、正式只讀盤點與核准清理已結案，成果見 [archive](archive/history/PHOTO_UPLOAD.md)。本文件不是遠端執行授權；正式 hash 回填未執行，端到端待驗見 [文件入口](README.md#待驗與未排程事項)。
 
-已提供 CLI、只讀報告、可重跑的 hash 回填與測試。後續已完成正式 MongoDB／R2 的只讀盤點與部分歷史查重，並依指示透過既有退役流程刪除 8 個孤兒物件，詳見 [正式測試與清理紀錄](PHOTO_UPLOAD_HISTORY_PRODUCTION_TEST.md)。本次範圍已結案；正式 hash 回填未執行，感知相似比對及歷史重複合併留待另案。
+## 上傳部署與清理
+
+1. 目標 DB 須有 [上傳工作索引](../migrations/20261001090000-photo-upload-jobs.js)：照片旅程＋hash 唯一索引、工作到期與旅程索引；遷移可重跑，回滾保留索引／工作。正式曾確認存在，其他環境另核對。
+2. 部署後確認 `/api/cron/trip-cleanup` 與 `CRON_SECRET`；`uploads_retired` 是交付清理的工作數，不是已刪物件數。新工作租期 24 小時，到期不可重啟；每次最多退役 100 筆且受時間預算限制。
+3. 清理與 finalize 共用 Trip 寫入保護，重新檢查期限／引用才建立既有持久清理；重複物件刪除延後至租期後並做第二次掃除。未完成工作不設 TTL，完成／過期紀錄目前沒有自動刪除保留期。
+4. 舊上傳入口也登記工作，舊 client 未更新工作狀態仍檢查照片引用；刪旅行沿既有前綴清掃處理晚到 PUT，上傳者退出不阻止系統清理。
+5. 使用指定測試旅行驗真 R2 PUT／CORS、手機大檔、多張進度及公開副本；關頁停止工作，重新選檔以 sourceHash 略過已入庫，不承諾關頁續傳／bytes 百分比。
 
 ## 交付與邊界
 
-入口：`pnpm photos:audit`，實作為 [photo-audit.mjs](../../scripts/photo-audit.mjs) 與 [核心模組](../../scripts/lib/photo-audit.mjs)。
+入口：`pnpm photos:audit`，實作為 [photo-audit.mjs](../scripts/photo-audit.mjs) 與 [核心模組](../scripts/lib/photo-audit.mjs)。
 
 - 預設只讀：分頁列舉私有 bucket 的 `photos/`，保存 key、大小、修改時間與分類依據；比對照片、上傳工作、物件清理工作與旅程清理工作。
 - 依既有照片的顯示檔推導 `_p.jpg` 公開副本，避免誤判為孤兒。只有存在的公開副本需要保護，沒有分享的照片不要求具備此副本。
@@ -65,27 +71,27 @@ pnpm photos:audit --all --apply --out photo-audit-reports/backfill
 
 ## 報告與分類
 
-| 檔案 | 內容 |
-| --- | --- |
-| `summary.json` | 掃描範圍、完整性、物件與 bytes 統計、hash／回填數、錯誤／略過數與群組數 |
-| `report.md` | 同一份統計的人類可讀摘要 |
-| `objects.jsonl` | 每個 R2 物件及分類、照片／上傳工作 ID、既有清理嘗試次數 |
-| `photos.jsonl` | 每張照片的缺檔結果、hash、R2 物件識別資訊或安全的錯誤代碼 |
-| `duplicates.jsonl` | 同旅程、相同儲存 JPEG hash 的群組；列出全部照片 ID 與 key |
+| 檔案               | 內容                                                                    |
+| ------------------ | ----------------------------------------------------------------------- |
+| `summary.json`     | 掃描範圍、完整性、物件與 bytes 統計、hash／回填數、錯誤／略過數與群組數 |
+| `report.md`        | 同一份統計的人類可讀摘要                                                |
+| `objects.jsonl`    | 每個 R2 物件及分類、照片／上傳工作 ID、既有清理嘗試次數                 |
+| `photos.jsonl`     | 每張照片的缺檔結果、hash、R2 物件識別資訊或安全的錯誤代碼               |
+| `duplicates.jsonl` | 同旅程、相同儲存 JPEG hash 的群組；列出全部照片 ID 與 key               |
 
-| `objects.jsonl` 分類 | 意義 |
-| --- | --- |
-| `referenced` | 有照片參照，含縮圖與推導的公開副本 |
-| `referenced_cleanup_conflict` | 同時有照片參照及清理工作，需檢查衝突 |
-| `active_upload` | 有仍在期限內的 pending 上傳工作 |
-| `tracked_upload` | 有其他／過期上傳工作；交由既有工作機制判斷 |
-| `pending_blob_cleanup`／`pending_trip_cleanup` | 已經在物件／旅程清理流程 |
-| `retired_object_present`／`deleted_trip_object_present` | 清理標示完成，但列舉仍觀察到物件，需調查 |
-| `trip_cleanup_conflict` | 清理工作與仍存在的旅程互相衝突 |
-| `recent_unreferenced` | 未找到參照，但仍在近期上傳緩衝內 |
-| `unknown_key`／`unknown_age` | key 格式或修改時間不明，不當成可刪除候選 |
-| `suspected_orphan` | 現存旅程、舊物件、未找到照片或工作參照；只是疑似孤兒 |
-| `missing_trip_candidate` | 旅程不存在、沒有已知參照／工作且超過緩衝；不能直接斷言刪除原因 |
+| `objects.jsonl` 分類                                    | 意義                                                           |
+| ------------------------------------------------------- | -------------------------------------------------------------- |
+| `referenced`                                            | 有照片參照，含縮圖與推導的公開副本                             |
+| `referenced_cleanup_conflict`                           | 同時有照片參照及清理工作，需檢查衝突                           |
+| `active_upload`                                         | 有仍在期限內的 pending 上傳工作                                |
+| `tracked_upload`                                        | 有其他／過期上傳工作；交由既有工作機制判斷                     |
+| `pending_blob_cleanup`／`pending_trip_cleanup`          | 已經在物件／旅程清理流程                                       |
+| `retired_object_present`／`deleted_trip_object_present` | 清理標示完成，但列舉仍觀察到物件，需調查                       |
+| `trip_cleanup_conflict`                                 | 清理工作與仍存在的旅程互相衝突                                 |
+| `recent_unreferenced`                                   | 未找到參照，但仍在近期上傳緩衝內                               |
+| `unknown_key`／`unknown_age`                            | key 格式或修改時間不明，不當成可刪除候選                       |
+| `suspected_orphan`                                      | 現存旅程、舊物件、未找到照片或工作參照；只是疑似孤兒           |
+| `missing_trip_candidate`                                | 旅程不存在、沒有已知參照／工作且超過緩衝；不能直接斷言刪除原因 |
 
 `photos.jsonl` 另列 `missing_display`／`missing_thumbnail`。缺少顯示檔的照片無法計算 hash；缺少縮圖但顯示檔存在者仍可納入 JPEG 比對。
 
@@ -110,7 +116,7 @@ pnpm photos:audit --all --apply --out photo-audit-reports/backfill
 
 ## 測試
 
-[photoAudit.test.mjs](../../src/__tests__/photoAudit.test.mjs) 涵蓋公開副本保護、各種清理／上傳狀態、近期緩衝、R2 分頁、缺檔與 503 分流、串流 hash、同旅程分組、只讀模式、回填重跑、物件變更、照片刪除／編輯衝突、中斷與錯誤資訊遮蔽。
+[photoAudit.test.mjs](../src/__tests__/photoAudit.test.mjs) 涵蓋公開副本保護、各種清理／上傳狀態、近期緩衝、R2 分頁、缺檔與 503 分流、串流 hash、同旅程分組、只讀模式、回填重跑、物件變更、照片刪除／編輯衝突、中斷與錯誤資訊遮蔽。
 
 ```sh
 pnpm exec vitest run src/__tests__/photoAudit.test.mjs
@@ -123,6 +129,6 @@ PHOTO_UPLOAD_TEST_MONGODB_URI='mongodb://127.0.0.1:27017/?directConnection=true&
   pnpm exec vitest run src/__tests__/photoAudit.test.mjs
 ```
 
-本機相關測試 88 項通過（包含此工具兩個真實 MongoDB 測試及既有上傳交易測試）；Lint 與 TypeScript 檢查通過。
+歷史測試結果見封存摘要；上列命令供重新驗證，本次整理未執行資料庫或 R2 操作。
 
-R2 adapter 有 SDK mock 測試，另已對正式 bucket 完成 LIST／HEAD／GET 只讀驗證，結果與近期照片的涵蓋限制見 [正式資料測試紀錄](PHOTO_UPLOAD_HISTORY_PRODUCTION_TEST.md)。正式 hash 回填尚未執行；後續經使用者指示完成 8 個孤兒物件的退役／刪除，紀錄亦見上述文件。讀取流量不等同帳單費用。
+R2 adapter 有 SDK mock 測試，另已對正式 bucket 完成 LIST／HEAD／GET 只讀驗證，結果與近期照片的涵蓋限制見 [正式資料測試紀錄](archive/history/PHOTO_UPLOAD.md)。正式 hash 回填尚未執行；後續經使用者指示完成 8 個孤兒物件的退役／刪除，紀錄亦見上述文件。讀取流量不等同帳單費用。

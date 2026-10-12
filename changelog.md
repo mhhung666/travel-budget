@@ -6,35 +6,15 @@
 
 ### 2026-10-12
 
-- Web／Mobile UX-T：依 [我的旅行共同設計](docs/design/MY_TRIPS.md) 實作頁首、水平分頁、完整卡片名稱／日期與本人帳務，分離主區／更多／快捷；移除 Web 建立 FAB／重複行程入口，保留列表排序、分頁與全量授權計數。
-- 封存先確認本人範圍與旅行名稱，補取消、防重送、失敗／撤權及最後封存空頁；App 改底部可捲動視窗並保留原 E 恢復，Web 沿用既有絕對狀態操作。行為測試、四語 axe、check／build／匯出通過，已提交／未部署；UX-T3 裝置與使用者驗證交他人執行。
-
-- Mobile T3b：新鮮全量候選判斷才自動開表單；旅行上下文優先、失權退回手動選擇，切換先保存原草稿，失敗留原表單。最近使用只保存帳號／環境隔離的旅行 ID，不自動提交帳務。
-- Web／契約：quick-add 增加相容的偏好參數與 echo，復用 Web 完整授權同群排序後分頁，保留唯一性與批次查詢成本；補分頁、競態、儲存與恢復回歸。已提交／未部署，iPhone／iPad 與 VoiceOver 交由他人驗收，Android 延後；見 [T3b 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#t3b-快捷選擇交接)。
-
-- Mobile T3a：全域記一筆接獨立未封存／快速記帳分頁，顯示完整名稱、日期及階段，保留明確點選、取消歷史與登入／撤權守衛；全封存時可進已封存首頁。SQLite 新增最小封存狀態，區分一般／已封存／未知本機旅行，封存 receipt 原子保存且防舊回應覆蓋；舊草稿、原 UUID、deny／pending／429 保留。已提交／未部署，iPhone／iPad 由他人驗收，T3b 快捷選擇尚未開始。
-
-- Mobile T2：旅行首頁接一般／已封存全量計數、跨頁分組及獨立記帳／結算／更多操作；列表與設定共用個人封存確認及原 E UUID／SQLite／receipt，保留未保存輸入、衝突及未知結果恢復。刷新重設第一頁，撤權遮罩計數／視窗且不解除 deny；已提交／未部署，iPhone／iPad 由他人驗收，T3a 已接續實作。
-
-- Web／Mobile T1：v2 旅行列表新增一般／封存篩選、共用列表／快速記帳排序及全量計數／唯一候選 metadata，舊無參數排序保持相容；Mobile 新查詢依帳號／環境／日期／模式隔離，缺能力明示服務未就緒。保留批次驗證／摘要，補超過兩頁與日曆日回歸；T2／T3 畫面、封存入口及離線候選尚未實作，已提交／未部署，iOS 由他人驗收。
-
-- Web／Mobile M4b：共用好友服務與 v2 契約，新增原生清單、雙向邀請處理及旅行真人成員入口；修正相向／重複邀請競態與已處理誤報成功，通知失敗不覆蓋已提交關係。未知結果只查現況、不自動重送，保留撤權／換帳號隔離及無旅行授權；已提交／未部署，iPhone／iPad、VoiceOver 與真通知待他人驗收。
-
-- Web／Mobile M4a：共用本人 Email 通知開關與通知語言讀寫，新增 v2 私人契約及原生四語頁；Web 顯示語言不再覆寫通知語言，部分更新保留其他裝置設定。保存失敗／未知結果先查目前值、防雙擊與換帳號隔離；已提交／未部署，iPhone／iPad、VoiceOver 與真通知交他人驗收，原生推播／收件匣另片，F 暫緩。
+- Web／Mobile：完成 T1–T3b 列表篩選／分組、個人封存、線上／離線候選及全量快捷記帳；UX-T1／T2 統一頁首、分頁、卡片與確認互動，保留原 UUID、權限及草稿恢復。
+- Web／Mobile：完成 M4a 通知偏好與 M4b 好友，共用本人／關係服務及 v2 契約。上述功能工程檢查通過、已提交／未部署，iOS、閱讀器、真通知及 UX-T3 使用者驗證仍待驗。
+- 文件：盤點全 repository，將已完成 T／M／U／G／B 實作、歷史設計與 Web 結案計畫歸檔；精簡路線與重複成果，保留現行契約、維運命令及未完成驗收，更新索引與連結。只整理文件，未重跑產品驗收。
 
 ### 2026-10-11
 
-- Mobile：頭像頁放大置中、相機選圖與完整預覽，移除整列選圖／重新整理及並列圖片；新增拖曳／雙指縮放、圓形裁切與重設，完成後仍需確認上傳，取消／捨棄保留原圖。彈出畫面獨立量測安全區、精簡說明，修正標題碰到狀態列；補邊界、失敗、雙擊與換帳號回歸，保留既有 UUID／恢復。已提交／未部署，iPhone／iPad 手勢、HEIC 與 VoiceOver 由他人驗收。
-
-- Web／Mobile M3b：共用新信箱寄碼／驗碼／取消服務，帳號獨立額度、原子更新與一次性碼、投遞候選保護重寄／取消競態，舊信箱重設碼不可套到新信箱；新增原生四語入口，未知結果只讀目前信箱、秘密不落盤。已補故障、隔離 DB／HTTP 與工程驗證，已提交／未部署；iPhone／iPad、VoiceOver 與真郵件由他人驗收，見 [M3b 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#m3b-email-變更交接)。E2 匿名配額風險及 F 仍另列，M4 未開始。
-
-- Web／Mobile M3a：共用本人修改密碼與限流、原子衝突保護，修改／重設撤銷舊 Web／App 登入；手機新增安全表單、未知結果只轉登入核對，不落盤或自動重送密碼，保留本機草稿／原 UUID 工作。已補故障與隔離 HTTP／DB 回歸，已提交／未部署；iPhone／iPad 與 VoiceOver 由他人驗收，見 [M3a 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#m3a-修改密碼交接)，M3b 已接續實作，M4 未開始。
-
-- Web／Mobile M2：本人公開頭像讀取、選圖預覽後確認替換／移除，共用型別／大小、本人 fence 與持久化清理；Native 固定 UUID、獨立 SQLite、重啟只查詢與手動續送／取消，保護衝突及換帳號。已補故障回歸與索引 migration，已提交／未部署／未執行遠端 migration；真 R2、iPhone／iPad 與 VoiceOver 交他人驗收，見 [M2 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#m2-頭像交接)。
-
-- Web／Mobile M1：共用本人資料讀取及顯示名稱更新服務，新增相容 v2 私人契約；我的提供個人資料與裝置偏好摘要，關於獨立。保存／未知結果／本機快照失敗分開處理，保護換帳號及 refresh 競態，Email 不進登入與帳務快照；已提交、未部署，iPhone／iPad 與 VoiceOver 待他人驗收，見 [M1 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#m1-我的與個人資料交接)。
-- Mobile U3d-1：新增／編輯支出依金額、資料、付款／分攤分區，成員摘要可展開，必要輸入／警告與原／新份額確認完整保留；沿用草稿、衝突與原 UUID／限速守衛，更新 Maestro 展開步驟，已提交。1,509 項＋工具 48 項、check／contracts／三平台匯出通過；iOS／VoiceOver 由其他人驗收；次頁已接續 U3d-2，見 [交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u3d-1-新增與編輯表單交接)。
-- Mobile U3d-2：結算本人建議優先、其他建議可展開，還款／預算／收據／本機恢復按資訊與主次操作分區；超支、危險確認、結果不明及原 UUID／等待期限保持可見，未改帳務或檔案清理。已提交，1,515 項＋工具 48 項、check／contracts／三平台匯出通過；iOS／VoiceOver 與 R2 待他人驗收，F 暫緩，見 [交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u3d-2-結算與次頁交接)。
+- Mobile：完成 M1 本人名稱／偏好／關於、M2 頭像與手勢裁切、M3a 密碼／M3b Email，沿用共用後端、帳號隔離與各操作恢復。E2 匿名配額風險仍待 F2 處理。
+- Mobile U3d：新增／編輯、結算／還款、預算／收據／本機工作按內容與主次操作整理，完整保留必要警告、分攤確認與原 UUID／等待期限。
+- 上述工程、隔離故障與必要檢查已交付並提交／未部署；iPhone／iPad、VoiceOver、頭像真 R2／手勢及實際郵件待驗，詳見 [操作清單](apps/mobile/docs/LOCAL_ACCEPTANCE.md) 與 [已完成摘要](apps/mobile/docs/archive/README.md)。
 
 ### 2026-10-10
 
@@ -51,7 +31,7 @@
 ### 2026-10-08
 
 - B5（Web／Mobile／contracts）：完成退役盤點、共用 auth／會員／公開入口及 action wrapper。B5c-1 新請求預設 v2，保留原環境憑證／SQLite 分區與舊操作版本；Mobile 1,215 項＋工具 43 項、Mobile check／contracts／三平台匯出複驗通過。v2 流量斷言已修正，收據計數後續修正與原生限制見 [B 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#b-基準幣別驗收b1b2b3-實作交接)。
-- Mobile U1／U2：完成頁面與表單整理，修正恢復等待、原幣代碼、可見筆數、名冊同名短碼與負零，保留原 UUID／期限／撤權；相應 patch 與工程檢查已完成。iOS 字級／閱讀器、歷史名冊限制及延期整理見 [U 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u-靜態審查修正交接2026-10-08)，Android 延後。
+- Mobile U1／U2：完成頁面與表單整理，修正恢復等待、原幣代碼、可見筆數、名冊同名短碼與負零，保留原 UUID／期限／撤權；相應 patch 與工程檢查已完成。iOS 字級／閱讀器、歷史名冊限制及延期整理見 [U 交接](apps/mobile/docs/archive/ACCEPTANCE.md#u-靜態審查修正交接2026-10-08)，Android 延後。
 - G1／G2／B1–B4（Web／Mobile）：完成旅行管理、外幣均分與固定基準／v2，保留舊 TWD／v1／UUID 恢復；補隔離驗收工具，修正終局拒絕收據、AI 授權、列表批次驗證及 CI 格式／MongoDB 建表競態，184 項重點回歸通過並提交兩應用 patch。跨端操作待驗見 [B 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#b-基準幣別驗收b1b2b3-實作交接)；非 TWD 建立關閉，G3／G4／F 延後，未部署。
 
 ### 2026-10-07

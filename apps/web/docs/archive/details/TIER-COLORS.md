@@ -2,9 +2,9 @@
 
 > **已下線**：會籍功能（`/memberships`）與本檔引用的程式碼已移除，本檔僅供歷史參考。
 
-會籍頁（`/memberships`）各計畫收合列的等級 badge（[ProgramProgressCard](../../../src/components/memberships/ProgramProgressCard.tsx)）
+會籍頁（`/memberships`）各計畫收合列的等級 badge（`ProgramProgressCard`（程式已移除））
 以**該等級官方會員卡的卡面主色**做底色，讓等級一眼可辨。本檔制定取色與維護規則；
-色值本體集中在 [constants/loyalty.ts](../../../src/constants/loyalty.ts) 的 `TIER_BADGE_COLORS`。
+色值本體集中在 `constants/loyalty.ts`（程式已移除） 的 `TIER_BADGE_COLORS`。
 
 ## 顯示規則
 
@@ -23,21 +23,21 @@
 
 ## 色表
 
-| Program | Tier key | 名稱 | 色值 | 依據 |
-| --- | --- | --- | --- | --- |
-| CX | `green` | 綠卡 | `#367D78` | 官網卡面（品牌藍綠） |
-| CX | `silver` | 銀卡 | `#8C8C8C` | 共用銀 |
-| CX | `gold` | 金卡 | `#8A7423` | 共用金 |
-| CX | `diamond` | 鑽石卡 | `#2C2C2A` | 共用黑鑽 |
-| CX | `diamond_plus` | 鑽石行政卡 | `#141414` | 暫定（規則 5，官方未出卡面） |
-| CI | `member` | 華夏卡 | `#35477D` | 品牌深藍近似 |
-| CI | `gold` | 金卡 | `#8A7423` | 共用金 |
-| CI | `emerald` | 翡翠卡 | `#1E7A5A` | 卡名材質（翡翠綠） |
-| CI | `paragon` | 晶鑽卡 | `#2C2C2A` | 共用黑鑽 |
-| BR | `green` | 綠卡 | `#16604B` | 品牌綠近似 |
-| BR | `silver` | 銀卡 | `#8C8C8C` | 共用銀 |
-| BR | `gold` | 金卡 | `#8A7423` | 共用金 |
-| BR | `diamond` | 鑽石卡 | `#2C2C2A` | 共用黑鑽 |
+| Program | Tier key       | 名稱       | 色值      | 依據                         |
+| ------- | -------------- | ---------- | --------- | ---------------------------- |
+| CX      | `green`        | 綠卡       | `#367D78` | 官網卡面（品牌藍綠）         |
+| CX      | `silver`       | 銀卡       | `#8C8C8C` | 共用銀                       |
+| CX      | `gold`         | 金卡       | `#8A7423` | 共用金                       |
+| CX      | `diamond`      | 鑽石卡     | `#2C2C2A` | 共用黑鑽                     |
+| CX      | `diamond_plus` | 鑽石行政卡 | `#141414` | 暫定（規則 5，官方未出卡面） |
+| CI      | `member`       | 華夏卡     | `#35477D` | 品牌深藍近似                 |
+| CI      | `gold`         | 金卡       | `#8A7423` | 共用金                       |
+| CI      | `emerald`      | 翡翠卡     | `#1E7A5A` | 卡名材質（翡翠綠）           |
+| CI      | `paragon`      | 晶鑽卡     | `#2C2C2A` | 共用黑鑽                     |
+| BR      | `green`        | 綠卡       | `#16604B` | 品牌綠近似                   |
+| BR      | `silver`       | 銀卡       | `#8C8C8C` | 共用銀                       |
+| BR      | `gold`         | 金卡       | `#8A7423` | 共用金                       |
+| BR      | `diamond`      | 鑽石卡     | `#2C2C2A` | 共用黑鑽                     |
 
 ## 新增／修改流程
 

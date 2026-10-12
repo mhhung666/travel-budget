@@ -88,17 +88,17 @@ U3c-1 的 `ExpenseListItem` 在既有 FlatList cell 內放 date-only 標題，�
 
 ## 資料能力與後續工作
 
-| 類型         | 目標責任                                              | 實作時機           |
-| ------------ | ----------------------------------------------------- | ------------------ |
-| 遠端快取     | TanStack Query；key 包含帳號、環境與資源範圍          | 已實作（僅記憶體） |
-| 登入憑證     | access token 記憶體；refresh token SecureStore        | 已實作             |
-| 待確認支出   | SQLite 紀錄（`expo-sqlite`），獨立於可清除的快取      | 已實作（階段 C）   |
-| 支出草稿     | 原始表單、修訂保存與原子交接；不保存預覽              | 已實作（D1）       |
-| 離線草稿入口 | 最小旅行／成員選項快照、受限本機身分、冷啟動續填      | 已實作（D2）       |
-| 待送支出     | 均分意圖、多筆佇列與前景同步；OS 背景排程另排         | 已實作（D3）       |
-| 原生生命週期 | AppState／網路 adapter 接 Query focus／online manager | 已實作             |
-| 檔案         | App 私有目錄、穩定 upload ID、begin／finish 協議      | 相簿與附件階段     |
-| 通知         | 原生裝置 token 與後端裝置註冊                         | 核心流程穩定後     |
+| 類型         | 目標責任                                              | 實作時機                   |
+| ------------ | ----------------------------------------------------- | -------------------------- |
+| 遠端快取     | TanStack Query；key 包含帳號、環境與資源範圍          | 已實作（僅記憶體）         |
+| 登入憑證     | access token 記憶體；refresh token SecureStore        | 已實作                     |
+| 待確認支出   | SQLite 紀錄（`expo-sqlite`），獨立於可清除的快取      | 已實作（階段 C）           |
+| 支出草稿     | 原始表單、修訂保存與原子交接；不保存預覽              | 已實作（D1）               |
+| 離線草稿入口 | 最小旅行／成員選項快照、受限本機身分、冷啟動續填      | 已實作（D2）               |
+| 待送支出     | 均分意圖、多筆佇列與前景同步；OS 背景排程另排         | 已實作（D3）               |
+| 原生生命週期 | AppState／網路 adapter 接 Query focus／online manager | 已實作                     |
+| 檔案         | App 私有目錄、穩定 upload ID、begin／finish 協議      | 收據／頭像已實作；相簿另排 |
+| 通知         | 原生裝置 token 與後端裝置註冊                         | 核心流程穩定後             |
 
 Query 預設不重試；私人資源的讀取經 `keepAccessDenial`：收到存取拒絕（401／403／404）後，該拒絕保持為查詢的錯誤，暫時性失敗不會讓隱藏的快取重新出現，直到成功讀取。其他請求發現的拒絕（例如新增支出的預覽被拒）以 `recordAccessDenial` 記為該資源查詢的錯誤，效果相同。HTTP 在 401 時由 session manager 合併 refresh、最多重送一次。429 尊重 Retry-After；其餘錯誤由使用者明確重試。登入／登出先取消並清除私人查詢，key 包含 API 環境與帳號。Token 不進 Query cache；refresh 持久化完成後才公開登入狀態。`SessionManager.requestAs(userId, …)` 只在該帳號仍是目前登入者時送出，換帳號或登出後在送出前就失敗，不會用另一個帳號的 token 送出前一個帳號的請求。
 

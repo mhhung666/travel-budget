@@ -1,6 +1,8 @@
 # 手機 API
 
-**B1 已實作，尚未部署／開放非 TWD 建立**：依 [B0–B4 規格](../../mobile/docs/ROADMAP.md#b旅程基準幣別改造規格2026-10-08) 新增 `/api/v2` 帳務及旅行／成員管理薄路由，沿用同一 bearer session、服務、交易與資料庫。B5b-1 起 auth（登入／refresh／登出／註冊／寄碼／重設）與 `me` 也有 v2 薄入口，與 v1 共用 session、限流、一次性碼與 schema，回應不帶 ledger；B5d-1 起 Mobile 只送 v2；**B5d-2 已刪除全部 32 個 `/api/v1` 會員 route**（含 v1 `exchange-rates`），未知 `/api/v1/*` 一律回 Next 404、不轉送其他契約，OpenAPI 只發布 v2。B2 Web 已使用新版帳本 adapter。Web 的公開新版路徑與瀏覽器恢復見 [B2 架構](ARCHITECTURE.md#b2-web-帳本與恢復)。
+原生 API 使用 `/api/v2`，auth／me 與帳務／旅行管理沿用同一 bearer session、授權服務、交易與資料庫。B5 已退役全部 32 個 `/api/v1` 會員 route，未知舊路徑回 404，不轉送其他契約；OpenAPI 只發布 v2。歷史 TWD 解碼／receipt 與帳號隔離保留，退役決策見 [B5 摘要](../../mobile/docs/archive/README.md#b5-v1-退役與-v2-整併2026-10-09)。
+
+非 TWD 建立預設關閉，B4 跨端待驗見 [固定案例](../../mobile/docs/LOCAL_ACCEPTANCE.md#b4-固定帳務案例)。Web 已使用新版帳本 adapter，公開路徑與瀏覽器恢復見 [B2 架構](ARCHITECTURE.md#b2-web-帳本與恢復)。
 
 ## B1 基準幣別契約
 
@@ -105,13 +107,11 @@ expenseMaintenance 的 context 在同一 snapshot 帶回幣別選項／精確歷
 
 expenseMaintenance.integration 覆蓋 JPY 小數、零 TWD、小／大 rate／換算上限、並發 UUID、副作用／receipt 去重、Web 衝突、撤權及交易回滾；test:mobile-api 在 G2b 自建隔離旅行核對真 PATCH 丟回應、原 UUID 查回／重播、DB／明細精確值及明確轉 TWD。沒有 migration 或遠端操作，iOS 另由其他人驗收。
 
-
 ## G3a-1 進階分攤預覽
 
 v2 preview 已透過 `computeLedgerSplits` 共用 Web 的均分／固定原幣金額／百分比／份數；JSON number／null 嚴格輸入、穩定成員尾差與雙單位份額由共用契約驗證。`expense-options.splitPreviewModes` 只宣告預覽能力，舊均分 body／回應與全域 capabilities 保持相容。完整欄位、精度、容差及不保存歷史模式的決策集中在 [G3a-1 契約](../../mobile/docs/BACKEND_CONTRACT.md#g3a-1-進階分攤預覽)。寫入核對已於 G3a-2 接上（見下節）；手機 UI 尚待 G3b，不新增 migration、不開非 TWD 新建。
 
 `advancedExpensePreview.test.ts` 核對契約、v2 route、Web 同值、邊界與授權；`expenseSplit.test.ts` 保留獨立數值 fixtures。`test:mobile-api` 在自建隔離 DB／HTTP 核對四模式、原幣份額、逆序及錯誤，並確認預覽不寫入。
-
 
 ## G3a-2 進階分攤確認寫入
 
@@ -123,14 +123,11 @@ v2 preview 已透過 `computeLedgerSplits` 共用 Web 的均分／固定原幣�
 
 `GET/POST /api/v2/trips/:id/budget` 提供本人總／分類預算及全量分攤進度，使用 Web 共用計算、正規化與交易，普通成員可設定本人預算。`budget.set` 原 UUID 結果由既有 mutation-requests 查詢，不輸出私人金額。輸入、版本衝突、零／清空與隱私邊界集中於 [Mobile G4a 契約](../../mobile/docs/BACKEND_CONTRACT.md#g4a-個人預算)；隔離交易與 HTTP 驗證納入 `test:mobile-api`，裝置待驗另列。
 
-
 ## G4b 搜尋與分析
 
 新增成員 `GET /api/v2/trips/:id/expense-search`，舊支出清單不變。支援字面描述／付款人搜尋、分類／付款人 ID／含起訖日期，snapshot 內先算全量總計與分類／成員分析再切頁；每頁 20 筆，內容／條件改動使游標回 409，須刷新第一頁。契約、歷史資料與隱私規則見 [Mobile G4b](../../mobile/docs/BACKEND_CONTRACT.md#g4b-搜尋與分析)；真 HTTP 與獨立 DB 案例納入 `test:mobile-api`，原生操作另列。
 
-U3c-2 修正 MongoDB 8／driver 7.2 的 transaction CSOT／getMore 相容性：搜尋讀取仍在授權 snapshot 內，公開 per-operation `timeoutMS` 共用一個 20 秒絕對期限，包含授權／子文件 probes、全部支出／使用者游標與 commit，重試不重置期限；其他讀取與寫入 fence 不變。非 awaitData getMore 不帶 server maxTimeMS，保留 client 游標期限。`test:mobile-api` 包含 48／1,000 筆 HTTP、跨兩種 collection batch、50 頁全量回歸與既有拒絕／隱私案例；本機成本樣本見 [量測](../../mobile/docs/design/u3a-baseline/search-measure.json)，原生操作仍待驗。
-
-
+U3c-2 修正 MongoDB 8／driver 7.2 的 transaction CSOT／getMore 相容性：搜尋讀取仍在授權 snapshot 內，公開 per-operation `timeoutMS` 共用一個 20 秒絕對期限，包含授權／子文件 probes、全部支出／使用者游標與 commit，重試不重置期限；其他讀取與寫入 fence 不變。非 awaitData getMore 不帶 server maxTimeMS，保留 client 游標期限。`test:mobile-api` 包含 48／1,000 筆 HTTP、跨兩種 collection batch、50 頁全量回歸與既有拒絕／隱私案例；本機成本樣本見 [量測](../../mobile/docs/archive/design/u3a-baseline/search-measure.json)，原生操作仍待驗。
 
 ## G6a 私人收據閱讀
 
@@ -150,12 +147,12 @@ U3c-2 修正 MongoDB 8／driver 7.2 的 transaction CSOT／getMore 相容性：�
 
 新增獨立、自身 bearer 的 v2 契約（全部 no-store、Vary Authorization）：
 
-| 端點 | 契約 |
-| --- | --- |
-| `GET /me/avatar` | `{ avatarUrl: string|null, revision }`；公開圖片 URL，不含 Email、密碼或 token。 |
-| `POST /me/avatar/requests` | 嚴格 `{ action: replace|remove, client_request_id, expectedRevision }`；replace 額外必填 contentType、size。回原 UUID 的 pending／committed／rejected。 |
-| `GET /me/avatar/requests/:uuid` | 只查詢原 receipt；不存在為 not_found，不推斷未執行。 |
-| `POST /me/avatar/requests/:uuid` | `{ action: upload|finish|cancel }`；upload 可帶 120 秒 PUT ticket，finish 重驗 HEAD。取消先消耗 UUID，未開始的 remove 不因此被送出。 |
+| 端點                             | 契約                                                 |
+| -------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `GET /me/avatar`                 | `{ avatarUrl: string                                 | null, revision }`；公開圖片 URL，不含 Email、密碼或 token。                                                                     |
+| `POST /me/avatar/requests`       | 嚴格 `{ action: replace                              | remove, client_request_id, expectedRevision }`；replace 額外必填 contentType、size。回原 UUID 的 pending／committed／rejected。 |
+| `GET /me/avatar/requests/:uuid`  | 只查詢原 receipt；不存在為 not_found，不推斷未執行。 |
+| `POST /me/avatar/requests/:uuid` | `{ action: upload                                    | finish                                                                                                                          | cancel }`；upload 可帶 120 秒 PUT ticket，finish 重驗 HEAD。取消先消耗 UUID，未開始的 remove 不因此被送出。 |
 
 UUID 及白名單／1 byte–4 MiB／JPEG、PNG、WebP 由共用 schema 驗證；server 產生本人 key，不接受 URL、儲存 key、actor 或其他欄位。MongoDB 本人 fence 內原子寫入頭像、revision、終局與清理工作，已提交原 UUID 重播回原結果，不重新套用；同 UUID 不同內容回 IDEMPOTENCY_CONFLICT。衝突 RESOURCE_CHANGED、驗證拒絕、取消 CANCELLED、到期 EXPIRED 保存終局；未知 HTTP／儲存故障保留 pending，不換 UUID。GET 不修改 fence；HEAD 失敗與不存在分開，未上傳回 UPLOAD_INCOMPLETE 可手動續送。Native ticket 以 If-None-Match 防覆寫，412 後仍核對实际 size／type 與原確認值。
 

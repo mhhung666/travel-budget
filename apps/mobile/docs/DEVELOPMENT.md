@@ -39,7 +39,7 @@ Mobile 文件也受 App 的 Prettier 規則檢查。根目錄 `.prettierignore` 
 | 格式                  | 沿用單引號、分號、兩格縮排、100 字寬、LF                                                                    |
 | 四語系                | 所有使用者文字補齊 `zh`、`zh-CN`、`en`、`jp`；Native `ja` 映射 `jp`                                         |
 | UI 色彩               | 使用語意 token；Native styles 不套用 Web Tailwind palette 規則                                              |
-| 金額／日期            | TWD 基準、到分精度、最大餘數分配與穩定順序；date-only 不任意轉 UTC                                          |
+| 金額／日期            | 旅程固定基準（歷史缺值 TWD）、到分精度、最大餘數分配與穩定順序；date-only 不任意轉 UTC                      |
 | 公開／會員邊界        | 私人預算、收據、成員筆記不外洩；公開相片不含位置／EXIF／內部 key                                            |
 | AI                    | 只產生可編輯草稿；確認後呼叫正式寫入 API                                                                    |
 
@@ -60,7 +60,7 @@ Mobile 文件也受 App 的 Prettier 規則檢查。根目錄 `.prettierignore` 
 
 目前使用 Vitest 測試 HTTP／登入生命週期，故障代理另以 Node HTTP 測試確認斷線／逾時不送出寫入、恢復後正常轉送，以及一次性「丟回應」模式（目標寫入已在後端提交、客戶端收不到回應，其他請求與之後的同一寫入不受影響），包含在 `pnpm test`。手機 CI 執行型別、lint、格式、測試、Expo 相容性與三平台 bundle 檢查，不需要後端密鑰。共用契約檢查驗證 OpenAPI 與 schema 同步。API／權限、裝置 session 與 DB transaction 測試留在 `apps/web`，不使用正式帳號或資料庫。
 
-現有測試涵蓋 401／refresh 合併、回應內容讀取中斷線／逾時／取消、重啟恢復、憑證輪替後安全儲存失敗、重複登出及新舊登入交錯，並驗證缺少 `throwIfAborted()`／`reason` 的原生 AbortSignal。原生生命週期 adapter 與 QueryObserver 整合測試涵蓋網路事件／啟動讀取競態、前景重新讀取連線、離線查詢恢復及過期資料更新。QueryClient 整合測試驗證登出、session 撤銷及憑證儲存失敗會清除私人快取、取消尚未完成的讀取。這些測試使用模擬 HTTP／儲存介面，不取代裝置上的登入與 SecureStore 驗收。支出清單的游標查詢、帳號／環境隔離的 query key、撤權後的快取隱藏（真 QueryClient）、金額格式、四語訊息完整性與新增支出契約（金額到分、嚴格欄位、結果查詢）另有單元測試；支出與結算畫面由 Maestro `ledger` suite 驗收。新增支出另有單元測試：嚴格金額／日期輸入、草稿驗證與預覽狀態（請求亂序、改輸入即失效、重新預覽或被拒即捨棄舊結果）、待確認紀錄的 SQLite（以 Node 內建 `node:sqlite` 對同一份 SQL 執行，涵蓋環境／帳號隔離）、`requestAs` 帳號綁定與登入世代檢查、預覽被拒後的持續隱藏（真 QueryClient），以及以真 SQLite、真 session manager 與模擬後端（`src/test/expenseServer.ts`：成員資格、契約驗證、冪等 receipt、可注入遺失回應／逾時／5xx）執行的送出引擎：先存後送、儲存失敗不送、明確拒絕才清除、回應遺失後查詢找回或以同一 UUID 重試、重啟恢復、帳號切換與晚到的成功／錯誤回應（含看似確定的 400）、併發操作、本機清理失敗後不重送、409 不換 UUID。原生流程由 Maestro `entry` suite 驗收並以代理流量與資料庫核對；D1 新增真 SQLite 草稿檔案重開、舊表升級、修訂／捨棄競態、存檔與原子交接失敗、子程序直接終止恢復，以及接回 C 的同 UUID 行為測試；兩平台草稿操作仍待獨立驗收。D2 已補真 SQLite 快照重開／升級、SecureStore 憑證與身分原子保存、受限 session／A→B→A、撤權與保存競態，以及斷網草稿恢復線上授權／新成員／新預覽後單次寫入的整合測試；D3 已補均分意圖確認、多筆前景同步、SQLite 原子交接／子程序當機、持久化 Retry-After、409 與撤權／換帳號回歸，另涵蓋交接交易、C 序列等待／SQLite 讀取與狀態保存、refresh 重送前的撤權，C 手動／自動查詢與重試的 429 落盤，以及 409 後查詢拒絕／限速；另以多旅行／同旅行多筆驗證 409 無 receipt 與 C 交接受阻只暫停該旅行、等待跨重啟及 C 結案後恢復，429 暫時性冷卻仍阻擋後續；衝突紀錄從 C 手動查詢／重試、自動恢復與佇列送出取得 429 時，獨立保存限速期限，重啟過 31 秒仍不送其他旅行，120 秒到期後才恢復，涵蓋不同佇列順序、較短等待及 schema 4 升級／失敗回滾；本機身分 schema 不相容的憑證仍可線上刷新，離線不開啟本機模式；重啟測試重新建立 HTTP client，不依賴記憶體冷卻；另涵蓋 C 跨旅行恢復／查詢／重試、捨棄或移回最後一筆限速紀錄後重啟仍等待、非佇列 C 新增的共用期限、帳號／環境隔離、receipt 清理及 schema 6 遷移／交易失敗回滾；D 的離線冷啟動、佇列及實際入帳核對仍待其他人執行兩平台裝置驗收，操作表見 [D3 交接](LOCAL_ACCEPTANCE.md#d3-佇列驗收交接)；OS 背景同步另排。原生核心流程另有 Maestro 驗收，指令與涵蓋範圍見 [本機驗收流程](LOCAL_ACCEPTANCE.md)。
+測試涵蓋 HTTP／登入世代、Query／撤權／晚到回應，真 SQLite 檔案重開、schema 升級、草稿／pending／佇列原子交接與故障恢復；共用後端用隔離 replica set／真 HTTP 核對 UUID、receipt、逐分金額及單次副作用。畫面回呼使用原生 mocks，不算鍵盤、閱讀器或裝置證據。工具、可重跑命令與剩餘驗收見 [LOCAL_ACCEPTANCE](LOCAL_ACCEPTANCE.md)，已完成工程數據只維護在 [archive](archive/README.md)。
 
 手機測試不可依賴正式帳號或資料庫；模擬資料需明確標示。發布前，iOS 與 Android 都要實測登入、弱網、前後景、重啟、文字縮放及權限拒絕。
 
@@ -72,7 +72,7 @@ Mobile 文件也受 App 的 Prettier 規則檢查。根目錄 `.prettierignore` 
 
 官方參考：[development builds](https://docs.expo.dev/develop/development-builds/introduction/)、[本機編譯](https://docs.expo.dev/guides/local-app-development/)、[環境變數](https://docs.expo.dev/guides/environment-variables/)、[runtime versions](https://docs.expo.dev/eas-update/runtime-versions/)。
 
-## 第一個切片的本機驗收
+## 基本登入與旅行冒煙驗收
 
 優先使用 [本機驗收流程](LOCAL_ACCEPTANCE.md) 的 `test:mobile-api`／`dev:mobile-api`，自動建立隔離 MongoDB 與測試帳號。以下步驟適用於另有既定測試後端的情況。
 

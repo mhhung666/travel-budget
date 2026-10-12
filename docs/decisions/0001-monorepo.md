@@ -1,6 +1,6 @@
 # ADR 0001：以 travel-budget 管理 Web、Mobile 與共用契約
 
-日期：2026-10-02。狀態：採用。取代 [Mobile 原獨立專案決策](../../apps/mobile/docs/decisions/0001-project-boundaries.md)。
+日期：2026-10-02。狀態：採用。取代 [Mobile 原獨立專案決策](../../apps/mobile/docs/archive/decisions/0001-project-boundaries.md)。
 
 ## 決策與邊界
 

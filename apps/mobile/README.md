@@ -2,7 +2,7 @@
 
 旅行記帳的 iOS／Android 用戶端，使用 Expo、React Native、Expo Router 與 TypeScript。位於 `travel-budget` repository 的 `apps/mobile`，與 `apps/web` 共用同一套業務後端及 `@travel-budget/contracts` API 契約。
 
-**已實作**：既有帳號登入、旅行列表與摘要、支出清單／明細與結算，以及線上新增支出（TWD、勾選成員均分，後端預覽、冪等送出）與裝置端待確認紀錄（回應遺失或重啟後找回，不重複記帳），搭配四語系、深淺色與安全憑證儲存。需同時啟動 `apps/web` 後端；尚未部署或完成真機驗收，新增支出仍待獨立驗收。
+**已實作**：帳號與「我的」、旅行／成員管理、一般／封存列表及快捷記帳，多幣別／四種分攤、支出維護、預算／搜尋分析、結算／還款、私人收據與本機草稿／恢復。功能與限制以 [FEATURES](docs/FEATURES.md) 為準；D 離線佇列仍限 TWD 均分，非 TWD 建立預設關閉。需使用相容的 `apps/web` 後端；裝置、外部服務與部署狀態見 [驗收](docs/LOCAL_ACCEPTANCE.md)，未完成項目不計通過。
 
 ## 開始開發
 
@@ -41,6 +41,6 @@ pnpm contracts:check
 - [src/features](src/features)：功能畫面與邏輯。
 - [app.config.ts](app.config.ts)：App 設定，版本讀取 `package.json`。
 
-目前採單一 repository、兩個獨立發布的應用，見 [整併決策](../../docs/decisions/0001-monorepo.md)。手機產品版本以本目錄 `package.json.version` 為唯一來源，根目錄 package 只協調 workspace。原始 [獨立專案決策](docs/decisions/0001-project-boundaries.md) 已被取代。
+目前採單一 repository、兩個獨立發布的應用，見 [整併決策](../../docs/decisions/0001-monorepo.md)。手機產品版本以本目錄 `package.json.version` 為唯一來源，根目錄 package 只協調 workspace。原始 [獨立專案決策](docs/archive/decisions/0001-project-boundaries.md) 已被取代。
 
 此骨架依 Expo 官方 default template 的穩定套件組合建立，保留模板授權於 [LICENSE](LICENSE)。圖示仍為模板素材，上架前須替換；產品其餘程式的正式授權由專案擁有者決定。
