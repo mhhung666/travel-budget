@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, UserPlus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useQueryClient } from '@tanstack/react-query';
@@ -21,6 +21,16 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import type { TripWithMembers } from '@/types';
+import { ActionQueryError } from '@/lib/actionQuery';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
 
 export default function TripsPage() {
   const router = useRouter();
@@ -28,6 +38,22 @@ export default function TripsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const online = useOnlineStatus();
+  const [tab, setTab] = useState('active');
+  const [archiveTarget, setArchiveTarget] = useState<TripWithMembers | null>(null);
+  const [archiveError, setArchiveError] = useState(false);
+  const [archiveSending, setArchiveSending] = useState(false);
+  const sending = useRef(false);
+  const mounted = useRef(true);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const activeTab = useRef<HTMLButtonElement>(null);
+  const archivedTab = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const tripsQuery = useTrips();
   const { data: trips = [], isLoading: loading } = tripsQuery;
   const { archive, unarchive } = useTripArchiveMutations();
@@ -47,22 +73,49 @@ export default function TripsPage() {
 
   const reloadTrips = () => queryClient.invalidateQueries({ queryKey: tripKeys.list });
 
-  const toggleArchive = async (trip: TripWithMembers) => {
-    const isArchived = trip.archived_at != null;
+  const denied =
+    tripsQuery.error instanceof ActionQueryError &&
+    ['UNAUTHORIZED', 'FORBIDDEN', 'NOT_FOUND'].includes(tripsQuery.error.code ?? '');
+  const selectedTrip =
+    denied || !archiveTarget
+      ? undefined
+      : trips.find(
+          (trip) => trip.id === archiveTarget.id && trip.archived_at === archiveTarget.archived_at
+        );
+  // Clear a vanished target immediately; it must not reopen if a later refresh brings it back.
+  if (archiveTarget && !selectedTrip) setArchiveTarget(null);
+  const requestArchive = (trip: TripWithMembers) => {
+    if (!online || sending.current) return;
+    setArchiveError(false);
+    setArchiveTarget(trip);
+  };
+  const toggleArchive = async () => {
+    if (!selectedTrip || sending.current || !online || !navigator.onLine) return;
+    const current = queryClient
+      .getQueryData<TripWithMembers[]>(tripKeys.list)
+      ?.find((trip) => trip.id === selectedTrip.id);
+    if (!current || current.archived_at !== selectedTrip.archived_at) return;
+    sending.current = true;
+    setArchiveSending(true);
     try {
-      if (isArchived) {
-        await unarchive.mutateAsync(trip.id);
-        toast({
-          description: t('unarchiveSuccess'),
-          variant: 'success',
-        });
-      } else {
-        await archive.mutateAsync(trip.id);
-        toast({ description: t('archiveSuccess') });
-      }
+      const isArchived = selectedTrip.archived_at != null;
+      await (isArchived ? unarchive : archive).mutateAsync(selectedTrip.id);
+      if (!mounted.current) return;
+      toast({
+        description: t(isArchived ? 'unarchiveSuccess' : 'archiveSuccess'),
+        variant: 'success',
+      });
+      setArchiveTarget(null);
     } catch {
-      toast({ variant: 'destructive', description: t('archiveFailed') });
+      if (mounted.current) setArchiveError(true);
+    } finally {
+      sending.current = false;
+      if (mounted.current) setArchiveSending(false);
     }
+  };
+  const restoreArchiveFocus = () => {
+    (tab === 'archived' ? archivedTab.current : activeTab.current)?.focus();
+    if (!(tab === 'archived' ? archivedTab.current : activeTab.current)) heading.current?.focus();
   };
 
   const copyHashCode = async (hashCode: string) => {
@@ -87,7 +140,7 @@ export default function TripsPage() {
 
   const feedback = (
     <QueryFeedback
-      hasData={tripsQuery.data !== undefined}
+      hasData={tripsQuery.data !== undefined && !denied}
       isError={tripsQuery.isError}
       isFetching={tripsQuery.isFetching}
       isPaused={tripsQuery.isPaused}
@@ -95,86 +148,174 @@ export default function TripsPage() {
     />
   );
 
-  if (tripsQuery.data === undefined) return feedback;
+  if (tripsQuery.data === undefined || denied) return feedback;
 
   return (
     <div className="container mx-auto max-w-6xl px-4 py-6">
       {feedback}
-      {/* 5.1：假 Card 版型移除，行程卡直接鋪在頁面上 */}
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold">{t('list')}</h1>
+      <div className="mb-6 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-3 md:grid-cols-[minmax(0,1fr)_auto_auto]">
+        <h1
+          ref={heading}
+          tabIndex={-1}
+          className="text-2xl font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {t('title')}
+        </h1>
         {trips.length > 0 && (
-          <div className="flex gap-2">
-            <Button onClick={() => setShowJoinModal(true)} variant="outline" className="gap-2">
-              <UserPlus size={16} />
-              {t('joinTrip')}
-            </Button>
-            {/* 行動端「建立行程」由 FAB 承擔（見下） */}
-            <Button onClick={() => setShowCreateModal(true)} className="gap-2 max-md:hidden">
+          <div className="col-start-2 row-start-1 min-w-0 md:col-start-3">
+            <Button
+              onClick={() => setShowCreateModal(true)}
+              disabled={!online}
+              variant="outline"
+              className="min-h-12 whitespace-normal gap-2"
+            >
               <Plus size={16} />
               {t('createTrip')}
             </Button>
           </div>
         )}
+        {trips.length > 0 && (
+          <div className="col-span-2 flex flex-wrap items-center justify-between gap-2 md:col-span-1 md:col-start-2 md:row-start-1">
+            <span className="text-sm text-muted-foreground md:hidden">{t('joinHint')}</span>
+            <Button
+              onClick={() => setShowJoinModal(true)}
+              disabled={!online}
+              variant="ghost"
+              className="min-h-12 whitespace-normal gap-2 text-primary"
+            >
+              <UserPlus size={16} />
+              {t('joinTrip')}
+            </Button>
+          </div>
+        )}
       </div>
 
-      {trips.length === 0 ? (
+      {trips.length === 0 && tab !== 'archived' ? (
         <EmptyTripsState
           onCreate={() => setShowCreateModal(true)}
           onJoin={() => setShowJoinModal(true)}
+          disabled={!online}
         />
-      ) : archivedTrips.length === 0 ? (
+      ) : archivedTrips.length === 0 && tab !== 'archived' ? (
         // 沒有任何封存時維持單一列表，不顯示分頁籤
         <TripList
           trips={activeTrips}
           onCopyCode={copyHashCode}
-          onToggleArchive={toggleArchive}
+          onToggleArchive={requestArchive}
+          disabled={!online || archiveSending}
           onQuickExpense={openQuickExpense}
         />
       ) : (
-        <Tabs defaultValue="active">
-          <TabsList className="mb-6">
-            <TabsTrigger value="active">
-              {t('tabActive')} ({activeTrips.length})
+        <Tabs
+          value={tab}
+          onValueChange={(value) => {
+            if (!sending.current) setTab(value);
+          }}
+        >
+          <TabsList className="mb-6 flex h-auto justify-start gap-2 rounded-none border-b bg-transparent p-0">
+            <TabsTrigger
+              ref={activeTab}
+              value="active"
+              disabled={archiveSending}
+              className="min-h-12 whitespace-normal rounded-none border-b-2 border-transparent px-4 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:font-bold data-[state=active]:text-primary data-[state=active]:shadow-none"
+            >
+              {t('tabActive')}
+              {!tripsQuery.isFetching && !tripsQuery.isError ? ` (${activeTrips.length})` : ''}
             </TabsTrigger>
-            <TabsTrigger value="archived">
-              {t('tabArchived')} ({archivedTrips.length})
+            <TabsTrigger
+              ref={archivedTab}
+              value="archived"
+              disabled={archiveSending}
+              className="min-h-12 whitespace-normal rounded-none border-b-2 border-transparent px-4 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:font-bold data-[state=active]:text-primary data-[state=active]:shadow-none"
+            >
+              {t('tabArchived')}
+              {!tripsQuery.isFetching && !tripsQuery.isError ? ` (${archivedTrips.length})` : ''}
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="active">
             {activeTrips.length === 0 ? (
-              <p className="text-center text-muted-foreground py-12">{t('noActiveTrips')}</p>
+              <div className="py-12 text-center">
+                <p className="text-muted-foreground">{t('noActiveTrips')}</p>
+                <Button
+                  variant="ghost"
+                  className="mt-4 min-h-12"
+                  onClick={() => setTab('archived')}
+                >
+                  {t('tabArchived')}
+                </Button>
+              </div>
             ) : (
               <TripList
                 trips={activeTrips}
                 onCopyCode={copyHashCode}
-                onToggleArchive={toggleArchive}
+                onToggleArchive={requestArchive}
+                disabled={!online || archiveSending}
                 onQuickExpense={openQuickExpense}
               />
             )}
           </TabsContent>
 
           <TabsContent value="archived">
+            {archivedTrips.length === 0 && (
+              <p className="py-12 text-center text-muted-foreground">{t('noArchivedTrips')}</p>
+            )}
             <TripList
               trips={archivedTrips}
               onCopyCode={copyHashCode}
-              onToggleArchive={toggleArchive}
+              onToggleArchive={requestArchive}
+              disabled={!online || archiveSending}
             />
           </TabsContent>
         </Tabs>
       )}
 
-      {/* FAB：建立行程（行動端；桌機用頁首按鈕） */}
-      {trips.length > 0 && (
-        <Button
-          onClick={() => setShowCreateModal(true)}
-          aria-label={t('createTrip')}
-          className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 z-40 h-14 w-14 rounded-full shadow-lg md:hidden [&_svg]:size-6"
+      <AlertDialog
+        open={!!selectedTrip}
+        onOpenChange={(open) => {
+          if (!open && !sending.current) setArchiveTarget(null);
+        }}
+      >
+        <AlertDialogContent
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            restoreArchiveFocus();
+          }}
+          onEscapeKeyDown={(event) => {
+            if (sending.current) event.preventDefault();
+          }}
+          className="max-h-[85dvh] w-[calc(100%_-_2rem)] overflow-y-auto rounded-2xl"
         >
-          <Plus />
-        </Button>
-      )}
+          <AlertDialogTitle>
+            {t(selectedTrip?.archived_at != null ? 'unarchive' : 'archive')}
+          </AlertDialogTitle>
+          <p className="break-words font-semibold">{selectedTrip?.name}</p>
+          <AlertDialogDescription>{t('archiveHint')}</AlertDialogDescription>
+          {archiveError && (
+            <p role="alert" className="text-sm text-destructive">
+              {t('archiveFailed')}
+            </p>
+          )}
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel className="min-h-12" disabled={archiveSending}>
+              {t('cancelArchive')}
+            </AlertDialogCancel>
+            <Button
+              className="min-h-12 whitespace-normal"
+              disabled={!online || archiveSending}
+              onClick={() => void toggleArchive()}
+            >
+              {t(
+                archiveSending
+                  ? 'archiveSending'
+                  : selectedTrip?.archived_at != null
+                    ? 'unarchive'
+                    : 'archive'
+              )}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {quickExpenseTrip && (
         <TripExpenseQuickAdd

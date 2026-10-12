@@ -56,7 +56,7 @@ describe('Phase 4 critical interaction accessibility', () => {
     const { container } = render(<EmptyTripsState onCreate={onCreate} onJoin={onJoin} />);
 
     await expectNoSeriousAxeViolations(container);
-    await user.click(screen.getByRole('button', { name: 'createTrip' }));
+    await user.click(screen.getByRole('button', { name: 'createFirstTrip' }));
     await user.click(screen.getByRole('button', { name: 'joinTrip' }));
 
     expect(onCreate).toHaveBeenCalledOnce();

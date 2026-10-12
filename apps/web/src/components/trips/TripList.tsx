@@ -2,7 +2,6 @@
 
 import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import { useRouter } from '@/i18n/navigation';
 import type { TripWithMembers } from '@/types';
 import { getTripCardStatus } from '@/lib/tripStatus';
 import { rankTripList } from '@/lib/tripListOrder';
@@ -13,6 +12,7 @@ interface TripListProps {
   onCopyCode: (code: string) => void;
   onToggleArchive?: (trip: TripWithMembers) => void;
   onQuickExpense?: (trip: TripWithMembers) => void;
+  disabled?: boolean;
 }
 
 export default function TripList({
@@ -20,8 +20,8 @@ export default function TripList({
   onCopyCode,
   onToggleArchive,
   onQuickExpense,
+  disabled,
 }: TripListProps) {
-  const router = useRouter();
   const t = useTranslations('trips');
 
   // 依年份分組（年份取自 start_date）。trips 已按 start_date 新到舊排序、無日期者墊底，
@@ -48,7 +48,7 @@ export default function TripList({
       });
     }
     for (const trip of rest) {
-      const year = trip.start_date ? new Date(trip.start_date).getFullYear() : null;
+      const year = trip.start_date?.slice(0, 4) ?? null;
       const key = year === null ? 'no-date' : String(year);
       const last = result[result.length - 1];
       if (last && last.key === key) {
@@ -73,15 +73,15 @@ export default function TripList({
       {groups.map((group) => (
         <section key={group.key}>
           <h3 className="mb-4 text-lg font-semibold text-foreground">{group.label}</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {group.trips.map((trip) => (
               <TripCard
                 key={trip.id}
                 trip={trip}
-                onClick={() => router.push(`/trips/${trip.hash_code}`)}
                 onCopyCode={onCopyCode}
                 onToggleArchive={onToggleArchive}
                 onQuickExpense={onQuickExpense}
+                disabled={disabled}
               />
             ))}
           </div>

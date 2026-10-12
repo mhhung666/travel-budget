@@ -21,16 +21,18 @@ export function tripDates(
   return `${t.startDate}: ${trip.startDate ? formatDate(trip.startDate, locale) : t.notSet} · ${t.endDate}: ${trip.endDate ? formatDate(trip.endDate, locale) : t.notSet}`;
 }
 
-export function TripMetadata({ trip }: { trip: Trip }) {
+export function TripMetadata({ trip, destination = false }: { trip: Trip; destination?: boolean }) {
   const t = useMessages(baseCurrency(trip));
   const p = usePalette();
   const { locale } = useDisplayFormat(baseCurrency(trip));
   return (
-    <Text style={[typography.label, { color: p.muted }]}>
-      {tripDates(trip, t, locale)}
-      {' · '}
-      {t.memberCount}: {trip.memberCount}
-    </Text>
+    <View style={{ gap: spacing.tiny }}>
+      <Text style={[typography.label, { color: p.muted }]}>{tripDates(trip, t, locale)}</Text>
+      <Text style={[typography.label, { color: p.muted }]}>
+        {destination && trip.destination ? `${trip.destination} · ` : ''}
+        {t.memberCount}: {trip.memberCount}
+      </Text>
+    </View>
   );
 }
 
@@ -46,7 +48,7 @@ export function TripFinancialSummary({
   const { money } = useDisplayFormat(baseCurrency(trip));
   const [width, setWidth] = useState(0);
   const { fontScale } = useWindowDimensions();
-  const columns = (width - spacing.small) / fontScale >= 320;
+  const columns = !compact && (width - spacing.small) / fontScale >= 320;
   const Row = compact ? CompactAmount : Metric;
   return (
     <View

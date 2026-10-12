@@ -226,9 +226,9 @@
     "retry": "再試行"
   },
   "trips": {
-    "title": "旅行一覧",
-    "list": "旅行リスト",
-    "createTrip": "新しい旅行を作成",
+    "title": "自分の旅行",
+    "list": "自分の旅行",
+    "createTrip": "旅行を作成",
     "joinTrip": "旅行に参加",
     "noTrips": "旅行記録がありません",
     "noTripsDescription": "新しい旅行を作成するか、招待コードを使って仲間の旅行に参加しましょう。",
@@ -312,10 +312,10 @@
     "archiveFailed": "操作に失敗しました。もう一度お試しください",
     "tripActions": "旅行の操作",
     "copyInviteLink": "招待リンクをコピー",
-    "tabActive": "現在の旅行",
+    "tabActive": "旅行",
     "tabArchived": "アーカイブ済み",
-    "noActiveTrips": "現在の旅行はありません",
-    "noDateGroup": "日付未定",
+    "noActiveTrips": "アーカイブされていない旅行はありません",
+    "noDateGroup": "日程未定",
     "ongoingBadge": "旅行中 · {day}日目",
     "currentGroup": "旅行中・出発予定",
     "card": {
@@ -328,8 +328,30 @@
       "youPay": "支払う金額 {amount}",
       "quickExpense": "支出を記録",
       "viewItinerary": "旅程を見る",
-      "viewSettlement": "精算を見る"
-    }
+      "viewSettlement": "精算を見る",
+      "phase": {
+        "upcoming": "出発前",
+        "ongoing": "旅行中",
+        "past": "終了",
+        "unscheduled": "日程未定"
+      },
+      "myShare": "自分の負担額",
+      "receive": "受取予定",
+      "pay": "支払予定",
+      "noBalance": "現在の未精算額なし",
+      "openTrip": "旅行を開く",
+      "more": "{name}、その他の操作",
+      "notSet": "未設定",
+      "partialDates": "出発日：{start} · 終了日：{end}",
+      "budget": "自分の予算 {amount}",
+      "budgetLabel": "自分の予算"
+    },
+    "noArchivedTrips": "アーカイブ済みの旅行はありません",
+    "joinHint": "招待を受け取りましたか？",
+    "createFirstTrip": "最初の旅行を作成",
+    "archiveHint": "自分の一覧だけを整理します。他のメンバーや帳簿には影響しません。",
+    "cancelArchive": "キャンセル",
+    "archiveSending": "処理中…"
   },
   "expense": {
     "receipts": {

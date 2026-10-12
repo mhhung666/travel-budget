@@ -23,6 +23,8 @@ type Props = {
   testID?: string;
   onBusy?: (busy: boolean) => void;
   onCommitted?: (archived: boolean) => void;
+  onSettled?: () => void;
+  onCloseBlocked?: (blocked: boolean) => void;
 };
 export function PersonalArchive(props: Props) {
   const { scope, manager } = useTripEntry();
@@ -42,6 +44,8 @@ function ArchiveControls({
   testID = 'trip-archive',
   onBusy,
   onCommitted,
+  onSettled,
+  onCloseBlocked,
 }: Props) {
   const { entry, scope, manager } = useTripEntry();
   const { catalog } = useDraftCatalog();
@@ -140,11 +144,18 @@ function ArchiveControls({
     return () => onBusy?.(false);
   }, [busy, onBusy]);
   useEffect(() => {
+    onCloseBlocked?.(busy || state.status === 'pending');
+    return () => onCloseBlocked?.(false);
+  }, [busy, state.status, onCloseBlocked]);
+  useEffect(() => {
     if (disabled) flow.invalidate();
   }, [disabled, flow]);
   useEffect(() => {
     if (state.status === 'done' && state.archived !== undefined) onCommitted?.(state.archived);
   }, [state.status, state.archived, onCommitted]);
+  useEffect(() => {
+    if (state.status === 'done' && state.refreshed === true) onSettled?.();
+  }, [state.status, state.refreshed, onSettled]);
   if (!scope || !catalog.isVisible(scope, tripId))
     return <Notice tone="danger">{t.notFound}</Notice>;
   const activeArchived = state.context?.archived ?? state.archived ?? archived;

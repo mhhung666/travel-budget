@@ -138,3 +138,17 @@ export function isPlannedTrip(
 ): boolean {
   return getTripPhase(startDate, endDate, now).phase === 'preTrip';
 }
+
+/** Presentation only: personal balance and archive never imply a group settlement state.
+ * Keep legacy card status for shared ranking/quick-add; partial dates follow the same rules.
+ */
+export function getTripListPhase(
+  trip: { start_date: string | null; end_date: string | null },
+  now: Date = new Date()
+): 'upcoming' | 'ongoing' | 'past' | 'unscheduled' {
+  const phase = getTripPhase(trip.start_date, trip.end_date, now);
+  if (phase.phase === 'postTrip') return 'past';
+  if (phase.phase === 'preTrip' && phase.daysUntil !== null) return 'upcoming';
+  if (phase.phase === 'ongoing' && trip.end_date) return 'ongoing';
+  return 'unscheduled';
+}

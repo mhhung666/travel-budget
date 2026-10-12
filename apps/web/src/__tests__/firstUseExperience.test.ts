@@ -11,7 +11,7 @@ describe('Phase 2A first-use experience contracts', () => {
 
     expect(source).toContain('onCreate');
     expect(source).toContain('onJoin');
-    expect(source).toContain("t('createTrip')");
+    expect(source).toContain("t('createFirstTrip')");
     expect(source).toContain("t('joinTrip')");
   });
 

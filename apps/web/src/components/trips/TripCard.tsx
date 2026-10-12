@@ -1,22 +1,20 @@
 'use client';
 
 import {
-  Copy,
-  Users,
-  CalendarRange,
   Archive,
   ArchiveRestore,
+  ChevronRight,
+  Copy,
   MoreHorizontal,
   ReceiptText,
   WalletCards,
-  Map as MapIcon,
 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import type { TripWithMembers } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { formatCurrency } from '@/constants/currencies';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,195 +23,163 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { cn } from '@/lib/utils';
-import { getTripCardStatus } from '@/lib/tripStatus';
+import { dateFromLocalDateKey, getTripListPhase } from '@/lib/tripStatus';
 import TripDestination from './TripDestination';
 
 export interface TripCardProps {
   trip: TripWithMembers;
-  onClick: () => void;
   onCopyCode: (code: string) => void;
-  /** Toggle this trip's archived state (per-member). Omit to hide the control. */
   onToggleArchive?: (trip: TripWithMembers) => void;
-  /** 在此旅行新增一筆支出。未傳即不顯示「記一筆」。 */
   onQuickExpense?: (trip: TripWithMembers) => void;
+  disabled?: boolean;
 }
 
 export default function TripCard({
   trip,
-  onClick,
   onCopyCode,
   onToggleArchive,
   onQuickExpense,
+  disabled = false,
 }: TripCardProps) {
   const t = useTranslations('trips');
   const locale = useLocale();
   const isArchived = trip.archived_at != null;
-  // 卡片狀態（UX #6）：即將出發／旅行中 · Day N／待結算／已結清；封存旅行不標。
-  const status = getTripCardStatus(trip);
+  const phase = getTripListPhase(trip);
+  const settlement = phase === 'past' && Math.abs(trip.my_balance) >= 0.01;
+  const currency = trip.ledger?.baseCurrency ?? 'TWD';
   const money = (amount: number) =>
-    formatCurrency(Math.abs(amount), trip.ledger?.baseCurrency ?? 'TWD', locale);
-  const budgetTotal = trip.budget?.total ?? null;
-  const pending = status.kind === 'pendingSettlement';
-  const summary = pending
-    ? t(trip.my_balance > 0 ? 'card.youReceive' : 'card.youPay', {
-        amount: money(trip.my_balance),
-      })
-    : budgetTotal !== null
-      ? t('card.mySpentOfBudget', { spent: money(trip.my_spent), budget: money(budgetTotal) })
-      : trip.my_spent > 0
-        ? t('card.mySpent', { amount: money(trip.my_spent) })
-        : null;
-
-  const handleCopyClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onCopyCode(trip.hash_code);
+    `${currency} · ${formatCurrency(Math.abs(amount), currency, locale)}`;
+  const date = (value: string | null) => {
+    const parsed = value && dateFromLocalDateKey(value.slice(0, 10));
+    return parsed
+      ? parsed.toLocaleDateString(
+          locale === 'zh'
+            ? 'zh-TW'
+            : locale === 'jp'
+              ? 'ja-JP'
+              : locale === 'zh-CN'
+                ? 'zh-CN'
+                : 'en-US'
+        )
+      : t('card.notSet');
   };
-
-  const handleArchiveClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onToggleArchive?.(trip);
-  };
+  const dates =
+    !trip.start_date && !trip.end_date
+      ? t('noDateGroup')
+      : trip.start_date && trip.end_date
+        ? `${date(trip.start_date)} — ${date(trip.end_date)}`
+        : t('card.partialDates', { start: date(trip.start_date), end: date(trip.end_date) });
 
   return (
     <Card
-      onClick={onClick}
-      className={cn(
-        'relative h-full cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border-border/50 bg-card',
-        isArchived && 'opacity-70 hover:opacity-100'
-      )}
+      data-trip-card={trip.id}
+      className="flex h-full flex-col rounded-2xl border-border bg-card shadow-sm"
     >
-      <div className="absolute right-2 top-2 z-10" onClick={(event) => event.stopPropagation()}>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+      <div className="flex items-start gap-2">
+        <Link
+          href={ROUTES.TRIP_DETAIL(trip.hash_code)}
+          className="min-h-12 min-w-0 flex-1 space-y-3 rounded-2xl p-4 text-left transition-colors hover:bg-muted/40 active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
+          <h3 className="break-words text-xl font-semibold text-foreground">{trip.name}</h3>
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="secondary">{t(`card.phase.${phase}`)}</Badge>
+            {isArchived && <Badge variant="outline">{t('tabArchived')}</Badge>}
+          </div>
+          <p className="text-sm text-muted-foreground">{dates}</p>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+            <TripDestination destination={trip.destination_location} />
+            <span>
+              {trip.member_count} {t('members')}
+            </span>
+          </div>
+          <dl className="space-y-2 text-base">
+            <div className="flex flex-wrap justify-between gap-x-3 gap-y-1">
+              <dt className="text-muted-foreground">{t('card.myShare')}</dt>
+              <dd className="break-words font-semibold tabular-nums">{money(trip.my_spent)}</dd>
+            </div>
+            {trip.budget?.total != null && (
+              <div className="text-sm text-muted-foreground">
+                <dt className="sr-only">{t('card.budgetLabel')}</dt>
+                <dd>{t('card.budget', { amount: money(trip.budget.total) })}</dd>
+              </div>
+            )}
+            <div className="flex flex-wrap justify-between gap-x-3 gap-y-1">
+              <dt className="text-muted-foreground">
+                {t(
+                  trip.my_balance === 0
+                    ? 'card.noBalance'
+                    : trip.my_balance > 0
+                      ? 'card.receive'
+                      : 'card.pay'
+                )}
+              </dt>
+              <dd className="break-words font-semibold tabular-nums">{money(trip.my_balance)}</dd>
+            </div>
+          </dl>
+          <span className="flex items-center gap-2 text-sm text-primary">
+            {t('card.openTrip')}
+            <ChevronRight className="h-4 w-4" aria-hidden="true" />
+          </span>
+        </Link>
+        <div className="mr-2 mt-2 shrink-0">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-12 w-12 text-muted-foreground"
+                aria-label={t('card.more', { name: trip.name })}
+              >
+                <MoreHorizontal size={20} />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="max-w-[calc(100vw-2rem)] space-y-2">
+              <DropdownMenuItem
+                className="min-h-12 whitespace-normal"
+                onSelect={() => onCopyCode(trip.hash_code)}
+              >
+                <Copy className="mr-2 h-4 w-4 shrink-0" />
+                {t('copyInviteLink')}
+              </DropdownMenuItem>
+              {onToggleArchive && (
+                <DropdownMenuItem
+                  disabled={disabled}
+                  className="min-h-12 whitespace-normal"
+                  onSelect={() => onToggleArchive(trip)}
+                >
+                  {isArchived ? (
+                    <ArchiveRestore className="mr-2 h-4 w-4 shrink-0" />
+                  ) : (
+                    <Archive className="mr-2 h-4 w-4 shrink-0" />
+                  )}
+                  {isArchived ? t('unarchive') : t('archive')}
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+      {!isArchived && (settlement || onQuickExpense) && (
+        <div className="mt-auto flex justify-end border-t border-border p-2">
+          {settlement ? (
+            <Button variant="ghost" className="min-h-12 whitespace-normal text-primary" asChild>
+              <Link href={ROUTES.TRIP_SETTLEMENT(trip.hash_code)}>
+                <WalletCards className="h-4 w-4" />
+                {t('card.viewSettlement')}
+              </Link>
+            </Button>
+          ) : (
             <Button
               variant="ghost"
-              size="icon"
-              className="h-11 w-11 text-muted-foreground hover:text-foreground"
-              aria-label={t('tripActions')}
+              className="min-h-12 whitespace-normal text-primary"
+              onClick={() => onQuickExpense?.(trip)}
             >
-              <MoreHorizontal size={18} />
+              <ReceiptText className="h-4 w-4" />
+              {t('card.quickExpense')}
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={handleCopyClick}>
-              <Copy className="mr-2 h-4 w-4" />
-              {t('copyInviteLink')}
-            </DropdownMenuItem>
-            {onToggleArchive && (
-              <DropdownMenuItem onClick={handleArchiveClick}>
-                {isArchived ? (
-                  <ArchiveRestore className="mr-2 h-4 w-4" />
-                ) : (
-                  <Archive className="mr-2 h-4 w-4" />
-                )}
-                {isArchived ? t('unarchive') : t('archive')}
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      <CardContent className="p-6 flex flex-col h-full items-start text-left">
-        {status.kind === 'ongoing' && (
-          <Badge className="mb-2 bg-primary text-primary-foreground hover:bg-primary">
-            {t('ongoingBadge', { day: status.day })}
-          </Badge>
-        )}
-        {status.kind === 'upcoming' && (
-          <Badge variant="secondary" className="mb-2">
-            {t('card.upcoming', { days: status.daysUntil })}
-          </Badge>
-        )}
-        {status.kind === 'pendingSettlement' && (
-          <Badge className="mb-2 bg-warning text-warning-foreground hover:bg-warning">
-            {t('card.pendingSettlement')}
-          </Badge>
-        )}
-        {status.kind === 'settled' && (
-          <Badge variant="outline" className="mb-2 font-normal text-muted-foreground">
-            {t('card.settled')}
-          </Badge>
-        )}
-        <h3 className="text-lg font-semibold mb-2 text-foreground line-clamp-1 pr-8">
-          {trip.name}
-        </h3>
-
-        {trip.description && (
-          <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{trip.description}</p>
-        )}
-
-        <div className="mt-auto space-y-2 w-full">
-          <TripDestination destination={trip.destination_location} truncate />
-
-          {/* Dates */}
-          {(trip.start_date || trip.end_date) && (
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <CalendarRange size={14} className="text-muted-foreground" />
-              <span>
-                {trip.start_date
-                  ? new Date(trip.start_date).toLocaleDateString(
-                      locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : 'en-US'
-                    )
-                  : ''}
-                {trip.start_date && trip.end_date && ' ~ '}
-                {trip.end_date
-                  ? new Date(trip.end_date).toLocaleDateString(
-                      locale === 'zh' ? 'zh-TW' : locale === 'jp' ? 'ja-JP' : 'en-US'
-                    )
-                  : ''}
-              </span>
-            </div>
-          )}
-
-          <div className="mt-4 flex w-full flex-wrap items-center gap-2 pt-2">
-            <Badge variant="outline" className="flex items-center gap-1 font-normal">
-              <Users size={12} />
-              {trip.member_count} {t('members')}
-            </Badge>
-            {summary && (
-              <span
-                className={cn(
-                  'text-sm font-medium tabular-nums',
-                  pending ? 'text-warning' : 'text-foreground'
-                )}
-              >
-                {summary}
-              </span>
-            )}
-          </div>
-
-          {!isArchived && (
-            // 按鈕自行處理導覽，不觸發整張卡片的點擊
-            <div
-              className="flex w-full flex-wrap gap-2 border-t pt-3"
-              onClick={(event) => event.stopPropagation()}
-            >
-              {pending ? (
-                <Button size="sm" asChild>
-                  <Link href={ROUTES.TRIP_SETTLEMENT(trip.hash_code)}>
-                    <WalletCards className="h-4 w-4" />
-                    {t('card.viewSettlement')}
-                  </Link>
-                </Button>
-              ) : (
-                onQuickExpense && (
-                  <Button size="sm" onClick={() => onQuickExpense(trip)}>
-                    <ReceiptText className="h-4 w-4" />
-                    {t('card.quickExpense')}
-                  </Button>
-                )
-              )}
-              <Button size="sm" variant="outline" asChild>
-                <Link href={ROUTES.TRIP_DETAIL(trip.hash_code)}>
-                  <MapIcon className="h-4 w-4" />
-                  {t('card.viewItinerary')}
-                </Link>
-              </Button>
-            </div>
           )}
         </div>
-      </CardContent>
+      )}
     </Card>
   );
 }

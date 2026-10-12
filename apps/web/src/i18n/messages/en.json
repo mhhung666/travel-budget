@@ -226,10 +226,10 @@
     "retry": "Retry"
   },
   "trips": {
-    "title": "My Trips",
-    "list": "Trip List",
-    "createTrip": "Create New Trip",
-    "joinTrip": "Join Trip",
+    "title": "My trips",
+    "list": "My trips",
+    "createTrip": "Create trip",
+    "joinTrip": "Join trip",
     "noTrips": "No trip records yet",
     "noTripsDescription": "Create a new trip, or join your travel companions with an invite code.",
     "members": "members",
@@ -312,10 +312,10 @@
     "archiveFailed": "Action failed, please try again",
     "tripActions": "Trip actions",
     "copyInviteLink": "Copy invitation link",
-    "tabActive": "Current",
+    "tabActive": "Trips",
     "tabArchived": "Archived",
-    "noActiveTrips": "No current trips",
-    "noDateGroup": "No date",
+    "noActiveTrips": "No unarchived trips right now",
+    "noDateGroup": "Dates not set",
     "ongoingBadge": "On trip · Day {day}",
     "currentGroup": "On trip & upcoming",
     "card": {
@@ -326,10 +326,32 @@
       "mySpentOfBudget": "My share {spent} / budget {budget}",
       "youReceive": "You are owed {amount}",
       "youPay": "You owe {amount}",
-      "quickExpense": "Log an expense",
+      "quickExpense": "Add expense",
       "viewItinerary": "View itinerary",
-      "viewSettlement": "View settlement"
-    }
+      "viewSettlement": "View settlement",
+      "phase": {
+        "upcoming": "Upcoming",
+        "ongoing": "Ongoing",
+        "past": "Ended",
+        "unscheduled": "Dates not set"
+      },
+      "myShare": "My share",
+      "receive": "To receive",
+      "pay": "To pay",
+      "noBalance": "No outstanding balance",
+      "openTrip": "Open trip",
+      "more": "{name}, more actions",
+      "notSet": "Not set",
+      "partialDates": "Start: {start} · End: {end}",
+      "budget": "My budget {amount}",
+      "budgetLabel": "My budget"
+    },
+    "noArchivedTrips": "No archived trips",
+    "joinHint": "Have an invitation?",
+    "createFirstTrip": "Create your first trip",
+    "archiveHint": "Only organizes your list. Other members and the ledger are unaffected.",
+    "cancelArchive": "Cancel",
+    "archiveSending": "Working…"
   },
   "auth": {
     "login": {

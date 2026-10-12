@@ -11,6 +11,7 @@
 | [後端契約](BACKEND_CONTRACT.md)                          | 單一後端分工、待實作 API、認證與離線契約 |
 | [本機驗收](LOCAL_ACCEPTANCE.md)                          | 隔離後端、測試帳號、模擬器與真機操作表   |
 | [開發路線](ROADMAP.md)                                   | 下一階段工作與驗收條件                   |
+| [共同設計：我的旅行](../../../docs/design/MY_TRIPS.md)   | Web／Mobile 列表設計、實作與待驗證項目   |
 | [已完成項目](archive/README.md)                          | 合併的成果、驗證摘要與歷史證據           |
 | [整併決策](../../../docs/decisions/0001-monorepo.md)     | 單一 repository、workspace 與發布邊界    |
 | [原始獨立專案決策](decisions/0001-project-boundaries.md) | 已被整併決策取代的初始化紀錄             |

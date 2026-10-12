@@ -20,6 +20,7 @@ const h = vi.hoisted(() => ({
   width: 390,
   measuredWidth: 0,
   expanded: false,
+  resultOwner: '',
   archiveSelection: { owner: 'https://test/api/v1:account:1', value: 'unarchived' },
   selected: null as { trip: Trip; owner: string } | null,
   online: true,
@@ -68,6 +69,7 @@ const h = vi.hoisted(() => ({
 vi.mock('react', async (original) => ({
   ...(await original<typeof import('react')>()),
   useEffect: () => undefined,
+  useRef: (current: unknown) => ({ current }),
   useCallback: (fn: unknown) => fn,
   useState: (initial: unknown) =>
     initial && typeof initial === 'object' && 'value' in initial
@@ -84,19 +86,26 @@ vi.mock('react', async (original) => ({
               h.selected = value;
             },
           ]
-        : typeof initial === 'number'
+        : typeof initial === 'string'
           ? [
-              h.measuredWidth,
-              (value: number) => {
-                h.measuredWidth = value;
+              h.resultOwner,
+              (value: string) => {
+                h.resultOwner = value;
               },
             ]
-          : [
-              h.expanded,
-              (value: (old: boolean) => boolean) => {
-                h.expanded = value(h.expanded);
-              },
-            ],
+          : typeof initial === 'number'
+            ? [
+                h.measuredWidth,
+                (value: number) => {
+                  h.measuredWidth = value;
+                },
+              ]
+            : [
+                h.expanded,
+                (value: (old: boolean) => boolean) => {
+                  h.expanded = value(h.expanded);
+                },
+              ],
 }));
 vi.mock('react-native', () => ({
   ...Object.fromEntries(
@@ -230,6 +239,7 @@ beforeEach(() => {
     width: 390,
     measuredWidth: 0,
     expanded: false,
+    resultOwner: '',
     online: true,
     user: { id: 'account' },
     deniedIds: [],
@@ -543,10 +553,12 @@ it('uses full authorized totals for tabs and preserves the last restored archive
   h.list.data = { pages: [{ items: [trip], metadata: listMetadata }] };
   let tree = list();
   expect(
-    find(tree.props.ListHeaderComponent as ReactNode, 'testID', 'trips-unarchived').props.label
+    find(tree.props.ListHeaderComponent as ReactNode, 'testID', 'trips-unarchived').props
+      .accessibilityLabel
   ).toBe('Trips (43)');
   expect(
-    find(tree.props.ListHeaderComponent as ReactNode, 'testID', 'trips-archived').props.label
+    find(tree.props.ListHeaderComponent as ReactNode, 'testID', 'trips-archived').props
+      .accessibilityLabel
   ).toBe('Archived (42)');
   press(find(tree.props.ListHeaderComponent as ReactNode, 'testID', 'trips-archived'));
   h.list.data = {
@@ -579,7 +591,8 @@ it('known catalog revocation suppresses full totals including trips absent from 
   expect(
     nodes(header).some(
       (node) =>
-        String(node.props.label).includes('(43)') || String(node.props.label).includes('(42)')
+        String(node.props.accessibilityLabel ?? node.props.label).includes('(43)') ||
+        String(node.props.accessibilityLabel ?? node.props.label).includes('(42)')
     )
   ).toBe(false);
 });
@@ -627,6 +640,64 @@ it('the global archived navigation request selects the archive tab even on a ret
   expect(
     nodes(screen.props.ListHeaderComponent as ReactNode).find(
       (n) => n.props.testID === 'trips-archived'
-    )?.props.selected
+    )?.props.accessibilityState &&
+      (
+        nodes(screen.props.ListHeaderComponent as ReactNode).find(
+          (n) => n.props.testID === 'trips-archived'
+        )?.props.accessibilityState as { selected: boolean }
+      ).selected
   ).toBe(true);
+});
+
+it('UX-T tabs are horizontal semantic controls, followed by the compact local-work link', () => {
+  h.list.data = { pages: [{ items: [trip], metadata: listMetadata }] };
+  const header = list().props.ListHeaderComponent as ReactNode;
+  const tablist = find(header, 'accessibilityRole', 'tablist');
+  expect((tablist.props.style as { flexDirection: string }).flexDirection).toBe('row');
+  const general = find(tablist, 'testID', 'trips-unarchived');
+  expect(general.type).toBe('Pressable');
+  expect(general.props.accessibilityState).toEqual({ selected: true, disabled: false });
+  const all = nodes(header);
+  expect(all.indexOf(tablist)).toBeLessThan(all.findIndex((n) => n.type === LocalWorkLink));
+});
+it('UX-T a truly empty list moves create and join into the empty state without duplicate header actions', () => {
+  h.list.data = {
+    pages: [{ items: [], metadata: { ...listMetadata, counts: { archived: 0, unarchived: 0 } } }],
+  };
+  const tree = list();
+  expect(
+    nodes(tree.props.ListHeaderComponent as ReactNode).some((n) => n.props.testID === 'create-trip')
+  ).toBe(false);
+  expect(content(tree.props.ListEmptyComponent as ReactNode)).toContain(messages.en.noTrips);
+  expect(
+    find(tree.props.ListEmptyComponent as ReactNode, 'testID', 'create-trip').props.label
+  ).toBe(messages.en.createFirstTrip);
+  press(find(tree.props.ListEmptyComponent as ReactNode, 'testID', 'join-trip'));
+  expect(h.push).toHaveBeenCalledWith('/trips/join');
+});
+it('UX-T compact finances always stack despite iPad width, and the card has no nested controls', () => {
+  h.measuredWidth = 1000;
+  expect(TripFinancialSummary({ trip, compact: true }).props.style.flexDirection).toBe('column');
+  const tree = TripCard({ trip, actions: true, onMore: vi.fn() });
+  const main = find(tree, 'testID', `trip-${trip.id}`);
+  expect(nodes(main).filter((n) => n.props.onPress)).toHaveLength(1);
+  expect(main.props.accessibilityLabel).toContain(trip.destination);
+  expect(main.props.accessibilityLabel).toContain(messages.en.openTrip);
+  const more = find(tree, 'testID', `trip-more-${trip.id}`);
+  expect(more.props.accessibilityLabel).toContain(trip.name);
+  expect(
+    (more.props.style as (p: { pressed: boolean }) => object)({ pressed: false })
+  ).toMatchObject({ minWidth: 48, minHeight: 48 });
+  expect(find(tree, 'testID', `trip-action-${trip.id}`).props.variant).toBe('ghost');
+});
+it('UX-T more uses a scrollable bottom sheet and clears private content after revocation', () => {
+  h.selected = { trip, owner: 'https://test/api/v1:account:1' };
+  const tree = TripsScreen();
+  const modal = nodes(tree).find((n) => n.type === 'Modal')!;
+  expect(modal.props).toMatchObject({ visible: true, transparent: true, animationType: 'slide' });
+  expect(content(modal)).toContain(trip.name);
+  h.deniedIds = [trip.id];
+  const denied = nodes(TripsScreen()).find((n) => n.type === 'Modal')!;
+  expect(denied.props.visible).toBe(false);
+  expect(content(denied)).not.toContain(trip.name);
 });

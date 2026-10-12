@@ -227,8 +227,8 @@
   },
   "trips": {
     "title": "我的旅行",
-    "list": "旅行列表",
-    "createTrip": "创建新旅行",
+    "list": "我的旅行",
+    "createTrip": "创建旅行",
     "joinTrip": "加入旅行",
     "noTrips": "目前还没有旅行记录",
     "noTripsDescription": "创建一趟新旅行，或使用邀请码加入旅伴的旅行。",
@@ -312,10 +312,10 @@
     "archiveFailed": "操作失败,请稍后再试",
     "tripActions": "旅行操作",
     "copyInviteLink": "复制邀请链接",
-    "tabActive": "当前旅行",
+    "tabActive": "旅行",
     "tabArchived": "已归档",
-    "noActiveTrips": "没有当前的旅行",
-    "noDateGroup": "未排定日期",
+    "noActiveTrips": "目前没有未归档的旅行",
+    "noDateGroup": "尚未安排日期",
     "ongoingBadge": "旅行中 · Day {day}",
     "currentGroup": "旅行中与即将出发",
     "card": {
@@ -328,8 +328,30 @@
       "youPay": "你应付 {amount}",
       "quickExpense": "记一笔",
       "viewItinerary": "查看行程",
-      "viewSettlement": "查看结算"
-    }
+      "viewSettlement": "查看结算",
+      "phase": {
+        "upcoming": "即将出发",
+        "ongoing": "旅行中",
+        "past": "已结束",
+        "unscheduled": "未排日期"
+      },
+      "myShare": "我的分摊",
+      "receive": "待收",
+      "pay": "待付",
+      "noBalance": "目前无待收付",
+      "openTrip": "打开旅行",
+      "more": "{name}，更多操作",
+      "notSet": "未设置",
+      "partialDates": "出发日期：{start} · 结束日期：{end}",
+      "budget": "个人预算 {amount}",
+      "budgetLabel": "个人预算"
+    },
+    "noArchivedTrips": "没有已归档旅行",
+    "joinHint": "有朋友的邀请？",
+    "createFirstTrip": "创建第一趟旅行",
+    "archiveHint": "只整理你的列表，其他成员与账务不受影响。",
+    "cancelArchive": "取消",
+    "archiveSending": "处理中…"
   },
   "expense": {
     "receipts": {

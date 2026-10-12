@@ -70,14 +70,14 @@ it('pins ongoing then soonest upcoming trips and shows each card status', async 
     'Trip owed',
   ]);
 
-  expect(screen.getByText('ongoingBadge')).toBeInTheDocument();
-  expect(screen.getAllByText('card.upcoming')).toHaveLength(2);
-  expect(screen.getByText('card.pendingSettlement')).toBeInTheDocument();
-  expect(screen.getByText('card.mySpentOfBudget')).toBeInTheDocument();
-  expect(screen.getByText('card.youPay')).toBeInTheDocument();
+  expect(screen.getByText('card.phase.ongoing')).toBeInTheDocument();
+  expect(screen.getAllByText('card.phase.upcoming')).toHaveLength(2);
+  expect(screen.getByText('card.phase.past')).toBeInTheDocument();
+  expect(screen.getByText('card.budget')).toBeInTheDocument();
+  expect(screen.getByText('card.pay')).toBeInTheDocument();
 
   // 待結算的卡片把「記一筆」換成「查看結算」
-  const owedCard = screen.getByText('Trip owed').closest('[class*="cursor-pointer"]')!;
+  const owedCard = screen.getByText('Trip owed').closest('[data-trip-card]')!;
   expect(
     within(owedCard as HTMLElement).getByRole('link', { name: /card.viewSettlement/ })
   ).toHaveAttribute('href', '/trips/codeowed/settlement');
@@ -85,11 +85,11 @@ it('pins ongoing then soonest upcoming trips and shows each card status', async 
     within(owedCard as HTMLElement).queryByRole('button', { name: /card.quickExpense/ })
   ).toBeNull();
 
-  const nowCard = screen.getByText('Trip now').closest('[class*="cursor-pointer"]') as HTMLElement;
+  const nowCard = screen.getByText('Trip now').closest('[data-trip-card]') as HTMLElement;
   await userEvent.setup().click(within(nowCard).getByRole('button', { name: /card.quickExpense/ }));
   expect(onQuickExpense).toHaveBeenCalledWith(trips[2]);
-  expect(within(nowCard).getByRole('link', { name: /card.viewItinerary/ })).toHaveAttribute(
-    'href',
-    '/trips/codenow'
-  );
+  const main = within(nowCard).getByRole('link', { name: /card.openTrip/ });
+  expect(main).toHaveAttribute('href', '/trips/codenow');
+  expect(within(main).queryByRole('button')).toBeNull();
+  expect(within(nowCard).queryByRole('link', { name: /card.viewItinerary/ })).toBeNull();
 });
