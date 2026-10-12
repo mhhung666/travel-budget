@@ -3,6 +3,7 @@ import { isValidElement, type ReactElement, type ReactNode } from 'react';
 import { messages } from '@/i18n/messages';
 import { colors } from '@/theme/tokens';
 import { formatDate, money } from '@/i18n/format';
+import type { TripListMetadata } from '@travel-budget/contracts';
 import type { Trip } from '@/api/contracts';
 import { TripsScreen } from './TripsScreen';
 import { TripScreen, TripSupplement } from './TripScreen';
@@ -18,13 +19,15 @@ const h = vi.hoisted(() => ({
   width: 390,
   measuredWidth: 0,
   expanded: false,
+  archiveSelection: { owner: 'https://test/api/v1:account:1', value: 'unarchived' },
+  selected: null as { trip: Trip; owner: string } | null,
   online: true,
   user: { id: 'account' } as { id: string } | null,
   deniedIds: [] as string[],
   push: vi.fn(),
   visible: vi.fn(),
   list: {
-    data: undefined as { pages: { items: Trip[] }[] } | undefined,
+    data: undefined as { pages: { items: Trip[]; metadata?: TripListMetadata }[] } | undefined,
     error: undefined as unknown,
     isPending: false,
     isError: false,
@@ -63,27 +66,48 @@ const h = vi.hoisted(() => ({
 }));
 vi.mock('react', async (original) => ({
   ...(await original<typeof import('react')>()),
+  useEffect: () => undefined,
   useState: (initial: unknown) =>
-    typeof initial === 'number'
+    initial && typeof initial === 'object' && 'value' in initial
       ? [
-          h.measuredWidth,
-          (value: number) => {
-            h.measuredWidth = value;
+          h.archiveSelection,
+          (value: typeof h.archiveSelection) => {
+            h.archiveSelection = value;
           },
         ]
-      : [
-          h.expanded,
-          (value: (old: boolean) => boolean) => {
-            h.expanded = value(h.expanded);
-          },
-        ],
+      : initial === null
+        ? [
+            h.selected,
+            (value: { trip: Trip; owner: string } | null) => {
+              h.selected = value;
+            },
+          ]
+        : typeof initial === 'number'
+          ? [
+              h.measuredWidth,
+              (value: number) => {
+                h.measuredWidth = value;
+              },
+            ]
+          : [
+              h.expanded,
+              (value: (old: boolean) => boolean) => {
+                h.expanded = value(h.expanded);
+              },
+            ],
 }));
 vi.mock('react-native', () => ({
   ...Object.fromEntries(
-    ['Text', 'View', 'Pressable', 'FlatList', 'RefreshControl', 'ActivityIndicator'].map((name) => [
-      name,
-      name,
-    ])
+    [
+      'Text',
+      'View',
+      'Pressable',
+      'FlatList',
+      'RefreshControl',
+      'ActivityIndicator',
+      'Modal',
+      'ScrollView',
+    ].map((name) => [name, name])
   ),
   useWindowDimensions: () => ({ width: h.width, fontScale: h.fontScale }),
 }));
@@ -119,18 +143,25 @@ vi.mock('@/features/auth/AuthProvider', () => ({
   useAuth: () => ({
     status: 'signedIn',
     user: h.user,
-    manager: { api: { environment: 'https://test/api/v1' } },
+    manager: { api: { environment: 'https://test/api/v1' }, getSignInVersion: () => 1 },
   }),
 }));
 vi.mock('@/features/localDrafts/provider', () => ({
-  useDraftCatalog: () => ({ catalog: { isVisible: h.visible } }),
+  useDraftCatalog: () => ({
+    catalog: { isVisible: h.visible, hasDenied: () => h.deniedIds.length > 0 },
+  }),
 }));
 vi.mock('@/features/auth/errorMessage', () => ({
   isAccessDenied: (error: unknown) => error === 'denied',
   errorMessage: () => 'Failure',
 }));
 vi.mock('@/providers/useOnline', () => ({ useOnline: () => h.online }));
-vi.mock('./queries', () => ({ useTrips: () => h.list, useTrip: () => h.trip }));
+vi.mock('./queries', () => ({
+  useTripList: () => ({ ...h.list, refresh: h.list.refetch }),
+  useTrip: () => h.trip,
+}));
+vi.mock('./PersonalArchive', () => ({ PersonalArchive: 'PersonalArchive' }));
+vi.mock('react-native-safe-area-context', () => ({ SafeAreaView: 'SafeAreaView' }));
 vi.mock('@/features/expenses/entryProvider', () => ({
   useExpenseQueue: () => ({ records: h.queue }),
 }));
@@ -190,6 +221,8 @@ beforeEach(() => {
     online: true,
     user: { id: 'account' },
     deniedIds: [],
+    archiveSelection: { owner: 'https://test/api/v1:account:1', value: 'unarchived' },
+    selected: null,
   });
   h.visible.mockImplementation((_scope, id) => !h.deniedIds.includes(id));
   Object.assign(h.list, {
@@ -256,7 +289,11 @@ it('uses measured container width, including card padding and the page cap', () 
 it('keeps long archived names and truthful accounting in the accessible card, in both palettes', () => {
   for (const dark of [false, true]) {
     h.dark = dark;
-    const tree = TripCard({ trip: { ...trip, archived: true, myBalance: 0 } });
+    const tree = find(
+      TripCard({ trip: { ...trip, archived: true, myBalance: 0 } }),
+      'testID',
+      `trip-${trip.id}`
+    );
     expect(tree.props.accessibilityLabel).toContain(trip.name);
     expect(tree.props.accessibilityLabel).toContain(messages.en.archived);
     expect(tree.props.accessibilityLabel).toContain(messages.en.balanced);
@@ -405,7 +442,7 @@ it.each(['admin', 'member'] as const)(
 it('keeps create, join and local work reachable in an empty travel list', () => {
   h.list.data = { pages: [{ items: [] }] };
   const tree = list();
-  expect(content(tree.props.ListEmptyComponent as ReactNode)).toContain(messages.en.noTrips);
+  expect(content(tree.props.ListEmptyComponent as ReactNode)).toContain(messages.en.noGeneralTrips);
   for (const [testID, path] of [
     ['create-trip', '/trips/create'],
     ['join-trip', '/trips/join'],
@@ -482,3 +519,90 @@ it.each(['USD', 'JPY'] as const)(
     );
   }
 );
+
+const listMetadata: TripListMetadata = {
+  archive: 'unarchived',
+  sort: 'list',
+  date: '2026-10-12',
+  counts: { unarchived: 43, archived: 42 },
+  quickAdd: { candidateCount: 43, ongoingCount: 0, directTripId: null },
+};
+it('uses full authorized totals for tabs and preserves the last restored archived empty page', () => {
+  h.list.data = { pages: [{ items: [trip], metadata: listMetadata }] };
+  let tree = list();
+  expect(
+    find(tree.props.ListHeaderComponent as ReactNode, 'testID', 'trips-unarchived').props.label
+  ).toBe('Trips (43)');
+  expect(
+    find(tree.props.ListHeaderComponent as ReactNode, 'testID', 'trips-archived').props.label
+  ).toBe('Archived (42)');
+  press(find(tree.props.ListHeaderComponent as ReactNode, 'testID', 'trips-archived'));
+  h.list.data = {
+    pages: [
+      {
+        items: [],
+        metadata: { ...listMetadata, archive: 'archived', counts: { unarchived: 85, archived: 0 } },
+      },
+    ],
+  };
+  tree = list();
+  expect(content(tree.props.ListEmptyComponent as ReactNode)).toContain(
+    messages.en.noArchivedTrips
+  );
+  expect(
+    find(tree.props.ListHeaderComponent as ReactNode, 'testID', 'trips-archived')
+  ).toBeDefined();
+  press(find(tree.props.ListHeaderComponent as ReactNode, 'testID', 'trips-unarchived'));
+  tree = list();
+  expect(
+    nodes(tree.props.ListHeaderComponent as ReactNode).some(
+      (node) => node.props.testID === 'trips-archived'
+    )
+  ).toBe(false);
+});
+it('known catalog revocation suppresses full totals including trips absent from this page', () => {
+  h.list.data = { pages: [{ items: [trip], metadata: listMetadata }] };
+  h.deniedIds = ['different-page-id'];
+  const header = list().props.ListHeaderComponent as ReactNode;
+  expect(
+    nodes(header).some(
+      (node) =>
+        String(node.props.label).includes('(43)') || String(node.props.label).includes('(42)')
+    )
+  ).toBe(false);
+});
+it('card actions are siblings of the main overview hit target and archived cards only offer more', () => {
+  const tree = TripCard({
+    trip: { ...trip, phase: 'past' },
+    actions: true,
+    onMore: () => h.push('more'),
+  });
+  const main = find(tree, 'testID', `trip-${trip.id}`);
+  expect(nodes(main).some((node) => String(node.props.testID).startsWith('trip-action'))).toBe(
+    false
+  );
+  press(find(tree, 'testID', `trip-action-${trip.id}`));
+  expect(h.push).toHaveBeenCalledExactlyOnceWith({
+    pathname: '/trips/[id]/settlement',
+    params: { id: trip.id },
+  });
+  h.push.mockClear();
+  press(find(tree, 'testID', `trip-more-${trip.id}`));
+  expect(h.push).toHaveBeenCalledExactlyOnceWith('more');
+  const archived = TripCard({ trip: { ...trip, archived: true }, actions: true });
+  expect(nodes(archived).some((node) => node.props.testID === `trip-action-${trip.id}`)).toBe(
+    false
+  );
+});
+it('an open more dialog cannot carry the previous account name into a new login', () => {
+  const tree = list();
+  const row = (tree.props.renderItem as (info: { item: Trip; index: number }) => Element)({
+    item: trip,
+    index: 0,
+  });
+  const card = nodes(row).find((node) => node.type === TripCard)!;
+  (card.props.onMore as () => void)();
+  expect(nodes(TripsScreen()).some((node) => node.props.visible === true)).toBe(true);
+  h.user = { id: 'another-account' };
+  expect(nodes(TripsScreen()).some((node) => node.props.visible === true)).toBe(false);
+});

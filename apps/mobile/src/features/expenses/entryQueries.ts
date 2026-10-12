@@ -10,6 +10,7 @@ import { useAuth } from '@/features/auth/AuthProvider';
 import { keepAccessDenial, recordAccessDenial } from '@/features/auth/accessGuard';
 import { isAccessDenied } from '@/features/auth/errorMessage';
 import { expensesKey, keepFirstPage } from './queries';
+import { resetTripPages } from '@/features/trips/tripListCache';
 import { invalidateExpenseBrowsers } from './browse';
 
 type Requester = Pick<SessionManager, 'requestAs'> & {
@@ -107,9 +108,12 @@ export async function refreshTripData(
       exact: true,
     });
   keepFirstPage(client, expensesKey(environment, userId, tripId));
+  const tripCancellation = client.cancelQueries({ queryKey: [environment, userId, 'trips'] });
+  resetTripPages(client, environment, userId);
   const refetch = (...key: unknown[]) =>
     client.invalidateQueries({ queryKey: [environment, userId, ...key] }, { throwOnError: true });
   await Promise.all([
+    tripCancellation,
     refetch('expenses', tripId),
     client.invalidateQueries(
       {

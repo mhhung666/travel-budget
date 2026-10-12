@@ -1,14 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, AppState, Keyboard, TextInput } from 'react-native';
 import { router, useNavigation } from 'expo-router';
 import { usePreventRemove } from 'expo-router/react-navigation';
 import { onlineManager, useQueryClient } from '@tanstack/react-query';
-import {
-  tripSettingsSchema,
-  type TripSettings,
-  type TripUpdateInput,
-  type TripArchiveInput,
-} from '@/api/contracts';
+import { tripSettingsSchema, type TripSettings, type TripUpdateInput } from '@/api/contracts';
 import { FormPage } from '@/components/screen';
 import { goBack } from '@/components/navigation';
 import { Action, Card, Copy, DetailRow, Notice, Section, TextField } from '@/components/ui';
@@ -20,6 +15,7 @@ import { useOnline } from '@/providers/useOnline';
 import { useMessages } from '@/i18n/useMessages';
 import { openMutationStore } from '@/storage/pendingExpenseDatabase';
 import { LocalRateLimitError } from '@/features/expenses/entry';
+import { PersonalArchive } from './PersonalArchive';
 import { refreshManagedTrip } from './managementRefresh';
 import {
   prepareTripSettings,
@@ -40,9 +36,7 @@ const fieldOrder = [
   'longitude',
 ] as const;
 
-type Prepared =
-  | { operation: 'trip.update'; body: Omit<TripUpdateInput, 'client_request_id'> }
-  | { operation: 'trip.archive'; body: Omit<TripArchiveInput, 'client_request_id'> };
+type Prepared = { operation: 'trip.update'; body: Omit<TripUpdateInput, 'client_request_id'> };
 export function TripSettingsScreen({ tripId, source }: { tripId: string; source?: string }) {
   const { entry, scope, manager } = useTripEntry();
   const { catalog } = useDraftCatalog();
@@ -51,11 +45,17 @@ export function TripSettingsScreen({ tripId, source }: { tripId: string; source?
   const navigation = useNavigation();
   const client = useQueryClient();
   const [context, setContext] = useState<TripSettings | null>(null);
+  const archiveCommitted = useCallback(
+    (archived: boolean) =>
+      setContext((old) => old && (old.archived === archived ? old : { ...old, archived })),
+    []
+  );
   const [latest, setLatest] = useState<TripSettings | null>(null);
   const [fields, setFields] = useState<TripSettingsFields | null>(null);
   const [initial, setInitial] = useState<TripSettingsFields | null>(null);
   const [prepared, setPrepared] = useState<Prepared | null>(null);
   const [busy, setBusy] = useState(false);
+  const [archiveBusy, setArchiveBusy] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
   const [pending, setPending] = useState(false);
@@ -196,47 +196,34 @@ export function TripSettingsScreen({ tripId, source }: { tripId: string; source?
     setFields((old) => old && { ...old, [key]: value });
     setPrepared(null);
   };
-  const check = (archive: boolean) =>
+  const check = () =>
     run(async (beforeSend, v) => {
       if (!context || !fields) return;
       setPrepared(null);
-      if (archive) {
-        const data = await read(beforeSend);
-        if (v !== generation.current) return;
-        if (data.archiveRevision !== context.archiveRevision) {
-          setLatest(data);
-          setError(t.tripSettingsChanged);
-          return;
-        }
-        setPrepared({
-          operation: 'trip.archive',
-          body: { expected_revision: data.archiveRevision, archived: !data.archived },
-        });
-      } else {
-        let next;
-        try {
-          next = await prepareTripSettings(
-            (...args) => manager.requestAs(...args),
-            scope!.accountId,
-            tripId,
-            context,
-            fields,
-            beforeSend
-          );
-        } catch (failure) {
-          if (failure instanceof ApiError) throw failure;
-          setError(t.invalidTripSettings);
-          refs.name.current?.focus();
-          return;
-        }
-        if (v !== generation.current) return;
-        if (!next.body) {
-          setLatest(next.current);
-          setError(t.tripSettingsChanged);
-          return;
-        }
-        setPrepared({ operation: 'trip.update', body: next.body });
+
+      let next;
+      try {
+        next = await prepareTripSettings(
+          (...args) => manager.requestAs(...args),
+          scope!.accountId,
+          tripId,
+          context,
+          fields,
+          beforeSend
+        );
+      } catch (failure) {
+        if (failure instanceof ApiError) throw failure;
+        setError(t.invalidTripSettings);
+        refs.name.current?.focus();
+        return;
       }
+      if (v !== generation.current) return;
+      if (!next.body) {
+        setLatest(next.current);
+        setError(t.tripSettingsChanged);
+        return;
+      }
+      setPrepared({ operation: 'trip.update', body: next.body });
       Keyboard.dismiss();
     });
   const submit = () =>
@@ -277,7 +264,7 @@ export function TripSettingsScreen({ tripId, source }: { tripId: string; source?
       title={t.tripSettings}
       backLabel={t.backShort}
       backTestID="trip-settings-back"
-      busy={busy}
+      busy={busy || archiveBusy}
       onBack={() => goBack({ pathname: '/trips/[id]', params: { id: tripId } })}
     >
       {!online && <Notice tone="warning">{t.offline}</Notice>}
@@ -350,7 +337,7 @@ export function TripSettingsScreen({ tripId, source }: { tripId: string; source?
                     ]
                   }
                   value={fields[key]}
-                  editable={!busy}
+                  editable={!busy && !archiveBusy}
                   onChangeText={(value) => change(key, value)}
                   multiline={key === 'description'}
                   maxLength={
@@ -382,7 +369,7 @@ export function TripSettingsScreen({ tripId, source }: { tripId: string; source?
                 testID="settings-clear-location"
                 variant="ghost"
                 label={t.clearDestination}
-                disabled={busy}
+                disabled={busy || archiveBusy}
                 onPress={() => {
                   setFields(
                     (old) =>
@@ -395,8 +382,8 @@ export function TripSettingsScreen({ tripId, source }: { tripId: string; source?
                 testID="settings-review"
                 label={t.reviewExpenseChangesAction}
                 busy={busy}
-                disabled={!online || !dirty || !!latest}
-                onPress={() => void check(false)}
+                disabled={!online || archiveBusy || !dirty || !!latest}
+                onPress={() => void check()}
               />
             </Section>
           )}
@@ -405,7 +392,7 @@ export function TripSettingsScreen({ tripId, source }: { tripId: string; source?
               testID="settings-discard-changes"
               variant="ghost"
               label={t.discardTripChanges}
-              disabled={busy}
+              disabled={busy || archiveBusy}
               onPress={() => {
                 const current = latest ?? context;
                 setContext(current);
@@ -421,30 +408,28 @@ export function TripSettingsScreen({ tripId, source }: { tripId: string; source?
             testID="settings-currency"
             variant="secondary"
             label={t.currencySettings}
-            disabled={busy || dirty || !!prepared}
+            disabled={busy || archiveBusy || dirty || !!prepared}
             onPress={() =>
               router.push({ pathname: '/trips/[id]/currency-settings', params: { id: tripId } })
             }
           />
-          <Section title={t.personalArchive}>
-            <Copy>{t.personalArchiveHint}</Copy>
-            {dirty && <Copy>{t.archiveFinishEdits}</Copy>}
-            <Action
-              testID="settings-archive"
-              variant="secondary"
-              label={context.archived ? t.unarchiveTrip : t.archiveTrip}
-              busy={busy}
-              disabled={!online || !!latest || dirty}
-              onPress={() => void check(true)}
-            />
-          </Section>
+          {dirty && <Copy>{t.archiveFinishEdits}</Copy>}
+          <PersonalArchive
+            tripId={tripId}
+            archived={context.archived}
+            context={context}
+            disabled={busy || !!latest || dirty || !!prepared}
+            testID="settings-archive"
+            onBusy={setArchiveBusy}
+            onCommitted={archiveCommitted}
+          />
           {latest && (
             <Section title={t.latestExpense}>
               {detail(latest)}
               <Action
                 testID="settings-reconfirm"
                 label={t.tripSettingsReconfirm}
-                disabled={busy}
+                disabled={busy || archiveBusy}
                 onPress={() => {
                   try {
                     const changes =
@@ -465,22 +450,18 @@ export function TripSettingsScreen({ tripId, source }: { tripId: string; source?
           )}
           {prepared && (
             <Section title={t.confirmExpenseEdit}>
-              {prepared.operation === 'trip.update' ? (
-                detail({
-                  ...context,
-                  ...prepared.body.changes,
-                  name: fields.name.trim(),
-                  description: fields.description.trim(),
-                  startDate: fields.start || null,
-                  endDate: fields.end || null,
-                  destination:
-                    prepared.body.changes.destination_location === undefined
-                      ? context.destination
-                      : prepared.body.changes.destination_location,
-                })
-              ) : (
-                <Copy>{prepared.body.archived ? t.archiveTrip : t.unarchiveTrip}</Copy>
-              )}
+              {detail({
+                ...context,
+                ...prepared.body.changes,
+                name: fields.name.trim(),
+                description: fields.description.trim(),
+                startDate: fields.start || null,
+                endDate: fields.end || null,
+                destination:
+                  prepared.body.changes.destination_location === undefined
+                    ? context.destination
+                    : prepared.body.changes.destination_location,
+              })}
               <Action
                 testID="settings-confirm"
                 label={t.confirmExpenseEdit}

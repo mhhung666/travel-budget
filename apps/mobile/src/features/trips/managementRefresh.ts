@@ -80,5 +80,9 @@ export async function refreshManagedTrip(
   await Promise.all([
     refreshTripData(client, scope.environment, scope.accountId, tripId),
     snapshots(),
+    client.invalidateQueries(
+      { queryKey: [scope.environment, scope.accountId, 'trip-settings', tripId] },
+      { throwOnError: true }
+    ),
   ]);
 }

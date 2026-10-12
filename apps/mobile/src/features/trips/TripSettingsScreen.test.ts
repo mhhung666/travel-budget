@@ -26,6 +26,7 @@ const h = vi.hoisted(() => ({
 }));
 vi.mock('react', async (original) => ({
   ...(await original<typeof import('react')>()),
+  useCallback: (fn: unknown) => fn,
   useState: (initial: unknown) => {
     const i = h.i++;
     if (!(i in h.values)) h.values[i] = initial;
@@ -114,6 +115,7 @@ vi.mock('@/storage/pendingExpenseDatabase', () => ({
     pause: h.pause,
   }),
 }));
+vi.mock('./PersonalArchive', () => ({ PersonalArchive: 'PersonalArchive' }));
 vi.mock('./managementRefresh', () => ({ refreshManagedTrip: h.refresh }));
 const tripId = 'b'.repeat(24);
 const original: TripSettings = {
@@ -232,19 +234,17 @@ it('Web conflicts require review and rebase keeps only user changes', async () =
   await flush();
   expect(h.confirm.mock.calls[0][1].body.changes).toEqual({ description: 'User note' });
 });
-it('ordinary members can archive but cannot edit the trip', async () => {
+it('ordinary members share the personal archive controller and cannot edit the trip', async () => {
   h.request.mockResolvedValue({ ...original, role: 'member' });
   await mount();
   expect(nodes(render()).some((n) => n.props.testID === 'settings-name')).toBe(false);
-  await find('settings-archive').onPress!();
-  await flush();
-  await find('settings-confirm').onPress!();
-  await flush();
-  expect(h.confirm.mock.calls[0][1]).toEqual({
-    operation: 'trip.archive',
+  expect(find('settings-archive')).toMatchObject({
     tripId,
-    body: { expected_revision: original.archiveRevision, archived: true },
+    archived: false,
+    context: { ...original, role: 'member' },
+    disabled: false,
   });
+  expect(h.confirm).not.toHaveBeenCalled();
 });
 it('archive is disabled with unsaved edits so success cannot silently discard them', async () => {
   await mount();

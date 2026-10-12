@@ -298,4 +298,12 @@ receiptFiles 用 Expo picker／manipulator／filesystem：圖片最長邊 2400�
 
 ## T1 旅行列表資料
 
-新 `tripListQuery`／`useTripList` 與現有 `useTrips` 並存，T2／T3 才切換畫面。key 延續 trips 前綴並增加 archive／sort，環境、帳號、本地日期及 v2 仍隔離；requestAs 保護原帳號、signal 取消請求，不落盤。缺全量 metadata 或模式／日期不符拒絕讀取，不能以第一頁猜計數／唯一性。後端仍全量讀取並批次驗證／摘要，Web 列表與 quick-add 共用排序 helper；詳細規則見 [T1 契約](BACKEND_CONTRACT.md#t1-旅行列表篩選與排序)。
+新 `tripListQuery`／`useTripList` 與現有 `useTrips` 並存，T2 首頁已切換，T3 候選尚未開始。key 延續 trips 前綴並增加 archive／sort，環境、帳號、本地日期及 v2 仍隔離；requestAs 保護原帳號、signal 取消請求，不落盤。缺全量 metadata 或模式／日期不符拒絕讀取，不能以第一頁猜計數／唯一性。後端仍全量讀取並批次驗證／摘要，Web 列表與 quick-add 共用排序 helper；詳細規則見 [T1 契約](BACKEND_CONTRACT.md#t1-旅行列表篩選與排序)。
+
+## T2 列表與共用封存
+
+TripsScreen 採 T1 的 unarchived／archived + list；tripListRows 僅分組／去重及計數遮罩，不重算排序或帳務。記憶體分頁與更多視窗綁定環境／帳號／登入世代；列表名冊及 catalog 原機制不變，hasDenied 只查目前 scope 的既有 deny，不修改／解除權限。
+
+PersonalArchive 的頁內 ArchiveFlow 共用 fresh settings／archiveRevision、確認 UI、原 E engine.confirm 及恢復路由。設定與列表不各自寫 HTTP；未確認 context 只在記憶體，確認後由原 SQLite 保存 UUID。run 同步防雙擊，beforeSend 檢查登入世代、前景、連線、access capture、可見性和共用限速；卸載／晚到回應不更新新帳號。衝突要求重新讀取並明確確認，未知鎖定轉原操作；已提交與資料刷新失敗分開。
+
+tripListCache 在取消讀取後只保留第一頁，保留存取拒絕、其他環境／帳號；成功寫入的 refreshTripData 沿 trips 前綴失效全部模式，managementRefresh 同時失效 settings。首頁回前景／重連與下拉也重設；不增加全頁背景抓取、SQLite 欄位或新 provider。完整行為與限制見 [FEATURES](FEATURES.md#t2-旅行首頁與個人封存)。

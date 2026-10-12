@@ -340,3 +340,10 @@ it('keeps a header back control left aligned at content width and retains its 48
   press(button);
   expect(onBack).toHaveBeenCalledOnce();
 });
+
+it('exposes the selected list mode to assistive technology', () => {
+  const selected = render(() => Action({ label: 'Trips', selected: true, onPress: vi.fn() }));
+  expect(selected.props.accessibilityState).toMatchObject({ selected: true });
+  const other = render(() => Action({ label: 'Archived', selected: false, onPress: vi.fn() }));
+  expect(other.props.accessibilityState).toMatchObject({ selected: false });
+});

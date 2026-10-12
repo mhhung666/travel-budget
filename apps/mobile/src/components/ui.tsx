@@ -84,6 +84,7 @@ export function Action({
   icon,
   testID,
   expanded,
+  selected,
 }: {
   label: string;
   onPress: () => void;
@@ -94,6 +95,7 @@ export function Action({
   icon?: IconName;
   testID?: string;
   expanded?: boolean;
+  selected?: boolean;
 }) {
   const p = usePalette();
   const [focused, setFocused] = useState(false);
@@ -117,6 +119,7 @@ export function Action({
         disabled: blocked,
         busy,
         ...(expanded === undefined ? {} : { expanded }),
+        ...(selected === undefined ? {} : { selected }),
       }}
       disabled={blocked}
       onPress={() => !blocked && onPress()}

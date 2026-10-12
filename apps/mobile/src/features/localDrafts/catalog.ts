@@ -20,6 +20,12 @@ export class DraftCatalog {
     private open: () => Promise<DraftTripStore>,
     private now = Date.now
   ) {}
+  hasDenied(scope: PendingScope) {
+    return [...this.blocked.values()].some(
+      (item) =>
+        item.scope.environment === scope.environment && item.scope.accountId === scope.accountId
+    );
+  }
   getSnapshot = () => this.state;
   subscribe = (listener: () => void) => {
     this.listeners.add(listener);

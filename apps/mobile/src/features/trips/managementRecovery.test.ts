@@ -6,6 +6,7 @@ import { ApiError } from '@/api/client';
 import { memoryDatabase } from '@/test/sqlite';
 import { createMutationStore } from '@/storage/mutations';
 import { createPendingExpenseStore } from '@/storage/pendingExpenses';
+import { ArchiveFlow } from './archiveFlow';
 import { TripEntry } from '@/features/tripEntry/engine';
 const scope = { environment: 'https://test/api/v1', accountId: 'a'.repeat(24) },
   tripId = 'b'.repeat(24),
@@ -102,7 +103,34 @@ it.each(['trip.update', 'trip.archive', 'trip.currency'] as const)(
       expect(options?.method).toBe(operation === 'trip.update' ? 'PATCH' : 'POST');
       throw new ApiError('NETWORK');
     });
-    expect((await h.engine().confirm(scope, input)).kind).toBe('pending');
+    if (operation === 'trip.archive') {
+      const entry = h.engine();
+      const flow = new ArchiveFlow(
+        {
+          current: () => true,
+          guard: async () => () => undefined,
+          read: async () => ({
+            tripId,
+            name: 'Member trip',
+            description: '',
+            startDate: null,
+            endDate: null,
+            destination: null,
+            role: 'member',
+            archived: false,
+            revision,
+            archiveRevision: revision,
+          }),
+          confirm: (body) => entry.confirm(scope, { operation: 'trip.archive', tripId, body }),
+          failed: async () => undefined,
+        },
+        { archived: false }
+      );
+      await flow.review();
+      expect(h.request).not.toHaveBeenCalled();
+      await flow.submit();
+      expect(flow.getSnapshot().status).toBe('pending');
+    } else expect((await h.engine().confirm(scope, input)).kind).toBe('pending');
     await h.restart();
     h.request.mockResolvedValue({
       status: 'committed',

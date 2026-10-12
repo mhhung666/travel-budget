@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AppState } from 'react-native';
 import {
   infiniteQueryOptions,
   queryOptions,
+  useQueryClient,
+  onlineManager,
   useInfiniteQuery,
   useQuery,
 } from '@tanstack/react-query';
@@ -16,6 +18,7 @@ import { ApiError } from '@/api/client';
 import { landingSchema, tripsSchema } from '@/api/contracts';
 import type { SessionManager } from '@/api/session';
 import { useAuth } from '@/features/auth/AuthProvider';
+import { resetTripPages } from './tripListCache';
 import { keepAccessDenial } from '@/features/auth/accessGuard';
 import { localDate } from '@/i18n/format';
 
@@ -83,7 +86,32 @@ export const tripListQuery = (
 };
 export function useTripList(mode: TripListMode) {
   const { manager, user } = useAuth();
-  return useInfiniteQuery(tripListQuery(manager, user?.id, useToday(), mode));
+  const client = useQueryClient();
+  const options = tripListQuery(manager, user?.id, useToday(), mode);
+  const query = useInfiniteQuery({
+    ...options,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
+  const { refetch } = query;
+  const refresh = useCallback(async () => {
+    await client.cancelQueries({ queryKey: [manager.api.environment, user?.id, 'trips'] });
+    resetTripPages(client, manager.api.environment, user?.id);
+    return refetch();
+  }, [client, manager, user?.id, refetch]);
+  useEffect(() => {
+    const foreground = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void refresh();
+    });
+    const connection = onlineManager.subscribe((connected) => {
+      if (connected) void refresh();
+    });
+    return () => {
+      foreground.remove();
+      connection();
+    };
+  }, [refresh]);
+  return { ...query, refresh };
 }
 export const tripQuery = (
   manager: Pick<SessionManager, 'request'> & { api: Pick<SessionManager['api'], 'environment'> },
