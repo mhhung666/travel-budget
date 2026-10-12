@@ -1,5 +1,6 @@
 import type { TripWithMembers } from '@/types';
-import { ongoingDayNumber } from './tripStatus';
+import { ongoingDayNumber, getTripPhase, dateFromLocalDateKey } from './tripStatus';
+import { compareTripIdentity } from './tripListOrder';
 
 export type QuickAddDecision =
   | { kind: 'none'; trips: [] }
@@ -28,21 +29,22 @@ export function rankQuickAddTrips(
   now: Date = new Date(),
   preferredTripId?: string | null
 ): TripWithMembers[] {
-  const nowTime = now.getTime();
   const ranked: RankedTrip[] = trips
     .filter((trip) => trip.archived_at == null)
     .map((trip) => {
-      const start = dateTime(trip.start_date);
-      const end = dateTime(trip.end_date);
+      const start = trip.start_date
+        ? (dateFromLocalDateKey(trip.start_date)?.getTime() ?? null)
+        : null;
+      const end = trip.end_date ? (dateFromLocalDateKey(trip.end_date)?.getTime() ?? null) : null;
       const created = dateTime(trip.created_at) ?? 0;
 
       if (ongoingDayNumber(trip.start_date, trip.end_date, now) !== null) {
         return { trip, group: 0, time: start ?? created };
       }
-      if (start !== null && start > nowTime) {
+      if (start !== null && getTripPhase(trip.start_date, trip.end_date, now).daysUntil !== null) {
         return { trip, group: 1, time: start };
       }
-      if (end !== null && end < nowTime) {
+      if (end !== null && getTripPhase(trip.start_date, trip.end_date, now).phase === 'postTrip') {
         return { trip, group: 2, time: end };
       }
       return { trip, group: 3, time: created };
@@ -56,7 +58,9 @@ export function rankQuickAddTrips(
     if (aPreferred !== bPreferred) return aPreferred ? -1 : 1;
 
     // 即將出發的旅行由近到遠；其他群組由新到舊。
-    return a.group === 1 ? a.time - b.time : b.time - a.time;
+    return (
+      (a.group === 1 ? a.time - b.time : b.time - a.time) || compareTripIdentity(a.trip, b.trip)
+    );
   });
 
   return ranked.map(({ trip }) => trip);

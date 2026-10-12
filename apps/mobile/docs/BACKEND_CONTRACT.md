@@ -337,3 +337,15 @@ Mobile 明確提交一次，401 也不自動 refresh／重送；可能送達後�
 相向接受固定原關係 ID 及 pending／recipient 條件，matchedCount 成功才通知；建立撞唯一鍵時重讀勝出關係走同一狀態機，不把相向競態一律誤判為重複邀請。通知為提交後 best-effort，不將通知失敗回報為關係失敗。Web 原本共用的拒絕／收回 RPC 仍限 pending 任一參與者；Native 命令分開方向。
 
 沿用 Web 已知真人 ID 的邀請規則，未增加共同旅行作為後端授權條件，也不提供全站搜尋；Mobile 從旅行成員進入並在送出前重核來源名冊／catalog。好友不自動加入旅行，也不授予旅行權限。有限關係流程不進帳務 UUID journal：丟回應／5xx 不自動重送，先 GET 目前關係；讀失敗仍鎖住，成功讀只承認現況。重啟只讀，之後由使用者明確選擇新操作，不宣稱已查得原操作收據。
+
+## T1 旅行列表篩選與排序
+
+`GET /api/v2/trips` 相容新增 `archive=all|unarchived|archived` 與 `sort=legacy|list|quick-add`。省略仍是 all／legacy，保留既有混合排序與每頁 20 趟；`page` 為 1–999999，`date` 為使用者本地真實 date-only，已知參數重複或不合法回 400。quick-add 必須搭配 unarchived，不允許封存成為全域候選；旅行內明確記帳授權不變。
+
+- list：未封存的旅行中先、即將出發由近到遠；其餘出發日期降序（可按年份分組）、未排出發日最後。封存不置頂。相同日期以 created_at 降序、ID 升序穩定排序。
+- quick-add：共用 Web 的進行中 → 即將出發 → 最近結束 → 無完整情境日期，群內按 Web 日期規則與相同穩定鍵排序。當天結束仍進行中；只有一端日期沿既有 Web 情境規則，不杜撰進行中。
+- `metadata: { archive, sort, date, counts: { unarchived, archived }, quickAdd: { candidateCount, ongoingCount, directTripId } }`：同次全量授權讀取的本人計數，不按已載入頁數推算。directTripId 僅唯一進行中、或無進行中且唯一候選時有值；空頁仍帶全量 metadata。沒有邀請碼、其他成員預算或其他帳號旅行。
+
+後端共用 readMemberTrips，保留全量帳本批次驗證與摘要，先篩選排序再截頁；不是 DB 游標或跨請求快照，資料量與記憶體成本仍隨全量旅行增加。Mobile 新 tripListQuery／useTripList key 含環境、帳號、日期、archive、sort，保留 trips 資源前綴供既有寫入失效；使用 requestAs、取消訊號及原登入世代。新 reader 缺 metadata 或 echo 模式／日期不符時回四語服務未就緒，沒有混合列表／局部計數退路。舊讀取契約允許缺 metadata，現有畫面 T1 不切換查詢。
+
+T2／T3 才接首頁、封存與快捷入口；屆時須重設第一頁、按 ID 去重並保留 catalog 撤權遮罩。列表結果不能解除 deny；已知撤權期間不採計數／自動選擇，仍由原 options 驗證解除。上次使用與離線 metadata 不在 T1。先部署相容後端再發布需要它的 App，未部署。

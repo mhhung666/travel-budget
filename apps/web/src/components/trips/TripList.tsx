@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import type { TripWithMembers } from '@/types';
 import { getTripCardStatus } from '@/lib/tripStatus';
+import { rankTripList } from '@/lib/tripListOrder';
 import TripCard from './TripCard';
 
 interface TripListProps {
@@ -30,7 +31,7 @@ export default function TripList({
     const current: { trip: TripWithMembers; rank: number }[] = [];
     const rest: TripWithMembers[] = [];
     const now = new Date();
-    for (const trip of trips) {
+    for (const trip of rankTripList(trips, now)) {
       const status = getTripCardStatus(trip, now);
       if (status.kind === 'ongoing') current.push({ trip, rank: -1 });
       else if (status.kind === 'upcoming') current.push({ trip, rank: status.daysUntil });

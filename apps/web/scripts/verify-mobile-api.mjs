@@ -647,6 +647,26 @@ try {
   assert.equal(second.nextPage, null);
   assert.equal(second.items.at(-1).id, archived._id.toString());
   assert.equal(new Set([...listing.items, ...second.items].map((item) => item.id)).size, 22);
+  const filtered = (await request(`/trips?archive=unarchived&sort=list&date=${date}`, { token: first.accessToken, schema: contracts.tripSelectionV2Schema })).data;
+  assert.deepEqual(filtered.metadata.counts, { unarchived: 21, archived: 1 });
+  assert.equal(filtered.metadata.quickAdd.candidateCount, 21);
+  assert.equal(filtered.metadata.quickAdd.ongoingCount, 1);
+  assert.equal(filtered.metadata.quickAdd.directTripId, shared._id.toString());
+  assert(filtered.items.every(item => !item.archived));
+  const archivedList = (await request(`/trips?archive=archived&sort=list&date=${date}`, { token: first.accessToken, schema: contracts.tripSelectionV2Schema })).data;
+  assert.deepEqual(archivedList.items.map(item => item.id), [archived._id.toString()]);
+  const quick = (await request(`/trips?archive=unarchived&sort=quick-add&date=${date}`, { token: first.accessToken, schema: contracts.tripSelectionV2Schema })).data;
+  assert.equal(quick.items[0].id, shared._id.toString());
+  assert.deepEqual(quick.metadata.quickAdd, filtered.metadata.quickAdd);
+  const emptyPage = (await request(`/trips?archive=unarchived&sort=list&page=3&date=${date}`, { token: first.accessToken, schema: contracts.tripSelectionV2Schema })).data;
+  assert.deepEqual(emptyPage.items, []);
+  assert.equal(emptyPage.nextPage, null);
+  assert.deepEqual(emptyPage.metadata, filtered.metadata);
+  await request('/trips?archive=bogus', { token: first.accessToken, status: 400 });
+  await request('/trips?archive=archived&sort=quick-add', { token: first.accessToken, status: 400 });
+  await request('/trips?sort=list&sort=legacy', { token: first.accessToken, status: 400 });
+  await request(`/trips?archive=unarchived&sort=list&date=${date}`, { status: 401 });
+  pass('T1 HTTP: filters before paging, full metadata on empty pages, unique ongoing across complete candidates, strict parameters and bearer isolation');
   const landingPath = `/trips/${shared._id}/landing?date=${date}`;
   const landing = (await request(landingPath, { token: first.accessToken, schema: landingSchema }))
     .data;
@@ -679,7 +699,7 @@ try {
   const empty = await login('mobile-empty');
   assert.deepEqual(
     (await request('/trips', { token: empty.accessToken, schema: tripsSchema })).data,
-    { items: [], nextPage: null }
+    { items: [], nextPage: null, metadata: { archive: 'all', sort: 'legacy', date: new Date().toISOString().slice(0,10), counts: { unarchived: 0, archived: 0 }, quickAdd: { candidateCount: 0, ongoingCount: 0, directTripId: null } } }
   );
   pass('different account views and empty trips');
   // --- Read-only expenses and settlement (delivery A) ---

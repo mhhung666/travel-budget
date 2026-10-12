@@ -1052,7 +1052,44 @@ export type BudgetFields = z.infer<typeof budgetFieldsSchema>;
 export type BudgetMutationResult = z.infer<typeof budgetMutationResultV2Schema>;
 export const tripCurrencyV2Input = tripCurrencyInput.safeExtend(ledgerInputFields);
 export const tripV2Schema = tripSchema.safeExtend(ledgerFields);
-export const tripsV2Schema = tripsSchema.safeExtend({ items: z.array(tripV2Schema) });
+/** Explicit list modes are additive; omitted parameters preserve installed clients. */
+export const tripListQuerySchema = z
+  .object({
+    page: z
+      .string()
+      .regex(/^[1-9]\d{0,5}$/)
+      .default('1'),
+    date: dateSchema.optional(),
+    archive: z.enum(['all', 'unarchived', 'archived']).default('all'),
+    sort: z.enum(['legacy', 'list', 'quick-add']).default('legacy'),
+  })
+  .strict()
+  .refine((value) => value.sort !== 'quick-add' || value.archive === 'unarchived', {
+    message: 'Quick-add requires unarchived trips',
+    path: ['archive'],
+  });
+export const tripListMetadataSchema = z.object({
+  archive: z.enum(['all', 'unarchived', 'archived']),
+  sort: z.enum(['legacy', 'list', 'quick-add']),
+  date: dateSchema,
+  counts: z.object({
+    unarchived: z.number().int().nonnegative(),
+    archived: z.number().int().nonnegative(),
+  }),
+  quickAdd: z.object({
+    candidateCount: z.number().int().nonnegative(),
+    ongoingCount: z.number().int().nonnegative(),
+    directTripId: idSchema.nullable(),
+  }),
+});
+export const tripsV2Schema = tripsSchema.safeExtend({
+  items: z.array(tripV2Schema),
+  metadata: tripListMetadataSchema.optional(),
+});
+/** New selection readers require metadata; old servers cannot masquerade as filtered results. */
+export const tripSelectionV2Schema = tripsV2Schema.safeExtend({ metadata: tripListMetadataSchema });
+export type TripListQuery = z.infer<typeof tripListQuerySchema>;
+export type TripListMetadata = z.infer<typeof tripListMetadataSchema>;
 export const landingV2Schema = landingSchema.safeExtend(ledgerFields);
 export const expenseV2Schema = expenseSchema.safeExtend(ledgerFields);
 export const expensesV2Schema = expensesSchema.safeExtend({

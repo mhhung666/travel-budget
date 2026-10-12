@@ -295,3 +295,7 @@ receiptFiles 用 Expo picker／manipulator／filesystem：圖片最長邊 2400�
 `FriendsManager` 透過 SessionManager.requestAs、登入世代及 online／前景 guard 讀寫 v2 關係；FriendsScreen 依環境／帳號／世代／來源重建。私人清單只留頁面記憶體，不進 Query、SQLite、憑證或帳務 journal。未知寫入不重送，成功重讀只承認目前狀態；成功寫入後列表刷新失敗單獨標示且阻止重送。
 
 旅行成員頁只對其他真人提供入口；讀取及送出前各重讀名冊，捕捉 catalog 撤權世代，發送前及回應後重核可見性。撤權後不顯示邀請來源名冊／姓名，已有本人好友關係仍按好友契約可讀。來源只是原生入口，後端沿用 Web 已知目標 ID 的規則；好友沒有旅行權限。狀態機與欄位見 [M4b 契約](BACKEND_CONTRACT.md#m4b-好友)。
+
+## T1 旅行列表資料
+
+新 `tripListQuery`／`useTripList` 與現有 `useTrips` 並存，T2／T3 才切換畫面。key 延續 trips 前綴並增加 archive／sort，環境、帳號、本地日期及 v2 仍隔離；requestAs 保護原帳號、signal 取消請求，不落盤。缺全量 metadata 或模式／日期不符拒絕讀取，不能以第一頁猜計數／唯一性。後端仍全量讀取並批次驗證／摘要，Web 列表與 quick-add 共用排序 helper；詳細規則見 [T1 契約](BACKEND_CONTRACT.md#t1-旅行列表篩選與排序)。

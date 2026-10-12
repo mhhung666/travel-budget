@@ -6,6 +6,7 @@ export function errorMessage(error: unknown, t: Messages): string {
   if (['CLIENT_UPGRADE_REQUIRED', 'LEDGER_SERVICE_UNAVAILABLE'].includes(error.code))
     return t.ledgerUnavailable;
   if (error.code === 'FEATURE_NOT_AVAILABLE') return t.ledgerCreationDisabled;
+  if (error.code === 'TRIP_LIST_SERVICE_UNAVAILABLE') return t.tripListUnavailable;
   if (error.code === 'CONFIGURATION') return t.configurationError;
   if (error.code === 'STORAGE') return t.storageError;
   if (error.code === 'NATIVE_ONLY') return t.nativeOnly;

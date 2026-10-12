@@ -38,6 +38,7 @@ afterAll(() => {
 const trip = {
   id,
   name: 'Tokyo',
+  created_at: '2026-01-01T00:00:00.000Z',
   description: null,
   start_date: '2026-10-01',
   end_date: '2026-10-10',
@@ -66,7 +67,7 @@ describe('mobile member reads', () => {
       phase: 'ongoing',
       ledger: { baseCurrency: 'TWD', moneyScale: 2 },
     });
-    expect(JSON.stringify(result)).not.toMatch(/hash_code|budget|private-code|legacy/);
+    expect(JSON.stringify(result)).not.toMatch(/hash_code|budget|private-code|legacy_budget/);
   });
   it('prioritizes current trips, then future trips; archives come last', async () => {
     mocks.list.mockResolvedValue([

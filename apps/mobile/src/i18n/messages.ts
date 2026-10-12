@@ -506,6 +506,7 @@ const zh = {
   sessionExpired: '登入已失效，請重新登入。',
   genericError: '暫時無法完成，請稍後重試。',
   configurationError: '尚未設定服務連線，請聯絡開發者。',
+  tripListUnavailable: '旅行列表服務尚未就緒，請稍後重試或更新。',
   storageError: '無法存取安全儲存空間，請解鎖裝置後重試。',
   nativeOnly: '請在 iOS 或 Android App 登入；此頁僅供介面預覽。',
   trips: '我的旅行',
@@ -1156,6 +1157,7 @@ export const messages = {
     sessionExpired: '登录已失效，请重新登录。',
     genericError: '暂时无法完成，请稍后重试。',
     configurationError: '尚未设置服务连接，请联系开发者。',
+    tripListUnavailable: '旅行列表服务尚未就绪，请稍后重试或更新。',
     storageError: '无法访问安全存储空间，请解锁设备后重试。',
     nativeOnly: '请在 iOS 或 Android App 登录；此页仅供界面预览。',
     trips: '我的旅行',
@@ -1897,6 +1899,7 @@ export const messages = {
     sessionExpired: 'Your session has expired. Please sign in again.',
     genericError: 'Something went wrong. Please try again.',
     configurationError: 'The service connection is not configured. Contact the developer.',
+    tripListUnavailable: 'The trip list service is not ready. Retry later or update.',
     storageError: 'Secure storage is unavailable. Unlock your device and try again.',
     nativeOnly: 'Sign in on iOS or Android. This page is a layout preview.',
     trips: 'My trips',
@@ -2638,6 +2641,8 @@ export const messages = {
     sessionExpired: 'ログインの有効期限が切れました。再度ログインしてください。',
     genericError: '処理できませんでした。再試行してください。',
     configurationError: 'サービス接続が未設定です。開発者にお問い合わせください。',
+    tripListUnavailable:
+      '旅行一覧サービスの準備ができていません。後で再試行するか更新してください。',
     storageError: '安全な保存領域にアクセスできません。端末をロック解除して再試行してください。',
     nativeOnly:
       'ログインは iOS または Android アプリで行ってください。このページは画面プレビューです。',

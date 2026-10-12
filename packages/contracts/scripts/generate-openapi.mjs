@@ -34,6 +34,8 @@ import {
   sessionSchema,
   logoutResultSchema,
   tripsSchema,
+  tripListQuerySchema,
+  tripListMetadataSchema,
   landingSchema,
   expensesSchema,
   expenseDetailSchema,
@@ -140,6 +142,8 @@ const schemas = Object.fromEntries(
     FriendMutation: friendMutationSchema,
     Session: sessionSchema,
     Trips: tripsSchema,
+    TripListQuery: tripListQuerySchema,
+    TripListMetadata: tripListMetadataSchema,
     Landing: landingSchema,
     Expenses: expensesSchema,
     ExpenseDetail: expenseDetailSchema,
@@ -365,9 +369,19 @@ const templates = {
           in: 'query',
           schema: { type: 'integer', minimum: 1, maximum: 999999, default: 1 },
         },
+        {
+          name: 'archive',
+          in: 'query',
+          schema: { type: 'string', enum: ['all', 'unarchived', 'archived'], default: 'all' },
+        },
+        {
+          name: 'sort',
+          in: 'query',
+          schema: { type: 'string', enum: ['legacy', 'list', 'quick-add'], default: 'legacy' },
+        },
       ],
       description:
-        '20 items/page; ongoing, upcoming, unscheduled, past, archived. Pagination is not a snapshot; refresh from page 1 after changes.',
+        '20 items/page after filtering/sorting. Defaults preserve legacy mixed order. sort=list pins ongoing/upcoming only for unarchived trips, then descending departure year/date, undated last. sort=quick-add requires archive=unarchived and uses Web quick-add order. metadata counts and quickAdd decision cover all authorized trips, even on empty pages. Pagination is not a snapshot; reset to page 1 after changes.',
     },
   },
   '/trips/{id}/expenses/{expenseId}/attachment-requests': {

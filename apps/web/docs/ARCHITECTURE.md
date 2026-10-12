@@ -145,3 +145,8 @@ Web `getCurrentUser`／名稱版 `updateProfile` 與 Mobile `/api/v2/me/profile`
 ## M4b 好友共用服務
 
 `friends.ts` 抽出 Web RPC／Native v2 的讀取與原子狀態機，沿用 Friendship 唯一 pair、兩側索引與公開姓名／帳號／頭像投影。查詢採兩個固定批次 populate，沒有逐人成員／旅行查詢。相向接受固定原關係 ID 及 pending／收件人條件，確認成功才通知；唯一鍵競態重讀勝出關係，通知失敗不改已提交結果。Web RPC 回傳形狀與 pending 任一方取消保持相容，Native 拒絕與收回分別限收件／寄件人。契約與原生重讀策略見 [M4b](../../mobile/docs/BACKEND_CONTRACT.md#m4b-好友)。
+
+
+## T1 旅行列表排序
+
+Web TripList 與 Native list 模式共用 tripListOrder 的日曆日／封存置頂與穩定日期鍵；quickAdd 的群組、唯一候選決策也供 Native 全量 metadata 使用，同日結束以日曆日判斷。readMemberTrips 原批次帳本驗證及財務摘要保留，不新增逐趟查詢、索引或 migration。HTTP 明確篩選／排序後才切頁，舊無參數列表保留既有順序；完整契約及 reader 成本限制見 [T1](../../mobile/docs/BACKEND_CONTRACT.md#t1-旅行列表篩選與排序)。
