@@ -5,7 +5,7 @@ import { messages } from '@/i18n/messages';
 import { TripFormScreen } from './TripFormScreen';
 import { InvitationScreen } from './InvitationScreen';
 vi.mock('@tanstack/react-query', () => ({
-  useQuery: () => ({ data: { nonTwdCreationEnabled: false } }),
+  useQuery: () => ({ data: { nonTwdCreationEnabled: false, supportedBaseCurrencies: ['TWD'] } }),
 }));
 
 const h = vi.hoisted(() => ({
@@ -88,6 +88,7 @@ const manager = {
   getSignInVersion: () => h.version,
   requestAs: h.request,
 };
+vi.mock('./BaseCurrencyField', () => ({ BaseCurrencyField: 'BaseCurrencyField' }));
 vi.mock('./provider', () => ({
   useTripEntry: () => ({
     entry: { confirm: h.confirm },
@@ -333,4 +334,21 @@ it('late invitation response after leaving is ignored; retry remains read-only',
   expect(nodes(render()).some((n) => n.props.testID === 'invitation-code')).toBe(false);
   press('invitation-refresh');
   expect(h.confirm).not.toHaveBeenCalled();
+});
+
+it('places the base field after the name and keeps the picker controlled without submitting on selection', async () => {
+  const tree = nodes(render());
+  const field = tree.find((n) => n.type === 'BaseCurrencyField')!;
+  expect(tree.findIndex((n) => n.props.testID === 'trip-name')).toBeLessThan(tree.indexOf(field));
+  expect(field.props).toMatchObject({ value: 'TWD', codes: ['TWD'], open: false });
+  (field.props.onOpenChange as (value: boolean) => void)(true);
+  expect(find('trip-confirm').props.disabled).toBe(true);
+  press('trip-confirm');
+  await flush();
+  expect(h.confirm).not.toHaveBeenCalled();
+  (field.props.onOpenChange as (value: boolean) => void)(false);
+  edit('trip-name', 'Trip');
+  press('trip-confirm');
+  await flush();
+  expect(h.confirm.mock.calls[0][1].body).toMatchObject({ name: 'Trip', base_currency: 'TWD' });
 });

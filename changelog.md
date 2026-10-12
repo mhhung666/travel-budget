@@ -4,6 +4,11 @@
 
 ## Unreleased
 
+### 2026-10-13
+
+- Mobile：BC2a 建立旅行改用完整幣別搜尋 Modal，名稱在基準前、四語／英文名稱與 Web 共同排序，取消／清除不改值；保留原 E 寫入與正式 gate。
+- Mobile 全部 1,766 項＋工具 48 項、check／三平台匯出通過；Expo 檢查提示既有四項 patch 更新，本片未改依賴。BC2a 已提交，BC2b 表單守衛待開發，iPhone／iPad／VoiceOver 待驗。現況見[共同規格](docs/design/BASE_CURRENCY_CREATION.md#bc2a-app-搜尋選擇器)。
+
 ### 2026-10-12
 
 - Web／Mobile：完成 T1–T3b 列表篩選／分組、個人封存、線上／離線候選及全量快捷記帳；UX-T1／T2 統一頁首、分頁、卡片與確認互動，保留原 UUID、權限及草稿恢復。

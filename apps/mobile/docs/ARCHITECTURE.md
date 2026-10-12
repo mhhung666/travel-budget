@@ -32,6 +32,8 @@ v2 C 的業務驗證拒絕由後端交易保存 receipt，含 `VALIDATION_ERROR`
 
 D 新舊 queued／prepared 均維持 TWD／匯率 1／均分；非 TWD 帳本與外幣只能保存草稿，入列／prepare／同步各自檢查。非 TWD 建立依後端 capabilities 顯示選擇，後端開關目前仍關閉。iPhone＋iPad 操作由他人驗收，Android 僅保留工程相容；B4 未完成，完整裝置與閱讀器不在此結案。
 
+BC2a 的 `features/tripEntry/currencySelection.ts` 只處理候選、四語／英文顯示與搜尋排序，與 Web 共用靜態測試 fixture，沒有跨應用原始碼引用。`BaseCurrencyField` 受控接收基準、能力候選與面板開關；搜尋文字只留元件記憶體，不進 body／SQLite。原表單與 E 引擎保持掛載，Modal 僅有本機顯示／焦點／鍵盤操作，不新增查詢或 provider；BC2b 表單狀態仍待接續。
+
 ## 目錄與依賴
 
 ```text

@@ -6,12 +6,14 @@ import { router, useNavigation } from 'expo-router';
 import { usePreventRemove } from 'expo-router/react-navigation';
 import { useQuery } from '@tanstack/react-query';
 import { ledgerCapabilitiesSchema, tripFieldsSchema } from '@/api/contracts';
-import { Action, Chip, Copy, Notice, TextField } from '@/components/ui';
+import { Action, Copy, Notice, TextField } from '@/components/ui';
 import { useMessages } from '@/i18n/useMessages';
 import { useOnline } from '@/providers/useOnline';
 import { errorMessage } from '@/features/auth/errorMessage';
 import { useTripEntry } from './provider';
 import { parseInvitation } from './input';
+import { BaseCurrencyField } from './BaseCurrencyField';
+import { baseCurrencyCodes } from './currencySelection';
 
 export function TripFormScreen({ mode }: { mode: 'create' | 'join' }) {
   const t = useMessages();
@@ -20,12 +22,13 @@ export function TripFormScreen({ mode }: { mode: 'create' | 'join' }) {
   const navigation = useNavigation();
   const [fields, setFields] = useState({ name: '', description: '', start_date: '', end_date: '' });
   const [base, setBase] = useState('TWD');
-  const [baseSearch, setBaseSearch] = useState('');
+  const [currencyOpen, setCurrencyOpen] = useState(false);
   const capabilities = useQuery({
     queryKey: [manager.api.environment, scope?.accountId, 'ledger-capabilities', 'v2'],
     enabled: mode === 'create' && !!scope && online,
     queryFn: () => manager.request('/capabilities', ledgerCapabilitiesSchema),
   });
+  const baseCodes = baseCurrencyCodes(capabilities.data);
   const [invite, setInvite] = useState('');
   const [busy, setBusy] = useState(false);
   const inFlight = useRef(false);
@@ -51,7 +54,8 @@ export function TripFormScreen({ mode }: { mode: 'create' | 'join' }) {
     ])
   );
   const submit = async () => {
-    if (!scope || inFlight.current) return;
+    if (!scope || inFlight.current || busy || confirmed || currencyOpen || !online) return;
+    if (mode === 'create' && !baseCodes.includes(base)) return;
     let payload: Parameters<typeof entry.confirm>[1];
     if (mode === 'create') {
       const parsed = tripFieldsSchema.safeParse({
@@ -137,37 +141,6 @@ export function TripFormScreen({ mode }: { mode: 'create' | 'join' }) {
       <Copy>{mode === 'create' ? t.tripFormHint : t.inviteHint}</Copy>
       {mode === 'create' ? (
         <>
-          <Copy>{t.ledgerName}</Copy>
-          <Notice>{t.ledgerFixed}</Notice>
-          {capabilities.data?.nonTwdCreationEnabled && (
-            <TextField
-              label={t.searchCurrency}
-              value={baseSearch}
-              onChangeText={setBaseSearch}
-              editable={!busy && !confirmed}
-              autoCapitalize="characters"
-              maxLength={3}
-            />
-          )}
-          {(capabilities.data?.nonTwdCreationEnabled
-            ? [
-                ...new Set([
-                  base,
-                  ...capabilities.data.supportedBaseCurrencies
-                    .filter((code) => code.includes(baseSearch.trim().toUpperCase()))
-                    .slice(0, 12),
-                ]),
-              ]
-            : ['TWD']
-          ).map((code) => (
-            <Chip
-              key={code}
-              label={code}
-              selected={base === code}
-              disabled={busy || confirmed}
-              onPress={() => setBase(code)}
-            />
-          ))}
           <TextField
             inputRef={first}
             testID="trip-name"
@@ -178,6 +151,14 @@ export function TripFormScreen({ mode }: { mode: 'create' | 'join' }) {
             maxLength={100}
             returnKeyType="next"
             onSubmitEditing={() => description.current?.focus()}
+          />
+          <BaseCurrencyField
+            value={base}
+            codes={baseCodes}
+            disabled={busy || confirmed || !capabilities.data}
+            open={currencyOpen}
+            onOpenChange={setCurrencyOpen}
+            onChange={setBase}
           />
           <TextField
             inputRef={description}
@@ -243,7 +224,9 @@ export function TripFormScreen({ mode }: { mode: 'create' | 'join' }) {
         testID="trip-confirm"
         label={mode === 'create' ? t.createTrip : t.joinTrip}
         busy={busy}
-        disabled={!online || confirmed || (mode === 'create' && !capabilities.data)}
+        disabled={
+          !online || confirmed || currencyOpen || (mode === 'create' && !baseCodes.includes(base))
+        }
         onPress={() => void submit()}
       />
       <Action
