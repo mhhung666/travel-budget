@@ -18,6 +18,10 @@ import { TabRouter } from 'expo-router/build/react-navigation/routers';
 
 vi.mock('@/features/expenses/PendingReceipts', () => ({ PendingReceipts: 'PendingReceipts' }));
 const h = vi.hoisted(() => ({
+  manual: undefined as string | undefined,
+  returnTrip: undefined as string | undefined,
+  returnLocal: undefined as string | undefined,
+  fetched: false,
   status: 'signedIn',
   actor: 'account',
   version: 1,
@@ -43,7 +47,10 @@ const h = vi.hoisted(() => ({
     data: {
       pages: [
         {
-          metadata: { counts: { archived: 2, unarchived: 43 }, quickAdd: { directTripId: 'a' } },
+          metadata: {
+            counts: { archived: 2, unarchived: 43 },
+            quickAdd: { directTripId: 'a', candidateCount: 43, ongoingCount: 1 },
+          },
           items: [
             {
               id: 'a',
@@ -123,6 +130,7 @@ vi.mock('react', async (original) => ({
   },
 }));
 vi.mock('react-native', () => ({
+  AppState: { currentState: 'active' },
   useWindowDimensions: () => ({ width: h.width, height: 844, fontScale: h.fontScale, scale: 3 }),
   View: 'View',
   Text: 'Text',
@@ -148,7 +156,12 @@ vi.mock('expo-router', async () => {
     Redirect: 'Redirect',
     router: { push: h.push, replace: h.replace, back: h.back, canGoBack: () => true },
     usePathname: () => h.pathname,
-    useLocalSearchParams: () => ({ id: h.tripId }),
+    useLocalSearchParams: () => ({
+      id: h.tripId,
+      manual: h.manual,
+      returnTrip: h.returnTrip,
+      returnLocal: h.returnLocal,
+    }),
   };
 });
 vi.mock('@/components/frame', () => ({
@@ -187,7 +200,7 @@ vi.mock('@/features/auth/errorMessage', () => ({
 vi.mock('@/features/trips/queries', () => ({
   useTripCandidates: (enabled: boolean) => {
     h.candidates(enabled);
-    return h.remote;
+    return { ...h.remote, isFetchedAfterMount: h.fetched, isStale: false };
   },
   useTrip: () => h.trip,
 }));
@@ -212,6 +225,7 @@ vi.mock('@/features/expenses/entryProvider', () => ({
 vi.mock('@/features/tripEntry/provider', () => ({
   useTripEntry: () => ({ records: h.operations }),
 }));
+vi.mock('./useLastExpenseTrip', () => ({ useLastExpenseTrip: () => null }));
 vi.mock('@/providers/useOnline', () => ({ useOnline: () => h.online }));
 vi.mock('@/i18n/useDisplayFormat', () => ({ useDisplayFormat: () => ({ locale: 'en' }) }));
 vi.mock('@/i18n/useMessages', () => ({
@@ -221,7 +235,14 @@ vi.mock('@/i18n/useMessages', () => ({
 type Element = ReactElement<Record<string, unknown>>;
 function render(component: () => ReactElement | null) {
   h.i = h.j = h.k = 0;
-  return component();
+  const element = component();
+  if (
+    element &&
+    typeof element.type === 'function' &&
+    element.type.name === 'ScopedSelectTripScreen'
+  )
+    return (element.type as () => ReactElement)();
+  return element;
 }
 function nodes(node: ReactNode): Element[] {
   if (Array.isArray(node)) return node.flatMap(nodes);
@@ -246,6 +267,8 @@ function press(element: Element) {
   return (element.props.onPress as () => void)();
 }
 beforeEach(() => {
+  h.manual = h.returnTrip = h.returnLocal = undefined;
+  h.fetched = false;
   h.status = 'signedIn';
   h.actor = 'account';
   h.version = 1;
@@ -317,7 +340,7 @@ it('opens the global action once, then allows another attempt after returning', 
   press(find(element, 'testID', 'nav-record'));
   expect(h.push).toHaveBeenCalledTimes(2);
 });
-it('never chooses a trip automatically, blocks rapid selection, and preserves the original cancel history', () => {
+it('requires a fresh read for automatic entry, blocks rapid selection, and preserves the original cancel history', () => {
   const element = render(SelectTripScreen)! as Element;
   const list = find(element, 'testID', 'record-trips');
   expect(h.replace).not.toHaveBeenCalled();
@@ -328,7 +351,7 @@ it('never chooses a trip automatically, blocks rapid selection, and preserves th
   press(button);
   expect(h.replace).toHaveBeenCalledExactlyOnceWith({
     pathname: '/trips/[id]/expenses/new',
-    params: { id: 'a' },
+    params: { id: 'a', selection: 'selected' },
   });
   const header = list.props.ListHeaderComponent as ReactNode;
   const cancel = nodes(header).find((node) => node.props.backTestID === 'record-cancel')!;
@@ -725,4 +748,47 @@ it('known revocation hides candidates without removing the manual archive entry 
   } finally {
     h.remote.data.pages[0].metadata = metadata;
   }
+});
+
+it('opens the full-metadata unique ongoing trip once after a fresh read, with automatic provenance', () => {
+  h.fetched = true;
+  render(SelectTripScreen);
+  render(SelectTripScreen);
+  expect(h.replace).toHaveBeenCalledExactlyOnceWith({
+    pathname: '/trips/[id]/expenses/new',
+    params: { id: 'a', selection: 'automatic' },
+  });
+});
+it.each(['manual', 'hidden', 'offline', 'error', 'fetching', 'not-unique'])(
+  'keeps selection manual for %s even with a direct ID in cached metadata',
+  (reason) => {
+    h.fetched = true;
+    if (reason === 'manual') h.manual = '1';
+    if (reason === 'hidden') h.hidden = true;
+    if (reason === 'offline') h.online = false;
+    if (reason === 'error') h.remote.isError = true;
+    if (reason === 'fetching') h.remote.isFetching = true;
+    const quick = h.remote.data.pages[0].metadata.quickAdd;
+    const previous = quick.ongoingCount;
+    if (reason === 'not-unique') quick.ongoingCount = 2;
+    render(SelectTripScreen);
+    expect(h.replace).not.toHaveBeenCalled();
+    quick.ongoingCount = previous;
+    h.remote.isFetching = false;
+  }
+);
+
+it('canceling a switch returns to the original saved form, without changing the trip preference', () => {
+  h.manual = '1';
+  h.returnTrip = 'original';
+  const list = find(render(SelectTripScreen), 'testID', 'record-trips');
+  const header = nodes(list.props.ListHeaderComponent as ReactNode).find(
+    (node) => node.props.backTestID === 'record-cancel'
+  )!;
+  (header.props.onBack as () => void)();
+  expect(h.replace).toHaveBeenCalledExactlyOnceWith({
+    pathname: '/trips/[id]/expenses/new',
+    params: { id: 'original', selection: 'automatic' },
+  });
+  expect(h.back).not.toHaveBeenCalled();
 });

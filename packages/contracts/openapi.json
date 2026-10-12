@@ -3387,6 +3387,15 @@
               ],
               "default": "legacy"
             }
+          },
+          {
+            "name": "preferred_trip_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            },
+            "description": "Optional quick-add preference. Only reorders within the same group before pagination; does not change uniqueness or authorize access."
           }
         ],
         "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
@@ -10888,6 +10897,10 @@
           "metadata": {
             "type": "object",
             "properties": {
+              "preferredTripId": {
+                "type": "string",
+                "pattern": "^[a-f\\d]{24}$"
+              },
               "archive": {
                 "type": "string",
                 "enum": [

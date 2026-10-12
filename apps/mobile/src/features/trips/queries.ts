@@ -44,19 +44,33 @@ export const tripListQuery = (
   manager: ListRequester,
   userId: string | undefined,
   date: string,
-  mode: TripListMode
+  mode: TripListMode,
+  preferredTripId?: string | null
 ) => {
-  const input = tripListQuerySchema.parse({ date, ...mode });
+  const input = tripListQuerySchema.parse({
+    date,
+    ...mode,
+    preferred_trip_id: preferredTripId ?? undefined,
+  });
   return infiniteQueryOptions({
     // Keep the resource prefix so existing successful writes invalidate every list mode.
-    queryKey: [manager.api.environment, userId, 'trips', date, 'v2', input.archive, input.sort],
+    queryKey: [
+      manager.api.environment,
+      userId,
+      'trips',
+      date,
+      'v2',
+      input.archive,
+      input.sort,
+      ...(preferredTripId ? [preferredTripId] : []),
+    ],
     enabled: !!userId,
     initialPageParam: 1,
     queryFn: async ({ pageParam, signal }) => {
       if (!userId) throw new ApiError('CANCELLED');
       const result = await manager.requestAs(
         userId,
-        `/trips?page=${pageParam}&date=${date}&archive=${input.archive}&sort=${input.sort}`,
+        `/trips?page=${pageParam}&date=${date}&archive=${input.archive}&sort=${input.sort}${preferredTripId ? `&preferred_trip_id=${encodeURIComponent(preferredTripId)}` : ''}`,
         tripsV2Schema,
         { signal }
       );
@@ -64,7 +78,8 @@ export const tripListQuery = (
         !result.metadata ||
         result.metadata.archive !== input.archive ||
         result.metadata.sort !== input.sort ||
-        result.metadata.date !== date
+        result.metadata.date !== date ||
+        (preferredTripId && result.metadata.preferredTripId !== preferredTripId)
       )
         throw new ApiError('TRIP_LIST_SERVICE_UNAVAILABLE');
       return tripSelectionV2Schema.parse(result);
@@ -72,13 +87,14 @@ export const tripListQuery = (
     getNextPageParam: (page) => page.nextPage ?? undefined,
   });
 };
-export function useTripList(mode: TripListMode, enabled = true) {
+export function useTripList(mode: TripListMode, enabled = true, preferredTripId?: string | null) {
   const { manager, user } = useAuth();
   const client = useQueryClient();
-  const options = tripListQuery(manager, user?.id, useToday(), mode);
+  const options = tripListQuery(manager, user?.id, useToday(), mode, preferredTripId);
   const query = useInfiniteQuery({
     ...options,
     enabled: options.enabled && enabled,
+    refetchOnMount: mode.sort === 'quick-add' ? 'always' : true,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
@@ -103,8 +119,8 @@ export function useTripList(mode: TripListMode, enabled = true) {
   }, [refresh]);
   return { ...query, refresh };
 }
-export function useTripCandidates(enabled = true) {
-  return useTripList({ archive: 'unarchived', sort: 'quick-add' }, enabled);
+export function useTripCandidates(enabled = true, preferredTripId?: string | null) {
+  return useTripList({ archive: 'unarchived', sort: 'quick-add' }, enabled, preferredTripId);
 }
 export const tripQuery = (
   manager: Pick<SessionManager, 'request'> & { api: Pick<SessionManager['api'], 'environment'> },

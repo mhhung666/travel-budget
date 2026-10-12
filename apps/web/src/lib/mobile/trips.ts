@@ -50,19 +50,19 @@ export function viewerDate(url: URL) {
 export async function mobileTrips(userId: string, url: URL) {
   const today = viewerDate(url);
   const raw: Record<string, string> = {};
-  for (const key of ['page', 'date', 'archive', 'sort']) {
+  for (const key of ['page', 'date', 'archive', 'sort', 'preferred_trip_id']) {
     const values = url.searchParams.getAll(key);
     if (values.length > 1) throw new ApiError(400, 'VALIDATION_ERROR');
     if (values.length) raw[key] = values[0];
   }
   const parsed = tripListQuerySchema.safeParse(raw);
   if (!parsed.success) throw new ApiError(400, 'VALIDATION_ERROR');
-  const { archive, sort } = parsed.data;
+  const { archive, sort, preferred_trip_id: preferredTripId } = parsed.data;
   const page = Number(parsed.data.page);
   // One authorized full reader, fixed batch validation/summaries. Not a DB cursor or snapshot.
   const all = await readMemberTrips(userId);
   const now = dateFromLocalDateKey(today)!;
-  const decision = decideQuickAddTrip(all, now);
+  const decision = decideQuickAddTrip(all, now, preferredTripId);
   const candidates = decision.trips;
   const counts = {
     unarchived: all.filter((trip) => trip.archived_at == null).length,
@@ -90,6 +90,7 @@ export async function mobileTrips(userId: string, url: URL) {
     items: trips.slice(offset, offset + 20),
     nextPage: offset + 20 < trips.length ? page + 1 : null,
     metadata: {
+      ...(preferredTripId ? { preferredTripId } : {}),
       archive,
       sort,
       date: today,

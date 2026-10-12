@@ -379,9 +379,16 @@ const templates = {
           in: 'query',
           schema: { type: 'string', enum: ['legacy', 'list', 'quick-add'], default: 'legacy' },
         },
+        {
+          name: 'preferred_trip_id',
+          in: 'query',
+          schema: { type: 'string', pattern: '^[a-fA-F0-9]{24}$' },
+          description:
+            'Optional quick-add preference. Only reorders within the same group before pagination; does not change uniqueness or authorize access.',
+        },
       ],
       description:
-        '20 items/page after filtering/sorting. Defaults preserve legacy mixed order. sort=list pins ongoing/upcoming only for unarchived trips, then descending departure year/date, undated last. sort=quick-add requires archive=unarchived and uses Web quick-add order. metadata counts and quickAdd decision cover all authorized trips, even on empty pages. Pagination is not a snapshot; reset to page 1 after changes.',
+        '20 items/page after filtering/sorting. Defaults preserve legacy mixed order. sort=list pins ongoing/upcoming only for unarchived trips, then descending departure year/date, undated last. sort=quick-add requires archive=unarchived and uses Web quick-add order. preferred_trip_id is valid only for quick-add, is echoed as metadata.preferredTripId, and is ignored when absent from authorized unarchived candidates. metadata counts and quickAdd decision cover all authorized trips, even on empty pages. Pagination is not a snapshot; reset to page 1 after changes.',
     },
   },
   '/trips/{id}/expenses/{expenseId}/attachment-requests': {

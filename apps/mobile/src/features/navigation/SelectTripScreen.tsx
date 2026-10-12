@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { onlineManager } from '@tanstack/react-query';
-import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
+import { ActivityIndicator, AppState, FlatList, RefreshControl, View } from 'react-native';
 import { ScreenFrame } from '@/components/frame';
 import { PageHeader } from '@/components/screen';
 import { Action, Copy, Notice, Title, styles, usePalette } from '@/components/ui';
@@ -12,15 +12,30 @@ import { useAuth } from '@/features/auth/AuthProvider';
 import { useTripCandidates } from '@/features/trips/queries';
 import { useDraftCatalog, useLocalTrips } from '@/features/localDrafts/provider';
 import { useOnline } from '@/providers/useOnline';
-import { onlineCandidates, localCandidates } from './tripCandidates';
+import { onlineCandidates, localCandidates, directCandidate } from './tripCandidates';
+import { useLastExpenseTrip } from './useLastExpenseTrip';
 import { TripCandidateRow } from './TripCandidateRow';
 
-/** The global entry always requires an explicit choice in T3a, including offline snapshots. */
+/* Offline and switching always require an explicit choice; fresh full metadata permits shortcuts. */
 export function SelectTripScreen() {
+  const { manager, user } = useAuth();
+  return (
+    <ScopedSelectTripScreen
+      key={JSON.stringify([manager.api.environment, user?.id, manager.getSignInVersion()])}
+    />
+  );
+}
+function ScopedSelectTripScreen() {
+  const { manual, returnTrip, returnLocal } = useLocalSearchParams<{
+    manual?: string;
+    returnTrip?: string;
+    returnLocal?: string;
+  }>();
+  const preferred = useLastExpenseTrip();
   const online = useOnline();
   const { manager, user, status } = useAuth();
   const live = online && status === 'signedIn';
-  const trips = useTripCandidates(live);
+  const trips = useTripCandidates(live, preferred);
   const local = useLocalTrips();
   const { catalog } = useDraftCatalog();
   const p = usePalette();
@@ -57,9 +72,41 @@ export function SelectTripScreen() {
       owner === `${manager.api.environment}:${current.user?.id}:${manager.getSignInVersion()}` &&
       ['signedIn', 'local'].includes(current.status) &&
       (!live || current.status === 'signedIn') &&
-      onlineManager.isOnline() === online
+      onlineManager.isOnline() === online &&
+      AppState.currentState === 'active'
     );
   };
+  const openTrip = (id: string, automatic = false) => {
+    if (opening.current || !currentOwner() || !allowed(id)) return;
+    try {
+      access?.(id);
+    } catch {
+      return;
+    }
+    opening.current = true;
+    router.replace(
+      live
+        ? {
+            pathname: '/trips/[id]/expenses/new',
+            params: { id, selection: automatic ? 'automatic' : 'selected' },
+          }
+        : { pathname: '/drafts/[id]', params: { id } }
+    );
+  };
+  useEffect(() => {
+    if (
+      !live ||
+      manual === '1' ||
+      hidden ||
+      failed ||
+      trips.isFetching ||
+      trips.isStale ||
+      !trips.isFetchedAfterMount
+    )
+      return;
+    const id = directCandidate(trips.data?.pages[0]?.metadata, data);
+    if (id) openTrip(id, true);
+  });
   return (
     <ScreenFrame>
       <FlatList
@@ -81,7 +128,19 @@ export function SelectTripScreen() {
               title={t.chooseTrip}
               backLabel={t.cancel}
               backTestID="record-cancel"
-              onBack={() => goBack('/trips')}
+              onBack={() => {
+                if (!currentOwner()) return;
+                if (returnTrip)
+                  router.replace(
+                    returnLocal === '1'
+                      ? { pathname: '/drafts/[id]', params: { id: returnTrip } }
+                      : {
+                          pathname: '/trips/[id]/expenses/new',
+                          params: { id: returnTrip, selection: 'automatic' },
+                        }
+                  );
+                else goBack('/trips');
+              }}
             />
             <Copy>{t.chooseTripHint}</Copy>
             {!live && (
@@ -146,23 +205,7 @@ export function SelectTripScreen() {
                       : t.localUnknownTrips}
                 </Title>
               )}
-            <TripCandidateRow
-              item={item}
-              onPress={() => {
-                if (opening.current || !currentOwner() || !allowed(item.id)) return;
-                try {
-                  access?.(item.id);
-                } catch {
-                  return;
-                }
-                opening.current = true;
-                router.replace(
-                  live
-                    ? { pathname: '/trips/[id]/expenses/new', params: { id: item.id } }
-                    : { pathname: '/drafts/[id]', params: { id: item.id } }
-                );
-              }}
-            />
+            <TripCandidateRow item={item} onPress={() => openTrip(item.id)} />
           </View>
         )}
         ListFooterComponent={

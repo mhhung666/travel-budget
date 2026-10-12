@@ -1062,13 +1062,19 @@ export const tripListQuerySchema = z
     date: dateSchema.optional(),
     archive: z.enum(['all', 'unarchived', 'archived']).default('all'),
     sort: z.enum(['legacy', 'list', 'quick-add']).default('legacy'),
+    preferred_trip_id: idSchema.optional(),
   })
   .strict()
   .refine((value) => value.sort !== 'quick-add' || value.archive === 'unarchived', {
     message: 'Quick-add requires unarchived trips',
     path: ['archive'],
+  })
+  .refine((value) => !value.preferred_trip_id || value.sort === 'quick-add', {
+    message: 'Preference requires quick-add ordering',
+    path: ['preferred_trip_id'],
   });
 export const tripListMetadataSchema = z.object({
+  preferredTripId: idSchema.optional(),
   archive: z.enum(['all', 'unarchived', 'archived']),
   sort: z.enum(['legacy', 'list', 'quick-add']),
   date: dateSchema,

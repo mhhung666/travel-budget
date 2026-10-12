@@ -297,3 +297,37 @@ it.each([
   await expect(list(query)).rejects.toMatchObject({ status: 400, code: 'VALIDATION_ERROR' });
   expect(h.find).not.toHaveBeenCalled();
 });
+
+it('T3b ranks a page-two preference before pagination only in its group, without changing uniqueness or DB cost', async () => {
+  const rows = Array.from({ length: 41 }, (_, n) =>
+    sortedFixture(n + 1, '2026-10-20', '2026-10-22')
+  );
+  const ongoing = sortedFixture(50, '2026-10-12', '2026-10-12');
+  h.trips.mockResolvedValue([ongoing, ...rows]);
+  const baseline = await list('archive=unarchived&sort=quick-add');
+  const preferred = rows[40]._id.toString();
+  expect(baseline.items.some((t) => t.id === preferred)).toBe(false);
+  const result = await list(`archive=unarchived&sort=quick-add&preferred_trip_id=${preferred}`);
+  expect(result.items[0].id).toBe(ongoing._id.toString());
+  expect(result.items[1].id).toBe(preferred);
+  expect(result.metadata?.preferredTripId).toBe(preferred);
+  expect(result.metadata?.quickAdd).toEqual(baseline.metadata?.quickAdd);
+  expect(h.find).toHaveBeenCalledTimes(2);
+  expect(h.probe).toHaveBeenCalledTimes(4);
+  expect(h.expenses).toHaveBeenCalledTimes(2);
+  expect(h.payments).toHaveBeenCalledTimes(2);
+  rows[40].members[0].archivedAt = new Date('2026-10-10');
+  const archived = await list(`archive=unarchived&sort=quick-add&preferred_trip_id=${preferred}`);
+  expect(archived.items.some((t) => t.id === preferred)).toBe(false);
+  const absent = 'f'.repeat(24);
+  const missing = await list(`archive=unarchived&sort=quick-add&preferred_trip_id=${absent}`);
+  expect(missing.items.map((t) => t.id)).toEqual(archived.items.map((t) => t.id));
+});
+it.each([
+  'preferred_trip_id=bad&archive=unarchived&sort=quick-add',
+  'preferred_trip_id=aaaaaaaaaaaaaaaaaaaaaaaa&sort=list',
+  'preferred_trip_id=aaaaaaaaaaaaaaaaaaaaaaaa&preferred_trip_id=bbbbbbbbbbbbbbbbbbbbbbbb&archive=unarchived&sort=quick-add',
+])('rejects invalid T3b preference query: %s', async (query) => {
+  await expect(list(query)).rejects.toMatchObject({ status: 400, code: 'VALIDATION_ERROR' });
+  expect(h.find).not.toHaveBeenCalled();
+});

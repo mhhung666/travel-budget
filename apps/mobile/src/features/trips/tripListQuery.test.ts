@@ -188,3 +188,34 @@ it('quick-add fetches only the requested page despite full candidate metadata, n
     client.clear();
   }
 });
+
+it('sends a scoped full-list preference and verifies its echo, with separate cache keys', async () => {
+  const manager = fixture();
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const id = 'c'.repeat(24);
+  const plain = tripListQuery(manager, actor, date, { archive: 'unarchived', sort: 'quick-add' });
+  const preferred = tripListQuery(
+    manager,
+    actor,
+    date,
+    { archive: 'unarchived', sort: 'quick-add' },
+    id
+  );
+  expect(preferred.queryKey).not.toEqual(plain.queryKey);
+  manager.request.mockResolvedValue(response('unarchived', 'quick-add'));
+  await expect(client.fetchInfiniteQuery(preferred)).rejects.toMatchObject({
+    code: 'TRIP_LIST_SERVICE_UNAVAILABLE',
+  });
+  manager.request.mockResolvedValue({
+    ...response('unarchived', 'quick-add'),
+    metadata: {
+      ...response('unarchived', 'quick-add').metadata,
+      preferredTripId: id,
+    },
+  });
+  const result = await client.fetchInfiniteQuery(preferred);
+  expect(result.pages[0].metadata.preferredTripId).toBe(id);
+  expect(manager.request.mock.calls[1][1]).toContain(`&preferred_trip_id=${id}`);
+  expect(manager.request.mock.calls[1][0]).toBe(actor);
+  client.clear();
+});

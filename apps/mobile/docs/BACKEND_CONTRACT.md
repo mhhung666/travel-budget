@@ -348,4 +348,4 @@ Mobile 明確提交一次，401 也不自動 refresh／重送；可能送達後�
 
 後端共用 readMemberTrips，保留全量帳本批次驗證與摘要，先篩選排序再截頁；不是 DB 游標或跨請求快照，資料量與記憶體成本仍隨全量旅行增加。Mobile 新 tripListQuery／useTripList key 含環境、帳號、日期、archive、sort，保留 trips 資源前綴供既有寫入失效；使用 requestAs、取消訊號及原登入世代。新 reader 缺 metadata 或 echo 模式／日期不符時回四語服務未就緒，沒有混合列表／局部計數退路。舊讀取契約允許缺 metadata，T2 旅行首頁已接新查詢，T3a 全域記一筆指定 unarchived／quick-add 獨立分頁。
 
-T2 已接首頁／封存並重設第一頁、按 ID 去重及保留 catalog 遮罩；T3a 保持明確選擇，快捷判斷留 T3b。列表結果不能解除 deny；已知撤權期間不採計數／自動選擇，仍由原 options 驗證解除。T3a 不新增 HTTP 契約；本機 nullable archived 來自成功讀取／終局 receipt，不能解除 deny，不是線上狀態保證。上次使用留 T3b。先部署相容後端再發布需要它的 App，未部署。
+T2 已接首頁／封存並重設第一頁、按 ID 去重及保留 catalog 遮罩；T3b 線上採新鮮全量 quickAdd 決定，manual／離線仍明確選擇。列表結果不能解除 deny；已知撤權期間不採計數／自動選擇，仍由原 options 驗證解除。T3a 不新增 HTTP 契約；本機 nullable archived 來自成功讀取／終局 receipt，不能解除 deny，不是線上狀態保證。T3b 增加 optional preferred_trip_id（合法成員旅行 ID，只允許 quick-add），metadata.preferredTripId echo；後端只在同情境群內前移完整授權候選，再分頁，不改唯一性。封存／非成員／不存在偏好忽略，不額外讀旅行或暴露其狀態。query key 納入偏好；echo 不符明示服務未就緒，不套局部排序。先部署相容後端再發布需要它的 App，未部署。

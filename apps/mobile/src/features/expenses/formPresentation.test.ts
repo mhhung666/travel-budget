@@ -11,6 +11,9 @@ import { createMemberLabelIndex, expenseMembers } from './rows';
 import { initialPreview } from './previewState';
 
 const h = vi.hoisted(() => ({
+  alert: vi.fn(),
+  preferenceRead: vi.fn(),
+  preferenceWrite: vi.fn(),
   locale: 'en' as keyof typeof messages,
   online: true,
   scope: { environment: 'https://test/api/v1', accountId: '1'.repeat(24) },
@@ -29,6 +32,8 @@ const h = vi.hoisted(() => ({
   pending: [] as unknown[],
   authorized: true,
   denied: false,
+  optionsDenied: false,
+  optionsFetching: false,
   requestRates: vi.fn(),
   pause: vi.fn(),
   until: 0,
@@ -78,6 +83,7 @@ vi.mock('react-native', () => ({
   ...Object.fromEntries(
     ['Text', 'View', 'Pressable', 'ActivityIndicator', 'InputAccessoryView'].map((n) => [n, n])
   ),
+  Alert: { alert: h.alert },
   AppState: { currentState: 'active' },
   Keyboard: { dismiss: h.dismiss },
   Platform: { OS: 'ios' },
@@ -120,7 +126,20 @@ vi.mock('@/features/localDrafts/provider', () => ({
   }),
 }));
 vi.mock('@/features/auth/AuthProvider', () => ({
-  useAuth: () => ({ user: { id: h.scope.accountId } }),
+  useAuth: () => ({
+    user: { id: h.scope.accountId },
+    manager: {
+      api: { environment: h.scope.environment },
+      getSignInVersion: () => h.signInVersion,
+      getSnapshot: () => ({
+        status: h.online ? 'signedIn' : 'local',
+        user: { id: h.scope.accountId },
+      }),
+    },
+  }),
+}));
+vi.mock('@/storage/expenseTripPreference', () => ({
+  openLastExpenseTripStore: async () => ({ read: h.preferenceRead, write: h.preferenceWrite }),
 }));
 vi.mock('@/i18n/useMessages', async () => {
   const { messages } = await import('@/i18n/messages');
@@ -128,7 +147,7 @@ vi.mock('@/i18n/useMessages', async () => {
 });
 vi.mock('@/providers/useOnline', () => ({ useOnline: () => h.online }));
 vi.mock('@/features/auth/errorMessage', () => ({
-  isAccessDenied: () => h.denied,
+  isAccessDenied: (error: unknown) => error === 'denied',
   errorMessage: () => 'Failure',
 }));
 vi.mock('./entryProvider', () => ({
@@ -156,7 +175,11 @@ vi.mock('./entryProvider', () => ({
 vi.mock('./useExpenseDraft', () => ({
   useExpenseDraft: () => ({
     editor: {
-      getSnapshot: () => ({ record: { input: h.draft, revision: h.revision } }),
+      getSnapshot: () => ({
+        phase: h.phase,
+        status: h.saveStatus,
+        record: { draftId: 'draft', input: h.draft, revision: h.revision },
+      }),
       edit: (input: ExpenseDraft) => {
         h.draft = input;
         h.revision++;
@@ -190,6 +213,8 @@ vi.mock('./entryQueries', async () => ({
   useExpenseOptions: () => ({
     data: h.options,
     authorized: h.authorized,
+    error: h.optionsDenied ? 'denied' : undefined,
+    isFetching: h.optionsFetching,
     isPending: false,
     refetch: h.refetch,
   }),
@@ -268,6 +293,8 @@ beforeEach(() => {
   h.pending = [];
   h.authorized = true;
   h.denied = false;
+  h.optionsDenied = false;
+  h.optionsFetching = false;
   h.phase = 'editing';
   h.until = 0;
   h.signInVersion = 1;
@@ -288,7 +315,11 @@ beforeEach(() => {
   };
   h.refetch.mockResolvedValue({ data: h.options });
   h.requestPreview.mockResolvedValue({ amount: detail.amount, splits: detail.splits });
-  h.flush.mockImplementation(async () => ({ input: h.draft }));
+  h.flush.mockImplementation(async () => ({
+    draftId: 'draft',
+    revision: h.revision,
+    input: h.draft,
+  }));
   h.submit.mockResolvedValue({ kind: 'not-sent' });
   h.refreshTripData.mockResolvedValue(undefined);
 });
@@ -908,3 +939,90 @@ it.each(['amount', 'percent', 'shares'] as const)(
     expect(id(splitForm(), `expense-split-value-${'2'.repeat(24)}`).props.value).toBe('');
   }
 );
+
+it('switching asks to save, stays on cancel, and only navigates after flush with manual candidates', async () => {
+  const { entryTree } = form();
+  press(id(entryTree, 'new-expense-switch-trip'));
+  expect(h.flush).not.toHaveBeenCalled();
+  expect(h.replace).not.toHaveBeenCalled();
+  const buttons = h.alert.mock.calls[0][2];
+  expect(buttons[0].style).toBe('cancel');
+  buttons[1].onPress();
+  buttons[1].onPress();
+  await flush();
+  expect(h.flush).toHaveBeenCalledOnce();
+  expect(h.replace).toHaveBeenCalledExactlyOnceWith({
+    pathname: '/record',
+    params: { manual: '1', returnTrip: 'trip', returnLocal: undefined },
+  });
+});
+it.each(['save', 'session', 'denied'])(
+  'does not leave the form when switching is interrupted by %s',
+  async (failure) => {
+    const { entryTree } = form();
+    press(id(entryTree, 'new-expense-switch-trip'));
+    h.flush.mockImplementation(async () => {
+      if (failure === 'save') throw new Error('DISK_FULL');
+      if (failure === 'session') h.signInVersion++;
+      if (failure === 'denied') h.denied = true;
+      return { draftId: 'draft', revision: h.revision };
+    });
+    h.alert.mock.calls[0][2][1].onPress();
+    await flush();
+    expect(h.replace).not.toHaveBeenCalled();
+  }
+);
+it('a stale switch callback cannot open a dialog after A→B→A', () => {
+  const { entryTree } = form();
+  h.signInVersion++;
+  press(id(entryTree, 'new-expense-switch-trip'));
+  expect(h.alert).not.toHaveBeenCalled();
+});
+it('losing context access returns to manual candidates without hiding unresolved expense delivery', () => {
+  h.denied = true;
+  h.optionsDenied = true;
+  start();
+  call(NewExpenseScreen({ tripId: 'trip' }));
+  h.effects.forEach((effect) => effect());
+  expect(h.replace).toHaveBeenCalledWith({ pathname: '/record', params: { manual: '1' } });
+  h.replace.mockClear();
+  h.refs = [];
+  h.pending = [{ id: 'unconfirmed' }];
+  start();
+  call(NewExpenseScreen({ tripId: 'trip' }));
+  h.effects.forEach((effect) => effect());
+  expect(h.replace).not.toHaveBeenCalled();
+});
+it('records only a deliberately selected form, never an automatic opening', async () => {
+  start();
+  const page = call(NewExpenseScreen({ tripId: 'trip', selection: 'automatic' }));
+  call(named(page, 'DraftForm'));
+  h.effects.forEach((effect) => effect());
+  await flush();
+  expect(h.preferenceWrite).not.toHaveBeenCalled();
+  h.refs = [];
+  form();
+  h.effects.forEach((effect) => effect());
+  await flush();
+  expect(h.preferenceWrite).toHaveBeenCalledOnce();
+  expect(h.preferenceWrite.mock.calls[0].slice(0, 2)).toEqual([h.scope, 'trip']);
+});
+
+it('waits for fresh context authorization and catalog persistence before falling back', () => {
+  h.denied = true; // Previously persisted denial, while a new options read is in flight.
+  h.authorized = false;
+  h.optionsFetching = true;
+  start();
+  call(NewExpenseScreen({ tripId: 'trip' }));
+  h.effects.forEach((effect) => effect());
+  expect(h.replace).not.toHaveBeenCalled();
+  // Fresh options succeeded; the catalog SQL is still queued and must finish its own unlock.
+  h.authorized = true;
+  h.optionsFetching = false;
+  h.refs = [];
+  start();
+  const page = call(NewExpenseScreen({ tripId: 'trip' }));
+  h.effects.forEach((effect) => effect());
+  expect(h.replace).not.toHaveBeenCalled();
+  expect(id(page, 'new-expense-switch-trip')).toBeDefined();
+});

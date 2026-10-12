@@ -310,6 +310,14 @@ tripListCache 在取消讀取後只保留第一頁，保留存取拒絕、其他
 
 ## T3a 候選與最小本機狀態
 
-SelectTripScreen 保留 FlatList／明確 replace 與取消歷史；tripCandidates 只對後端順序去重／遮罩，TripCandidateRow 用共用日期函式，完整名稱／階段不截斷且含無障礙標籤，不呈現財務摘要。線上登入才啟用候選查詢；離線／local 身分只讀本機。點擊重核目前登入世代、帳號、連線與 catalog access generation，沒有自動導航或帳務提交。已封存首頁連結由首頁 focus 消耗參數，已掛載首頁也能切頁。
+SelectTripScreen 保留 FlatList／明確 replace 與取消歷史；tripCandidates 只對後端順序去重／遮罩，TripCandidateRow 用共用日期函式，完整名稱／階段不截斷且含無障礙標籤，不呈現財務摘要。線上登入才啟用候選查詢；離線／local 身分只讀本機。點擊重核目前登入世代、帳號、連線與 catalog access generation，T3b 自動導航條件見下方，沒有自動帳務提交。已封存首頁連結由首頁 focus 消耗參數，已掛載首頁也能切頁。
 
 schema 11 在 draft_trip 新增 nullable archived：null 為舊／未知，升級不重寫任何 frozen input、UUID、deny、pending 或 429。catalog 僅接成功且已驗證的讀取、直接 settings／landing 或終局 receipt；拒絕清空此狀態，metadata／名稱永不解除 deny。封存 receipt 與狀態在 mutations.complete 同交易，完成前排空舊 catalog 寫入並使早先讀取失效；成功 callback 只通知重讀。catalog 分開保存 archive read 世代、拒絕世代及載入更多時保留的頁面，載入後頁不重播舊頁狀態，完整重讀即使結構共用相同頁面仍更新；晚到的舊資料不能覆蓋已確認封存。離線不存日期或推算旅行階段，三組仍可明確進原草稿；帳號／環境／旅行隔離與原恢復鏈不變。
+
+## T3b 選擇、偏好與草稿切換
+
+SelectTripScreen 按環境／帳號／登入世代重掛，候選每次進入重新讀取，只有掛載後的新鮮完整 metadata、前景線上與 catalog 可見性才採 directTripId。已驗證旅行內入口直接進原表單，options 仍須 fresh 成功；失權只在沒有未結案寫入且 options 驗證已結束時退回 manual 候選；fresh options 成功但 catalog 尚在保存不提前跳轉，保留原權限恢復流程。manual=1 只關閉自動選擇，selection 標記只區分是否記偏好，不授予權限或修改帳務。全域入口維持 replace 與原取消歷史；切換只帶原旅行 ID／本機模式供取消返回，不搬動表單內容、不更新偏好，同一次開啟同步防重複。
+
+上次使用保存於獨立本機 preferences DB 的 last_expense_trip 表，只有 environment／account_id／trip_id，不改 schema 11 或既有請求／草稿。SQL 排隊後重核世代與 access，讀取晚到、卸載／換帳號不套用；格式損壞／儲存失敗略過偏好。候選 query key 加入偏好 ID，HTTP preferred_trip_id 與 metadata echo 相符才使用。後端復用 rankQuickAddTrips 在全授權列表內排序後分頁；沒有逐卡查詢或本機複製日期排序算法。
+
+切換由既有 DraftEditor.flush 保存原旅行的輸入、ID／revision；保存後再次核對帳號、世代、撤權與最新 revision，再 replace 到明確候選。對話框取消不導航，保存／版本失敗不離開；表單保存期間沿原 busy 鎖定輸入及送出，並不呼叫 preview／POST 或產生另一支出 UUID。待確認操作不因上下文失權而被跳過，C／D／E 的結果查詢與共用限速維持原流程。

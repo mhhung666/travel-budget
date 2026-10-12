@@ -26,7 +26,7 @@ G1c 另提供成員管理 context／角色、移除、本人退出及旅行刪�
 - 登入每帳號每 15 分鐘時段最多 10 次，429 提供 Retry-After。此限制不是全面的流量防護；部署時仍沿用平台流量管理。
 - 成員 API 只接受 bearer，拒絕 Web cookie 或 public share code。回應白名單不包含其他人的預算、分享碼、收據／檔案 key。`budgetTotal` 只屬於 viewer。
 - 日期為 `YYYY-MM-DD`，`date` query 表示手機當地日期。金額由現有服務算到分，以 TWD 回傳；`myBalance` 正為應收、負為應付。
-- 旅行列表共用 Web 全列表讀取，HTTP 每頁 20 筆；DB 計算未改為游標分頁。省略參數保留正在旅行優先、已封存最後；T1 新增明確 archive／sort 與全量 metadata，見 [契約](../../mobile/docs/BACKEND_CONTRACT.md#t1-旅行列表篩選與排序)。分頁非快照，資料變更後從第一頁重讀。
+- 旅行列表共用 Web 全列表讀取，HTTP 每頁 20 筆；DB 計算未改為游標分頁。省略參數保留正在旅行優先、已封存最後；T1 新增明確 archive／sort 與全量 metadata，見 [契約](../../mobile/docs/BACKEND_CONTRACT.md#t1-旅行列表篩選與排序)。T3b 支援 quick-add 的 preferred_trip_id：只依完整授權名單在同群前移、排序後分頁，metadata.preferredTripId 回應原參數，不變更唯一性；無效 scope／封存偏好不會授權或暴露其他旅行。分頁非快照，資料變更後從第一頁重讀。
 - 支出清單 `GET /trips/:id/expenses?cursor=` 每頁 20 筆，依 `date`、`createdAt`、`_id` 降冪；游標 `<date ms>.<createdAt ms>.<id>` 編碼最後一筆的實際儲存值，查詢以 `$or` 取其後的資料（沿用 `{trip, date, createdAt}` 索引，不新增索引或 migration；以 `_id` 破同分需記憶體排序），同日同時間也不會漏筆或重複。無效或重複的游標回 400。分頁非快照，下拉更新從第一頁重讀。
 - 明細 `GET /trips/:id/expenses/:expenseId` 以旅行加支出 id 查詢，其他旅行的支出回 404。清單與明細重用 `toExpenseDto` 的到分取整與分攤正規化，再映射為明確白名單 DTO：只 populate 顯示名稱與 isVirtual，投影排除附件、標籤、行程關聯與送達狀態，不輸出登入帳號、Email 或分享碼。類別未知歸為 `other`；付款人或分攤成員參照已不存在時 id 為 `null`、名稱為空；授權清單／明細新增可選 `payerIsVirtual`、明細分攤可選 `isVirtual`（解析到的使用者旗標），不改 Web／public DTO 或 receipt，舊回應缺旗標仍可讀；不代表目前旅行成員資格。缺少原幣欄位的歷史資料以 TWD 金額、`TWD`、匯率 1 補齊。
 - 結算 `GET /trips/:id/settlement` 由 `readSettlementDetail` 提供：`readSettlement` 的原有輸出不變（公開路由仍只含原欄位；Web 成員頁以 `readMemberSettlement` 保留轉帳的成員 ID），另加以成員 id 標示的 `transfers`，因為 `transactions` 只有顯示名稱而同名成員無法辨識。`suggestedTransfers` 是已扣除還款後的建議、皆未付款；`status` 為 `empty`、`settled` 或 `outstanding`，任何餘額未歸零即為 `outstanding`。每次仍讀取整個旅行的支出與還款。

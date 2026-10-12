@@ -1,3 +1,4 @@
+import type { TripListMetadata } from '@travel-budget/contracts';
 import type { Trip } from '@/api/contracts';
 import type { DraftTrip } from '@/storage/draftTrips';
 import { visibleTripRows } from '@/features/trips/tripListRows';
@@ -34,4 +35,17 @@ export function localCandidates(
       )
       .map((trip) => ({ id: trip.tripId, name: trip.name ?? fallbackName, localGroup: group }))
   );
+}
+
+/** Metadata is full-account authorization, never the length of the displayed page. */
+export function directCandidate(metadata: TripListMetadata | undefined, rows: TripCandidate[]) {
+  const quick = metadata?.quickAdd;
+  if (
+    !quick ||
+    !quick.directTripId ||
+    !(quick.ongoingCount === 1 || (quick.ongoingCount === 0 && quick.candidateCount === 1))
+  )
+    return null;
+  const row = rows.find((item) => item.id === quick.directTripId);
+  return row && row.trip && !row.trip.archived ? row.id : null;
 }

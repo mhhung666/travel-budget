@@ -12,6 +12,8 @@ import { useDraftCatalog } from '@/features/localDrafts/provider';
 import { useEffect, useId, useMemo, useReducer, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  AppState,
   InputAccessoryView,
   Keyboard,
   Platform,
@@ -21,6 +23,7 @@ import {
   type TextInput,
 } from 'react-native';
 import { router } from 'expo-router';
+import { onlineManager } from '@tanstack/react-query';
 import { referenceRatesSchema, type ReferenceRates, ExpenseOptions } from '@/api/contracts';
 import { isTwdQueueDraft } from '@/storage/expenseDrafts';
 import {
@@ -72,6 +75,8 @@ import { SavedExpense } from './SavedExpense';
 import { useExpenseDraft } from './useExpenseDraft';
 import type { DraftEditor } from './draftEditor';
 import type { PendingScope } from '@/storage/pendingExpenses';
+import { openLastExpenseTripStore } from '@/storage/expenseTripPreference';
+import { saveBeforeTripSwitch } from './tripSwitch';
 
 type Saved = Extract<EntryOutcome, { kind: 'saved' }>;
 type Banner = 'rejected' | 'not-sent' | null;
@@ -81,17 +86,27 @@ type Banner = 'rejected' | 'not-sent' | null;
  * confirm. Confirming freezes the request on the device before anything is sent; the entry engine
  * owns it from there, so closing this screen never loses or cancels it.
  */
-export function NewExpenseScreen({ tripId }: { tripId: string }) {
+export function NewExpenseScreen({ tripId, selection }: { tripId: string; selection?: string }) {
+  const { manager } = useAuth();
   const { scope } = useExpenseEntry();
   return (
     <ScopedNewExpenseScreen
-      key={JSON.stringify([scope?.environment, scope?.accountId, tripId])}
+      key={JSON.stringify([
+        scope?.environment,
+        scope?.accountId,
+        manager.getSignInVersion(),
+        tripId,
+      ])}
       tripId={tripId}
+      selection={selection}
     />
   );
 }
 
-function ScopedNewExpenseScreen({ tripId }: { tripId: string }) {
+function ScopedNewExpenseScreen({ tripId, selection }: { tripId: string; selection?: string }) {
+  const { manager } = useAuth();
+  const version = manager.getSignInVersion();
+  const fallbackStarted = useRef(false);
   const t = useMessages();
   const online = useOnline();
   const options = useExpenseOptions(tripId);
@@ -123,6 +138,40 @@ function ScopedNewExpenseScreen({ tripId }: { tripId: string }) {
     if (!busy) await pending.refetch();
     setSubmitting(busy);
   };
+
+  const confirmedDenial =
+    !options.isFetching && (isAccessDenied(options.error) || (!options.authorized && denied));
+  useEffect(() => {
+    if (
+      fallbackStarted.current ||
+      !online ||
+      !confirmedDenial ||
+      !onlineManager.isOnline() ||
+      AppState.currentState !== 'active' ||
+      pending.isPending ||
+      pending.isError ||
+      showPending ||
+      submitting ||
+      saved ||
+      manager.getSignInVersion() !== version ||
+      manager.getSnapshot().status !== 'signedIn' ||
+      manager.getSnapshot().user?.id !== scope?.accountId
+    )
+      return;
+    fallbackStarted.current = true;
+    router.replace({ pathname: '/record', params: { manual: '1' } });
+  }, [
+    confirmedDenial,
+    online,
+    pending.isPending,
+    pending.isError,
+    showPending,
+    submitting,
+    saved,
+    manager,
+    version,
+    scope,
+  ]);
 
   const body = (() => {
     if (saved) {
@@ -191,6 +240,7 @@ function ScopedNewExpenseScreen({ tripId }: { tripId: string }) {
       <DraftForm
         key={`${scope?.environment}/${scope?.accountId}/${tripId}`}
         scope={scope!}
+        rememberTrip={selection !== 'automatic'}
         tripId={tripId}
         options={options.data}
         refreshOptions={async () => {
@@ -221,6 +271,30 @@ function ScopedNewExpenseScreen({ tripId }: { tripId: string }) {
       onBack={() => goBack({ pathname: '/trips/[id]/expenses', params: { id: tripId } })}
     >
       <TripContext tripId={tripId} />
+      {!submitting &&
+        !saved &&
+        !showPending &&
+        (denied ||
+          !options.authorized ||
+          !options.data ||
+          pending.isPending ||
+          pending.isError) && (
+          <Action
+            variant="ghost"
+            label={t.switchTrip}
+            testID="new-expense-switch-trip"
+            onPress={() => {
+              if (
+                !scope ||
+                manager.getSignInVersion() !== version ||
+                manager.getSnapshot().user?.id !== scope.accountId ||
+                !['signedIn', 'local'].includes(manager.getSnapshot().status)
+              )
+                return;
+              router.replace({ pathname: '/record', params: { manual: '1', returnTrip: tripId } });
+            }}
+          />
+        )}
       {!online && !saved && <Notice tone="warning">{t.offlineEntry}</Notice>}
       {!online && !saved && !denied && (
         <Action
@@ -239,6 +313,7 @@ function ScopedNewExpenseScreen({ tripId }: { tripId: string }) {
 type FormProps = {
   tripId: string;
   localOnly?: boolean;
+  rememberTrip?: boolean;
   options: ExpenseOptions;
   refreshOptions: () => Promise<ExpenseOptions>;
   onSubmitting: (submitting: boolean) => void | Promise<void>;
@@ -264,6 +339,7 @@ export function LocalDraftForm({
       tripId={tripId}
       options={options}
       localOnly
+      rememberTrip
       refreshOptions={() => Promise.reject(new Error('LOCAL_ONLY'))}
       onSubmitting={() => {}}
       onSaved={() => {}}
@@ -275,13 +351,67 @@ export function LocalDraftForm({
 }
 
 function DraftForm(props: FormProps & { scope: PendingScope }) {
+  const { manager } = useAuth();
+  const { catalog } = useDraftCatalog();
+  const version = manager.getSignInVersion();
+  const remembered = useRef(false);
   const t = useMessages();
   const p = usePalette();
   const { editor, state } = useExpenseDraft(props.scope, props.tripId, props.options);
+  useEffect(() => {
+    if (!props.rememberTrip || remembered.current || state.phase !== 'editing') return;
+    remembered.current = true;
+    let active = true;
+    const access = catalog.captureAccess(props.scope);
+    const current = () => {
+      try {
+        access(props.tripId);
+      } catch {
+        return false;
+      }
+      return (
+        active &&
+        manager.getSignInVersion() === version &&
+        manager.getSnapshot().user?.id === props.scope.accountId &&
+        ['signedIn', 'local'].includes(manager.getSnapshot().status) &&
+        catalog.isVisible(props.scope, props.tripId)
+      );
+    };
+    void openLastExpenseTripStore()
+      .then((store) => store.write(props.scope, props.tripId, current))
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [state.phase, props.rememberTrip, props.scope, props.tripId, manager, version, catalog]);
+  const switchStored = (
+    <Action
+      variant="ghost"
+      label={t.switchTrip}
+      testID="new-expense-switch-trip"
+      onPress={() => {
+        if (
+          manager.getSignInVersion() !== version ||
+          manager.getSnapshot().user?.id !== props.scope.accountId ||
+          !['signedIn', 'local'].includes(manager.getSnapshot().status)
+        )
+          return;
+        router.replace({
+          pathname: '/record',
+          params: {
+            manual: '1',
+            returnTrip: props.tripId,
+            returnLocal: props.localOnly ? '1' : undefined,
+          },
+        });
+      }}
+    />
+  );
   if (state.phase === 'loading') return <ActivityIndicator accessibilityLabel={t.loading} />;
   if (state.phase === 'error')
     return (
       <>
+        {switchStored}
         <Notice tone="danger">{t.draftLoadFailed}</Notice>
         <Action
           label={t.retry}
@@ -293,6 +423,7 @@ function DraftForm(props: FormProps & { scope: PendingScope }) {
   if (state.phase === 'choice')
     return (
       <>
+        {switchStored}
         <Title>{t.draftFound}</Title>
         <Copy>{t.draftResumeHint}</Copy>
         {state.discardFailed && <Notice tone="danger">{t.draftDiscardFailed}</Notice>}
@@ -360,6 +491,9 @@ function EntryForm({
   const online = useOnline();
   const { user } = useAuth();
   const { entry, scope, manager } = useExpenseEntry();
+  const switchVersion = manager.getSignInVersion();
+  const switchPrompt = useRef(false);
+  const [switchFailed, setSwitchFailed] = useState(false);
   const { queue } = useExpenseQueue();
   const { catalog } = useDraftCatalog();
   const [rates, setRates] = useState<ReferenceRates | null>(null);
@@ -641,6 +775,91 @@ function EntryForm({
 
   return (
     <>
+      <Action
+        variant="ghost"
+        label={t.switchTrip}
+        testID="new-expense-switch-trip"
+        disabled={locked}
+        onPress={() => {
+          if (sending.current || switchPrompt.current) return;
+          const version = switchVersion;
+          const access = scope ? catalog.captureAccess(scope) : null;
+          const current = () => {
+            try {
+              access?.(tripId);
+            } catch {
+              return false;
+            }
+            return (
+              !!scope &&
+              manager.getSignInVersion() === version &&
+              manager.getSnapshot().user?.id === scope.accountId &&
+              ['signedIn', 'local'].includes(manager.getSnapshot().status) &&
+              catalog.isVisible(scope, tripId)
+            );
+          };
+          if (!current()) return;
+          switchPrompt.current = true;
+          Alert.alert(
+            t.leaveFormTitle,
+            t.switchTripHint,
+            [
+              {
+                text: t.stayForm,
+                style: 'cancel',
+                onPress: () => {
+                  switchPrompt.current = false;
+                },
+              },
+              {
+                text: t.saveAndSwitch,
+                onPress: () => {
+                  switchPrompt.current = false;
+                  if (sending.current || !current()) return;
+                  sending.current = true;
+                  setSwitchFailed(false);
+                  setSubmitting(true);
+                  onSubmitting(true);
+                  void saveBeforeTripSwitch(editor, current)
+                    .then((saved) => {
+                      const latest = editor.getSnapshot();
+                      if (
+                        !current() ||
+                        latest.status !== 'saved' ||
+                        latest.record?.draftId !== saved.draftId ||
+                        latest.record.revision !== saved.revision
+                      )
+                        throw new Error('DRAFT_CHANGED');
+                      router.replace({
+                        pathname: '/record',
+                        params: {
+                          manual: '1',
+                          returnTrip: tripId,
+                          returnLocal: localOnly ? '1' : undefined,
+                        },
+                      });
+                    })
+                    .catch(() => {
+                      if (current()) setSwitchFailed(true);
+                    })
+                    .finally(() => {
+                      sending.current = false;
+                      setSubmitting(false);
+                      void onSubmitting(false);
+                    });
+                },
+              },
+            ],
+            {
+              cancelable: true,
+              onDismiss: () => {
+                switchPrompt.current = false;
+              },
+            }
+          );
+        }}
+      />
+      {switchFailed && <Notice tone="danger">{t.draftSaveFailed}</Notice>}
       {readStorageFailed && <Notice tone="danger">{t.storageError}</Notice>}
       <View testID="new-expense-money" style={{ gap: spacing.compact }}>
         <TextField

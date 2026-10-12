@@ -61,3 +61,21 @@ it('keeps old unknown snapshots and archived trips explicitly selectable without
   expect(rows.every((r) => !r.trip)).toBe(true);
   expect(input[1].options).toBe(options);
 });
+
+it('uses full metadata, never page length or preference, for a direct choice', async () => {
+  const { directCandidate } = await import('./tripCandidates');
+  const meta = (candidateCount: number, ongoingCount: number, directTripId: string | null) => ({
+    archive: 'unarchived' as const,
+    sort: 'quick-add' as const,
+    date: '2026-10-12',
+    counts: { unarchived: candidateCount, archived: 0 },
+    quickAdd: { candidateCount, ongoingCount, directTripId },
+  });
+  const rows = onlineCandidates([trip(1)], () => true);
+  expect(directCandidate(meta(41, 2, null), rows)).toBeNull();
+  expect(directCandidate(undefined, rows)).toBeNull();
+  expect(directCandidate(meta(41, 1, trip(1).id), rows)).toBe(trip(1).id);
+  expect(directCandidate(meta(1, 0, trip(1).id), rows)).toBe(trip(1).id);
+  expect(directCandidate(meta(41, 2, trip(1).id), rows)).toBeNull();
+  expect(directCandidate(meta(1, 0, trip(2).id), rows)).toBeNull();
+});
