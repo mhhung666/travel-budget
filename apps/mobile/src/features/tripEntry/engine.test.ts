@@ -27,7 +27,9 @@ afterEach(() => {
   cleanup.forEach((fn) => fn());
   cleanup = [];
 });
-async function fixture() {
+async function fixture(baseCurrency = 'TWD') {
+  const ledger = { baseCurrency, moneyScale: 2 as const };
+  const committed = { ...result, ledger, result: { tripId, ledger } };
   const dir = mkdtempSync(join(tmpdir(), 'tb-e1-'));
   const path = join(dir, 'pending.db');
   let db = memoryDatabase(path);
@@ -47,8 +49,8 @@ async function fixture() {
       options?.beforeSend?.();
       if (options?.method === 'POST') {
         posts++;
-        receipts.set(key, result);
-        return result.result;
+        receipts.set(key, committed);
+        return committed.result;
       }
       return receipts.get(key) ?? { status: 'not_found' };
     }
@@ -73,6 +75,7 @@ async function fixture() {
   });
   return {
     engine,
+    committed,
     request,
     receipts,
     get posts() {
@@ -299,4 +302,116 @@ it('schema 6 upgrade preserves C/D rows and account waits, failure rolls back th
   expect(await upgraded.retryAt(scope)).toBe(220000);
   expect(await h.db.getFirstAsync('SELECT name FROM draft_trip')).toEqual({ name: 'name' });
   expect(await h.db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 11 });
+});
+
+it.each(['TWD', 'USD', 'JPY'])(
+  'BC2b lost %s creation response survives reopening and recovery in only the original scope',
+  async (baseCurrency) => {
+    const h = await fixture(baseCurrency);
+    const original = {
+      ...payload,
+      body: { ...payload.body, base_currency: baseCurrency, name: 'Original trip' },
+    };
+    h.request.mockImplementationOnce(async () => {
+      h.receipts.set(key, h.committed);
+      throw new ApiError('NETWORK');
+    });
+    expect((await h.engine().confirm(scope, original)).kind).toBe('pending');
+    const saved = (await h.store.list(scope))[0];
+    expect(saved).toMatchObject({
+      clientRequestId: key,
+      apiVersion: 2,
+      baseCurrency,
+      moneyScale: 2,
+      payload: { body: { ...original.body, client_request_id: key } },
+    });
+    await h.restart();
+    const count = h.request.mock.calls.length;
+    for (const other of [
+      { ...scope, accountId: '333333333333333333333333' },
+      { ...scope, environment: 'https://other/api/v1' },
+    ]) {
+      await h.engine().recover(other);
+      expect(await h.store.list(other)).toEqual([]);
+    }
+    expect(h.request).toHaveBeenCalledTimes(count);
+    // A changed/new currency intent cannot replace the saved request. Capabilities are not read by recovery.
+    expect(
+      (
+        await h
+          .engine()
+          .confirm(scope, { ...original, body: { ...original.body, base_currency: 'EUR' } })
+      ).kind
+    ).toBe('blocked');
+    await h.engine().recover(scope);
+    expect(h.request.mock.calls.filter((c) => c[3]?.method === 'POST')).toHaveLength(1);
+    expect(h.request.mock.calls.at(-1)?.[1]).toBe(`/mutation-requests/${key}`);
+    expect((await h.store.list(scope))[0]).toMatchObject({
+      status: 'completed',
+      payload: null,
+      result: h.committed,
+    });
+  }
+);
+it.each(['USD', 'JPY'])(
+  'BC2b %s confirmed body and UUID survive 429 and restart with no capability lookup or early retry',
+  async (baseCurrency) => {
+    const h = await fixture(baseCurrency);
+    const original = { ...payload, body: { ...payload.body, base_currency: baseCurrency } };
+    h.request.mockRejectedValueOnce(new ApiError('BUSY', 429, 120));
+    expect((await h.engine().confirm(scope, original)).kind).toBe('pending');
+    await h.restart();
+    h.now = 131000;
+    const calls = h.request.mock.calls.length;
+    await h.engine().recover(scope);
+    await h.engine().retry(scope, key);
+    expect(h.request).toHaveBeenCalledTimes(calls);
+    expect(await h.store.retryAt(scope)).toBe(220000);
+    expect((await h.store.list(scope))[0]).toMatchObject({
+      payload: { body: { base_currency: baseCurrency, client_request_id: key } },
+    });
+    h.now = 220000;
+    await h.engine().retry(scope, key);
+    const posts = h.request.mock.calls.filter((c) => c[3]?.method === 'POST');
+    expect(posts).toHaveLength(2);
+    expect(posts[1][3]?.body).toEqual(posts[0][3]?.body);
+    expect(h.request.mock.calls.some((c) => c[1] === '/capabilities')).toBe(false);
+    expect((await h.store.list(scope))[0].result).toEqual(h.committed);
+  }
+);
+it('BC2b a saved rejection releases creation only after a receipt is durably saved', async () => {
+  const h = await fixture('USD');
+  const original = { ...payload, body: { ...payload.body, base_currency: 'USD' } };
+  h.request.mockRejectedValueOnce(new ApiError('NETWORK'));
+  expect((await h.engine().confirm(scope, original)).kind).toBe('pending');
+  const rejected = {
+    status: 'rejected' as const,
+    operation: 'trip.create' as const,
+    code: 'FEATURE_NOT_AVAILABLE' as const,
+  };
+  const complete = vi.spyOn(h.store, 'complete').mockRejectedValueOnce(new Error('disk full'));
+  h.request.mockResolvedValueOnce(rejected);
+  expect((await h.engine().lookup(scope, key)).kind).toBe('pending');
+  expect((await h.store.list(scope))[0]).toMatchObject({
+    status: 'pending',
+    payload: { body: { base_currency: 'USD' } },
+  });
+  complete.mockRestore();
+  h.request.mockResolvedValueOnce(rejected);
+  expect((await h.engine().lookup(scope, key)).kind).toBe('completed');
+  expect((await h.store.list(scope))[0]).toMatchObject({
+    status: 'completed',
+    result: rejected,
+    payload: null,
+  });
+  const next = '22222222-2222-4222-8222-222222222222';
+  const engine = new TripEntry({
+    store: async () => h.store,
+    request: h.request as never,
+    newId: () => next,
+    active: () => true,
+  });
+  h.request.mockResolvedValueOnce({ tripId, ledger });
+  expect((await engine.confirm(scope, payload)).kind).toBe('completed');
+  expect((await h.store.list(scope)).map((r) => r.clientRequestId).sort()).toEqual([key, next]);
 });

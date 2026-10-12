@@ -1,6 +1,6 @@
 # 開發路線
 
-更新：2026-10-12，盤點至 `e751c93c` 與目前工作目錄。這裡只排未完成工作；[FEATURES](FEATURES.md) 記現行功能，[LOCAL_ACCEPTANCE](LOCAL_ACCEPTANCE.md) 記操作與待驗，[archive](archive/README.md) 記已完成成果。
+更新：2026-10-13，盤點至 BC1／BC2 工程交付與目前工作目錄。這裡只排未完成工作；[FEATURES](FEATURES.md) 記現行功能，[LOCAL_ACCEPTANCE](LOCAL_ACCEPTANCE.md) 記操作與待驗，[archive](archive/README.md) 記已完成成果。
 
 ## 目前位置
 
@@ -19,7 +19,7 @@ C／D 剩餘閱讀器等項目依既有決定暫緩；不是所有新功能驗�
 
 ## 已排定的下一輪功能
 
-[新旅行基準幣別選擇](../../../docs/design/BASE_CURRENCY_CREATION.md#實作切片與程式入口)：BC1 Web 已提交；BC2a iOS 搜尋選擇器工程完成、已提交，共同案例／check／三平台匯出通過。接續 BC2b 能力／離開提醒／表單恢復，各片獨立審查與實際畫面仍待驗。BC3 沿用 B4 跨端驗收後另行開放。既有非 TWD 底層沿用，正式 gate 維持關閉；Android 裝置驗收延後，其他待驗事項不因此結案。
+[新旅行基準幣別選擇](../../../docs/design/BASE_CURRENCY_CREATION.md#實作切片與程式入口)：BC1 Web 已提交；BC2a 已提交；BC2b 能力／離開提醒／表單與原 UUID 恢復工程完成、已提交，Mobile 1,794 項＋工具 48 項、check／三平台匯出通過。接續 BC3，各片獨立審查與 Web／iPhone／iPad 實際畫面仍待驗。BC3 沿用 B4 跨端驗收後另行開放。既有非 TWD 底層沿用，正式 gate 維持關閉；Android 裝置驗收延後，其他待驗事項不因此結案。
 
 ## 尚未排入的功能
 

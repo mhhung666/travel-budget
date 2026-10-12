@@ -11,10 +11,23 @@ export const currencyMessages: Record<
     noMatch: string;
     clear: string;
     hint: string;
+    loading: string;
+    checking: string;
+    notAllowed: string;
+    noneAvailable: string;
+    readingConfirmation: string;
+    preparationFailed: string;
     names: Readonly<Record<string, string>>;
   }
 > = {
   zh: {
+    loading: '正在載入可用幣別…',
+    checking: '正在重新確認可用幣別…',
+    notAllowed: '所選幣別目前不可用，請重新選擇。',
+    noneAvailable: '目前沒有可用的基準幣別，請重試。',
+    readingConfirmation: '正在讀取已確認的建立操作…',
+    preparationFailed: '無法保存或確認操作。輸入已保留，請重試。',
+
     title: '選擇帳本基準幣別',
     search: '搜尋代碼或名稱',
     common: '常用幣別',
@@ -41,6 +54,13 @@ export const currencyMessages: Record<
     },
   },
   'zh-CN': {
+    loading: '正在加载可用币别…',
+    checking: '正在重新确认可用币别…',
+    notAllowed: '所选币别目前不可用，请重新选择。',
+    noneAvailable: '目前没有可用的基准币别，请重试。',
+    readingConfirmation: '正在读取已确认的建立操作…',
+    preparationFailed: '无法保存或确认操作。输入已保留，请重试。',
+
     title: '选择账本基准币别',
     search: '搜索代码或名称',
     common: '常用币别',
@@ -67,6 +87,13 @@ export const currencyMessages: Record<
     },
   },
   en: {
+    loading: 'Loading available currencies…',
+    checking: 'Rechecking available currencies…',
+    notAllowed: 'The selected currency is unavailable. Please choose again.',
+    noneAvailable: 'No base currencies are available. Please retry.',
+    readingConfirmation: 'Reading confirmed trip creation…',
+    preparationFailed: 'Unable to save or confirm the operation. Your input is kept. Please retry.',
+
     title: 'Choose ledger base currency',
     search: 'Search code or name',
     common: 'Common currencies',
@@ -93,6 +120,14 @@ export const currencyMessages: Record<
     },
   },
   jp: {
+    loading: '利用可能な通貨を読み込み中…',
+    checking: '利用可能な通貨を再確認中…',
+    notAllowed: '選択した通貨は利用できません。選び直してください。',
+    noneAvailable: '利用可能な基準通貨がありません。再試行してください。',
+    readingConfirmation: '確認済みの旅行作成操作を読み込み中…',
+    preparationFailed:
+      '操作の保存または確認ができません。入力は保持されています。再試行してください。',
+
     title: '帳簿の基準通貨を選択',
     search: 'コードまたは名称を検索',
     common: 'よく使う通貨',
