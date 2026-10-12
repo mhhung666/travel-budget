@@ -1,0 +1,130 @@
+{
+  "commonOrder": [
+    "TWD",
+    "JPY",
+    "USD",
+    "EUR",
+    "HKD",
+    "THB",
+    "KRW",
+    "CNY",
+    "GBP",
+    "SGD",
+    "AUD",
+    "MYR",
+    "VND",
+    "PHP",
+    "IDR"
+  ],
+  "cases": [
+    {
+      "codes": ["USD", "AED", "TWD", "JPY", "KRW", "USD"],
+      "search": "",
+      "expected": ["TWD", "JPY", "USD", "KRW", "AED"]
+    },
+    {
+      "codes": ["USD", "TWD", "JPY"],
+      "search": " usd ",
+      "expected": ["USD"]
+    },
+    {
+      "codes": ["USD", "TWD", "JPY"],
+      "search": "UsD",
+      "expected": ["USD"]
+    },
+    {
+      "codes": ["USD", "TWD", "JPY"],
+      "search": "US Dollar",
+      "expected": ["USD"]
+    },
+    {
+      "codes": ["USD", "AUD"],
+      "search": "US",
+      "expected": ["USD", "AUD"]
+    },
+    {
+      "codes": ["USD", "AED"],
+      "search": "unknown currency",
+      "expected": []
+    },
+    {
+      "codes": ["AED", "BHD", "NZD", "CAD", "CHF"],
+      "search": "",
+      "expected": ["AED", "BHD", "CAD", "CHF", "NZD"]
+    },
+    {
+      "codes": [
+        "IDR",
+        "PHP",
+        "VND",
+        "MYR",
+        "AUD",
+        "SGD",
+        "GBP",
+        "CNY",
+        "KRW",
+        "THB",
+        "HKD",
+        "EUR",
+        "USD",
+        "JPY",
+        "TWD",
+        "ZAR",
+        "AED",
+        "BHD",
+        "CAD",
+        "CHF"
+      ],
+      "search": "",
+      "expected": [
+        "TWD",
+        "JPY",
+        "USD",
+        "EUR",
+        "HKD",
+        "THB",
+        "KRW",
+        "CNY",
+        "GBP",
+        "SGD",
+        "AUD",
+        "MYR",
+        "VND",
+        "PHP",
+        "IDR",
+        "AED",
+        "BHD",
+        "CAD",
+        "CHF",
+        "ZAR"
+      ]
+    },
+    {
+      "codes": ["USD", "AED", "TWD"],
+      "search": "AED",
+      "expected": ["AED"]
+    }
+  ],
+  "localizedSearches": [
+    {
+      "locale": "zh",
+      "search": "美元",
+      "code": "USD"
+    },
+    {
+      "locale": "zh-CN",
+      "search": "韩元",
+      "code": "KRW"
+    },
+    {
+      "locale": "en",
+      "search": "Japanese Yen",
+      "code": "JPY"
+    },
+    {
+      "locale": "jp",
+      "search": "米ドル",
+      "code": "USD"
+    }
+  ]
+}

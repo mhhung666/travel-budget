@@ -2000,5 +2000,31 @@
       "budget_set": "Set budget",
       "currency_set": "Set expense currency"
     }
+  },
+  "currencyPicker": {
+    "title": "Choose currency",
+    "searchPlaceholder": "Search code or name",
+    "common": "Common currencies",
+    "other": "Other currencies",
+    "noMatch": "No matching currency",
+    "searchHint": "Try a code or name, such as USD or US Dollar",
+    "clearSearch": "Clear search",
+    "names": {
+      "TWD": "New Taiwan Dollar",
+      "JPY": "Japanese Yen",
+      "USD": "US Dollar",
+      "EUR": "Euro",
+      "HKD": "Hong Kong Dollar",
+      "THB": "Thai Baht",
+      "KRW": "South Korean Won",
+      "CNY": "Chinese Yuan",
+      "GBP": "British Pound",
+      "SGD": "Singapore Dollar",
+      "AUD": "Australian Dollar",
+      "MYR": "Malaysian Ringgit",
+      "VND": "Vietnamese Dong",
+      "PHP": "Philippine Peso",
+      "IDR": "Indonesian Rupiah"
+    }
   }
 }

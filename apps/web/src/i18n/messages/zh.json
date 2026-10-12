@@ -1993,5 +1993,31 @@
       "budget_set": "設定預算",
       "currency_set": "設定記帳幣別"
     }
+  },
+  "currencyPicker": {
+    "title": "選擇幣別",
+    "searchPlaceholder": "搜尋代碼或名稱",
+    "common": "常用幣別",
+    "other": "其他幣別",
+    "noMatch": "找不到符合的幣別",
+    "searchHint": "試試代碼或名稱，例如 USD、美元",
+    "clearSearch": "清除搜尋",
+    "names": {
+      "TWD": "新臺幣",
+      "JPY": "日圓",
+      "USD": "美元",
+      "EUR": "歐元",
+      "HKD": "港元",
+      "THB": "泰銖",
+      "KRW": "韓元",
+      "CNY": "人民幣",
+      "GBP": "英鎊",
+      "SGD": "新加坡元",
+      "AUD": "澳元",
+      "MYR": "馬來西亞令吉",
+      "VND": "越南盾",
+      "PHP": "菲律賓披索",
+      "IDR": "印尼盾"
+    }
   }
 }

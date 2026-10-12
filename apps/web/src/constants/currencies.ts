@@ -58,7 +58,7 @@ export function formatCurrency(amount: number, currencyCode: string, locale = 'z
 // ---------------------------------------------------------------------------
 
 /** 常用幣別：於完整清單與搜尋結果中優先排在前面。 */
-const COMMON_CURRENCY_CODES = [
+export const COMMON_CURRENCY_CODES: readonly string[] = [
   'TWD',
   'JPY',
   'USD',
