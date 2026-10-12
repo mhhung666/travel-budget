@@ -35,6 +35,7 @@ export async function refreshManagedTrip(
   };
   const snapshots = async () => {
     try {
+      const unchanged = catalog.captureArchive(scope);
       const landing = await manager.requestAs(
         scope.accountId,
         `/trips/${tripId}/landing?date=${localDate()}`,
@@ -43,6 +44,8 @@ export async function refreshManagedTrip(
       );
       beforeSend();
       await catalog.rememberName(scope, tripId, landing.name);
+      beforeSend();
+      if (unchanged(tripId)) await catalog.rememberArchived(scope, tripId, landing.archived);
       beforeSend();
       const options = await manager.requestAs(
         scope.accountId,

@@ -295,5 +295,159 @@ it('existing schema 8 G1 rows and G2a intents coexist after restart without a mi
     'trip.currency',
     'trip.update',
   ]);
-  expect(await h.db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 10 });
+  expect(await h.db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 11 });
+});
+it.each([true, false])(
+  'committed archive=%s survives failed catalog barrier/refresh and restart without resending',
+  async (archived) => {
+    const h = await fixture();
+    const { createDraftTripStore } = await import('@/storage/draftTrips');
+    const snapshots = await createDraftTripStore(h.db);
+    await snapshots.rememberName(scope, tripId, 'Local trip', 1);
+    await snapshots.rememberOptions(scope, tripId, { members: [], categories: [] }, 2);
+    const result = {
+      status: 'committed',
+      operation: 'trip.archive',
+      resourceId: tripId,
+      ledger,
+      result: { tripId, archived, ledger },
+    };
+    h.request.mockImplementation(async (_actor, path) =>
+      path.includes('mutation-requests') ? result : result.result
+    );
+    const entry = new TripEntry({
+      store: async () => h.store,
+      request: h.request,
+      newId: () => key,
+      active: () => true,
+      beforeArchiveCompletion: async () => {
+        throw new Error('catalog barrier failed');
+      },
+      committed: async () => {
+        throw new ApiError('NETWORK');
+      },
+    });
+    expect(
+      await entry.confirm(scope, {
+        operation: 'trip.archive',
+        tripId,
+        body: { expected_revision: revision, archived },
+      })
+    ).toMatchObject({ kind: 'completed', refreshed: false });
+    expect((await snapshots.get(scope, tripId))?.archived).toBe(archived);
+    await h.restart();
+    expect((await (await createDraftTripStore(h.db)).get(scope, tripId))?.archived).toBe(archived);
+    h.request.mockClear();
+    await h.engine().recover(scope);
+    expect(h.request).not.toHaveBeenCalled();
+    expect((await h.store.list(scope))[0]).toMatchObject({
+      clientRequestId: key,
+      status: 'completed',
+    });
+  }
+);
+it('receipt completion failure rolls back archive metadata; recovery commits the original receipt once', async () => {
+  const h = await fixture();
+  const { createDraftTripStore } = await import('@/storage/draftTrips');
+  const snapshots = await createDraftTripStore(h.db);
+  await snapshots.rememberOptions(scope, tripId, { members: [], categories: [] }, 1);
+  const result = {
+    status: 'committed',
+    operation: 'trip.archive',
+    resourceId: tripId,
+    ledger,
+    result: { tripId, archived: true, ledger },
+  };
+  h.request.mockImplementation(async (_actor, path) =>
+    path.includes('mutation-requests') ? result : result.result
+  );
+  const original = h.db.runAsync;
+  h.db.runAsync = async (sql, ...args) => {
+    if (sql.includes("SET status = 'completed'")) throw new Error('disk full');
+    return original(sql, ...args);
+  };
+  expect(
+    (
+      await h.engine().confirm(scope, {
+        operation: 'trip.archive',
+        tripId,
+        body: { expected_revision: revision, archived: true },
+      })
+    ).kind
+  ).toBe('pending');
+  expect((await snapshots.get(scope, tripId))?.archived).toBeNull();
+  h.db.runAsync = original;
+  await h.restart();
+  await h.engine().recover(scope);
+  expect(h.request.mock.calls.map((call) => call[1])).toEqual([
+    `/trips/${tripId}/archive`,
+    `/mutation-requests/${key}`,
+  ]);
+  expect((await (await createDraftTripStore(h.db)).get(scope, tripId))?.archived).toBe(true);
+});
+it('archive receipt drains earlier catalog saves and rejects a late pre-confirmation list response', async () => {
+  const h = await fixture();
+  const { createDraftTripStore } = await import('@/storage/draftTrips');
+  const { DraftCatalog } = await import('@/features/localDrafts/catalog');
+  const { QueryClient } = await import('@tanstack/react-query');
+  const snapshots = await createDraftTripStore(h.db);
+  const catalog = new DraftCatalog(async () => snapshots);
+  await catalog.rememberOptions(scope, tripId, { members: [], categories: [] });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const stop = catalog.observe(client);
+  let resolve!: (body: unknown) => void;
+  const reading = client.fetchQuery({
+    queryKey: [scope.environment, scope.accountId, 'trips', 'today'],
+    queryFn: () =>
+      new Promise((finish) => {
+        resolve = finish;
+      }),
+  });
+  try {
+    h.request.mockResolvedValue({ tripId, archived: true, ledger });
+    const entry = new TripEntry({
+      store: async () => h.store,
+      request: h.request,
+      newId: () => key,
+      active: () => true,
+      beforeArchiveCompletion: (scope, tripId) => catalog.beforeArchiveCompletion(scope, tripId),
+      committed: () => {
+        catalog.archiveSaved(scope, tripId);
+        throw new ApiError('NETWORK');
+      },
+    });
+    await entry.confirm(scope, {
+      operation: 'trip.archive',
+      tripId,
+      body: { expected_revision: revision, archived: true },
+    });
+    resolve({
+      pages: [
+        {
+          items: [
+            {
+              id: tripId,
+              name: 'Old',
+              startDate: null,
+              endDate: null,
+              description: null,
+              destination: null,
+              archived: false,
+              phase: 'unscheduled',
+              memberCount: 1,
+              mySpent: 0,
+              myBalance: 0,
+            },
+          ],
+          nextPage: null,
+        },
+      ],
+    });
+    await reading;
+    expect((await catalog.get(scope, tripId))?.archived).toBe(true);
+    expect(catalog.getSnapshot().storageFailed).toBe(false);
+  } finally {
+    stop();
+    client.clear();
+  }
 });

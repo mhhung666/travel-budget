@@ -92,14 +92,14 @@ it('upgrades schema 3 with drafts, pending and trip snapshots intact', async () 
   await trips.rememberOptions(scope, tripId, options, 1000);
   await h.db.execAsync(
     LEGACY_PENDING_SQL +
-      'DROP TABLE expense_queue; DROP TABLE expense_rate_limit; DROP TABLE pending_mutation; ALTER TABLE pending_expense DROP COLUMN api_version; ALTER TABLE pending_expense DROP COLUMN base_currency; ALTER TABLE pending_expense DROP COLUMN money_scale; PRAGMA user_version = 3'
+      'DROP TABLE expense_queue; DROP TABLE expense_rate_limit; DROP TABLE pending_mutation; ALTER TABLE pending_expense DROP COLUMN api_version; ALTER TABLE pending_expense DROP COLUMN base_currency; ALTER TABLE pending_expense DROP COLUMN money_scale; ALTER TABLE draft_trip DROP COLUMN archived; PRAGMA user_version = 3'
   );
   const queue = await createExpenseQueueStore(h.db);
   expect(await queue.list(scope)).toEqual([]);
   expect((await h.pending.drafts.load(scope, tripId))?.draftId).toBe(uuidOf(2));
   expect(await h.pending.list(scope)).toHaveLength(1);
   expect((await trips.get(scope, tripId))?.options).toEqual(options);
-  expect(await h.db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 10 });
+  expect(await h.db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 11 });
 });
 it('isolates queue operations by environment and account', async () => {
   const h = await setup();
@@ -311,7 +311,7 @@ it.each(['busy', 'conflict', 'pending'])(
     const frozen = (await h.pending.list(scope)).map(legacyPending);
     await h.db.execAsync(
       LEGACY_PENDING_SQL +
-        'ALTER TABLE expense_queue DROP COLUMN api_version; ALTER TABLE expense_queue DROP COLUMN rate_limit_until; DROP TABLE expense_rate_limit; DROP TABLE pending_mutation; ALTER TABLE pending_expense DROP COLUMN api_version; ALTER TABLE pending_expense DROP COLUMN base_currency; ALTER TABLE pending_expense DROP COLUMN money_scale; PRAGMA user_version = 4'
+        'ALTER TABLE expense_queue DROP COLUMN api_version; ALTER TABLE expense_queue DROP COLUMN rate_limit_until; DROP TABLE expense_rate_limit; DROP TABLE pending_mutation; ALTER TABLE pending_expense DROP COLUMN api_version; ALTER TABLE pending_expense DROP COLUMN base_currency; ALTER TABLE pending_expense DROP COLUMN money_scale; ALTER TABLE draft_trip DROP COLUMN archived; PRAGMA user_version = 4'
     );
     const upgraded = await createExpenseQueueStore(h.db);
     expect(await upgraded.list(scope)).toMatchObject([
@@ -325,7 +325,7 @@ it.each(['busy', 'conflict', 'pending'])(
       },
     ]);
     expect(await h.pending.list(scope)).toEqual(frozen);
-    expect(await h.db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 10 });
+    expect(await h.db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 11 });
   }
 );
 
@@ -335,7 +335,7 @@ it('rolls back a failed schema 4 wait migration and safely retries without losin
   await h.queue.pause(h.record, 'conflict', 120_000);
   await h.db.execAsync(
     LEGACY_PENDING_SQL +
-      'ALTER TABLE expense_queue DROP COLUMN api_version; ALTER TABLE expense_queue DROP COLUMN rate_limit_until; DROP TABLE expense_rate_limit; DROP TABLE pending_mutation; ALTER TABLE pending_expense DROP COLUMN api_version; ALTER TABLE pending_expense DROP COLUMN base_currency; ALTER TABLE pending_expense DROP COLUMN money_scale; PRAGMA user_version = 4'
+      'ALTER TABLE expense_queue DROP COLUMN api_version; ALTER TABLE expense_queue DROP COLUMN rate_limit_until; DROP TABLE expense_rate_limit; DROP TABLE pending_mutation; ALTER TABLE pending_expense DROP COLUMN api_version; ALTER TABLE pending_expense DROP COLUMN base_currency; ALTER TABLE pending_expense DROP COLUMN money_scale; ALTER TABLE draft_trip DROP COLUMN archived; PRAGMA user_version = 4'
   );
   const broken: SqlDatabase = {
     ...h.db,
@@ -443,7 +443,7 @@ it('migrates schema 5 deadlines by account and environment and rolls back a fail
   await h.queue.pause(records[0], 'busy', 120_000);
   await h.queue.pause(records[1], 'busy', 90_000);
   await h.db.execAsync(
-    'ALTER TABLE expense_queue DROP COLUMN api_version; DROP TABLE expense_rate_limit; DROP TABLE pending_mutation; ALTER TABLE pending_expense DROP COLUMN api_version; ALTER TABLE pending_expense DROP COLUMN base_currency; ALTER TABLE pending_expense DROP COLUMN money_scale; PRAGMA user_version = 5'
+    'ALTER TABLE expense_queue DROP COLUMN api_version; DROP TABLE expense_rate_limit; DROP TABLE pending_mutation; ALTER TABLE pending_expense DROP COLUMN api_version; ALTER TABLE pending_expense DROP COLUMN base_currency; ALTER TABLE pending_expense DROP COLUMN money_scale; ALTER TABLE draft_trip DROP COLUMN archived; PRAGMA user_version = 5'
   );
   const broken: SqlDatabase = {
     ...h.db,
@@ -546,7 +546,8 @@ describe('B5c-2 queued version', () => {
     await h.queue.prepare(first, payload(first.clientRequestId));
     const frozen = (await h.pending.list(scope)).map(legacyPending);
     await h.db.execAsync(
-      RELABEL_V1 + 'ALTER TABLE expense_queue DROP COLUMN api_version; PRAGMA user_version = 9'
+      RELABEL_V1 +
+        'ALTER TABLE expense_queue DROP COLUMN api_version; ALTER TABLE draft_trip DROP COLUMN archived; PRAGMA user_version = 9'
     );
     const broken: SqlDatabase = {
       ...h.db,
@@ -567,7 +568,7 @@ describe('B5c-2 queued version', () => {
     const reopened = open(path);
     const queue = await createExpenseQueueStore(reopened);
     const pending = await createPendingExpenseStore(reopened);
-    expect(await reopened.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 10 });
+    expect(await reopened.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 11 });
     // Both the prepared and the still-queued record were written as v1 and stay v1.
     expect(await queue.list(scope)).toMatchObject([
       { clientRequestId: first.clientRequestId, status: 'prepared', apiVersion: 1 },

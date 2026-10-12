@@ -15,7 +15,7 @@ import {
   type TripListQuery,
 } from '@travel-budget/contracts';
 import { ApiError } from '@/api/client';
-import { landingSchema, tripsSchema } from '@/api/contracts';
+import { landingSchema } from '@/api/contracts';
 import type { SessionManager } from '@/api/session';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { resetTripPages } from './tripListCache';
@@ -35,23 +35,11 @@ function useToday() {
   }, []);
   return date;
 }
-export function useTrips() {
-  const { manager, user } = useAuth();
-  const date = useToday();
-  return useInfiniteQuery({
-    queryKey: [manager.api.environment, user?.id, 'trips', date, 'v2'],
-    enabled: !!user,
-    initialPageParam: 1,
-    queryFn: ({ pageParam, signal }) =>
-      manager.request(`/trips?page=${pageParam}&date=${date}`, tripsSchema, { signal }),
-    getNextPageParam: (page) => page.nextPage ?? undefined,
-  });
-}
 type TripListMode = Pick<TripListQuery, 'archive' | 'sort'>;
 type ListRequester = Pick<SessionManager, 'requestAs'> & {
   api: Pick<SessionManager['api'], 'environment'>;
 };
-/** T2/T3 readers opt in explicitly; the existing screens keep their legacy query for T1. */
+/** Explicit list modes share the existing successful-write invalidation prefix. */
 export const tripListQuery = (
   manager: ListRequester,
   userId: string | undefined,
@@ -84,21 +72,23 @@ export const tripListQuery = (
     getNextPageParam: (page) => page.nextPage ?? undefined,
   });
 };
-export function useTripList(mode: TripListMode) {
+export function useTripList(mode: TripListMode, enabled = true) {
   const { manager, user } = useAuth();
   const client = useQueryClient();
   const options = tripListQuery(manager, user?.id, useToday(), mode);
   const query = useInfiniteQuery({
     ...options,
+    enabled: options.enabled && enabled,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
   const { refetch } = query;
   const refresh = useCallback(async () => {
+    if (!enabled || !user) return;
     await client.cancelQueries({ queryKey: [manager.api.environment, user?.id, 'trips'] });
     resetTripPages(client, manager.api.environment, user?.id);
     return refetch();
-  }, [client, manager, user?.id, refetch]);
+  }, [client, manager, user, enabled, refetch]);
   useEffect(() => {
     const foreground = AppState.addEventListener('change', (state) => {
       if (state === 'active') void refresh();
@@ -112,6 +102,9 @@ export function useTripList(mode: TripListMode) {
     };
   }, [refresh]);
   return { ...query, refresh };
+}
+export function useTripCandidates(enabled = true) {
+  return useTripList({ archive: 'unarchived', sort: 'quick-add' }, enabled);
 }
 export const tripQuery = (
   manager: Pick<SessionManager, 'request'> & { api: Pick<SessionManager['api'], 'environment'> },

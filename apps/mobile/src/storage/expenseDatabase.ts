@@ -22,7 +22,7 @@ export async function transaction<T>(db: SqlDatabase, task: () => Promise<T>): P
   }
 }
 
-const SCHEMA_VERSION = 10;
+const SCHEMA_VERSION = 11;
 /** Central, additive migration: the original C table and every pending request are retained. */
 export function migrateExpenseDatabase(db: SqlDatabase): Promise<void> {
   return databaseTask(db, async () => {
@@ -119,6 +119,10 @@ export function migrateExpenseDatabase(db: SqlDatabase): Promise<void> {
       if (version < 10)
         await db.execAsync(
           'ALTER TABLE expense_queue ADD COLUMN api_version INTEGER NOT NULL DEFAULT 1;'
+        );
+      if (version < 11)
+        await db.execAsync(
+          'ALTER TABLE draft_trip ADD COLUMN archived INTEGER CHECK (archived IN (0, 1));'
         );
       await db.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION}`);
     });

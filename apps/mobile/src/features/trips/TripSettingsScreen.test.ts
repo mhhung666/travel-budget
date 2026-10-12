@@ -94,6 +94,8 @@ vi.mock('@/features/localDrafts/provider', () => ({
   useDraftCatalog: () => ({
     catalog: {
       isVisible: () => h.visible,
+      captureArchive: () => () => true,
+      rememberArchived: vi.fn(),
       captureAccess: () => {
         const access = h.access;
         return () => {

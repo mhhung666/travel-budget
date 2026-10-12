@@ -83,12 +83,15 @@ function ArchiveControls({
           };
         },
         read: async (beforeSend) => {
+          const unchanged = catalog.captureArchive(scope!);
           const result = await manager.requestAs(
             scope!.accountId,
             `/trips/${encodeURIComponent(tripId)}/settings`,
             tripSettingsSchema,
             { beforeSend }
           );
+          beforeSend();
+          if (unchanged(tripId)) await catalog.rememberArchived(scope!, tripId, result.archived);
           beforeSend();
           return result;
         },

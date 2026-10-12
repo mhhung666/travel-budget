@@ -128,12 +128,15 @@ export function TripSettingsScreen({ tripId, source }: { tripId: string; source?
     if (v === generation.current && current()) setError(errorMessage(failure, t));
   }
   async function read(beforeSend: () => void) {
+    const unchanged = catalog.captureArchive(scope!);
     const data = await manager.requestAs(
       scope!.accountId,
       `/trips/${tripId}/settings`,
       tripSettingsSchema,
       { beforeSend }
     );
+    beforeSend();
+    if (unchanged(tripId)) await catalog.rememberArchived(scope!, tripId, data.archived);
     beforeSend();
     return data;
   }

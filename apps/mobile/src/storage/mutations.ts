@@ -254,9 +254,27 @@ export async function createMutationStore(db: SqlDatabase): Promise<MutationStor
           ) {
             await db.runAsync(
               `INSERT INTO draft_trip (environment, account_id, trip_id, updated_at, denied) VALUES (?, ?, ?, 0, 1)
-             ON CONFLICT (environment, account_id, trip_id) DO UPDATE SET name = NULL, options = NULL, denied = 1`,
+             ON CONFLICT (environment, account_id, trip_id) DO UPDATE SET name = NULL, options = NULL, archived = NULL, denied = 1`,
               ...scopeArgs(scope),
               parsed.result.tripId
+            );
+          }
+          // Persist the known personal state atomically with the terminal receipt, even if
+          // subsequent network refresh fails or the app stops before its callback.
+          if (
+            parsed.status === 'committed' &&
+            parsed.operation === 'trip.archive' &&
+            'archived' in parsed.result &&
+            parsed.result.archived !== undefined
+          ) {
+            await db.runAsync(
+              `INSERT INTO draft_trip (environment, account_id, trip_id, archived, updated_at)
+               VALUES (?, ?, ?, ?, ?) ON CONFLICT (environment, account_id, trip_id)
+               DO UPDATE SET archived = excluded.archived WHERE draft_trip.denied = 0`,
+              ...scopeArgs(scope),
+              parsed.result.tripId,
+              parsed.result.archived ? 1 : 0,
+              Date.now()
             );
           }
           await db.runAsync(

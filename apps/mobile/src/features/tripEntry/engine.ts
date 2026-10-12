@@ -53,6 +53,7 @@ interface Deps {
   now?: () => number;
   changed?: (scope: PendingScope) => void;
   exited?: (scope: PendingScope, tripId: string) => void | Promise<void>;
+  beforeArchiveCompletion?: (scope: PendingScope, tripId: string) => void | Promise<void>;
   committed?: (scope: PendingScope, tripId: string, result: MutationRequest) => unknown;
 }
 export class TripEntry {
@@ -247,6 +248,18 @@ export class TripEntry {
       // denial must not prevent complete() from persisting its own tombstone.
       await Promise.resolve()
         .then(() => this.deps.exited?.(record, result.result.tripId))
+        .catch(() => undefined);
+    }
+    if (
+      result.status === 'committed' &&
+      result.operation === 'trip.archive' &&
+      'archived' in result.result &&
+      result.result.archived !== undefined
+    ) {
+      // Drain earlier catalog saves and invalidate reads begun before this receipt.
+      // The terminal receipt and archive state are written in the same SQLite transaction.
+      await Promise.resolve()
+        .then(() => this.deps.beforeArchiveCompletion?.(record, result.result.tripId))
         .catch(() => undefined);
     }
     await store.complete(record, record.clientRequestId, result);

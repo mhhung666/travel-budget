@@ -141,3 +141,50 @@ it.each(['zh', 'zh-CN', 'en', 'jp'] as const)(
     expect(messages[locale].tripListUnavailable).not.toBe(messages[locale].genericError);
   }
 );
+it('quick-add fetches only the requested page despite full candidate metadata, not every financial page', async () => {
+  const manager = fixture();
+  const ledger = { baseCurrency: 'TWD', moneyScale: 2 };
+  manager.request.mockImplementation(async (_actor, path) => {
+    const page = Number(new URL(`https://test${path}`).searchParams.get('page'));
+    return {
+      ...response('unarchived', 'quick-add'),
+      items: Array.from({ length: page === 3 ? 3 : 20 }, (_, n) => ({
+        id: (n + (page - 1) * 20 + 1).toString(16).padStart(24, '0'),
+        name: `Candidate ${n}`,
+        description: null,
+        startDate: null,
+        endDate: null,
+        destination: null,
+        archived: false,
+        memberCount: 1,
+        mySpent: 0,
+        myBalance: 0,
+        phase: 'unscheduled',
+        ledger,
+      })),
+      nextPage: page < 3 ? page + 1 : null,
+    };
+  });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const { InfiniteQueryObserver } = await import('@tanstack/react-query');
+  const observer = new InfiniteQueryObserver(
+    client,
+    tripListQuery(manager, actor, date, { archive: 'unarchived', sort: 'quick-add' })
+  );
+  const stop = observer.subscribe(() => undefined);
+  try {
+    await observer.refetch();
+    expect(manager.request).toHaveBeenCalledOnce();
+    expect(observer.getCurrentResult().data?.pages[0].metadata.quickAdd.candidateCount).toBe(43);
+    expect(observer.getCurrentResult().data?.pages).toHaveLength(1);
+    await observer.fetchNextPage();
+    expect(manager.request).toHaveBeenCalledTimes(2);
+    expect(observer.getCurrentResult().data?.pages).toHaveLength(2);
+    expect(manager.request.mock.calls[1][1]).toBe(
+      '/trips?page=2&date=2026-10-12&archive=unarchived&sort=quick-add'
+    );
+  } finally {
+    stop();
+    client.clear();
+  }
+});

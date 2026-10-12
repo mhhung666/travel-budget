@@ -1,4 +1,4 @@
-import { QueryClient } from '@tanstack/react-query';
+import { InfiniteQueryObserver, QueryClient } from '@tanstack/react-query';
 import { afterEach, expect, it } from 'vitest';
 import { ApiError } from '@/api/client';
 import { recordAccessDenial } from '@/features/auth/accessGuard';
@@ -279,5 +279,108 @@ it('keeps a failed options-save warning through unrelated successful name writes
   expect((await catalog.get(scope, hex(200)))?.name).toBe('Other trip');
   fail = false;
   await catalog.rememberOptions(scope, tripId, options);
+  expect(catalog.getSnapshot().storageFailed).toBe(false);
+});
+const listTrip = (archived: boolean) => ({
+  id: tripId,
+  name: 'Full name',
+  startDate: null,
+  endDate: null,
+  phase: 'unscheduled',
+  archived,
+  description: null,
+  destination: null,
+  memberCount: 1,
+  mySpent: 0,
+  myBalance: 0,
+});
+it('only real validated reads persist known archive state; seeded cache and malformed responses do not', async () => {
+  const h = await setup(),
+    queryKey = [scope.environment, scope.accountId, 'trips', 'today'];
+  h.client.setQueryData(queryKey, { pages: [{ items: [listTrip(true)], nextPage: null }] });
+  expect(await h.catalog.get(scope, tripId)).toBeNull();
+  await h.client.fetchQuery({
+    queryKey,
+    queryFn: async () => ({ pages: [{ items: [listTrip(true)], nextPage: null }] }),
+  });
+  expect(await h.catalog.get(scope, tripId)).toMatchObject({ archived: true });
+  await h.client.fetchQuery({
+    queryKey,
+    queryFn: async () => ({
+      pages: [{ items: [{ ...listTrip(false), archived: 'false' }], nextPage: null }],
+    }),
+  });
+  expect((await h.catalog.get(scope, tripId))?.archived).toBe(true);
+});
+it('late list/landing responses cannot overwrite a newer confirmed archive state, or lift denial', async () => {
+  const h = await setup();
+  await h.catalog.rememberOptions(scope, tripId, options);
+  let finish!: (value: unknown) => void;
+  const reading = h.client.fetchQuery({
+    queryKey: [scope.environment, scope.accountId, 'trips', 'today'],
+    queryFn: () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  });
+  await h.catalog.rememberArchived(scope, tripId, true);
+  finish({ pages: [{ items: [listTrip(false)], nextPage: null }] });
+  await reading;
+  expect((await h.catalog.get(scope, tripId))?.archived).toBe(true);
+  const landing = h.client.fetchQuery({
+    queryKey: key('trip'),
+    queryFn: () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  });
+  await h.catalog.deny(scope, tripId);
+  finish({
+    ...listTrip(false),
+    role: 'member',
+    expenseCount: 0,
+    budgetTotal: null,
+    todayGroupSpent: 0,
+  });
+  await landing;
+  expect(await h.catalog.get(scope, tripId)).toBeNull();
+});
+it('loading the next page skips retained archive metadata but an identical fresh refetch updates it', async () => {
+  const h = await setup(),
+    queryKey = [scope.environment, scope.accountId, 'trips', 'today'];
+  const first = { items: [listTrip(false)], nextPage: 2 };
+  const observer = new InfiniteQueryObserver(h.client, {
+    queryKey,
+    initialPageParam: 1,
+    queryFn: async ({ pageParam }) => (pageParam === 1 ? first : { items: [], nextPage: null }),
+    getNextPageParam: (page) => page.nextPage ?? undefined,
+  });
+  await observer.refetch();
+  await h.catalog.rememberArchived(scope, tripId, true);
+  await observer.fetchNextPage();
+  expect((await h.catalog.get(scope, tripId))?.archived).toBe(true);
+  const previous = observer.getCurrentResult().data?.pages[0];
+  await observer.refetch();
+  expect(observer.getCurrentResult().data?.pages[0]).toBe(previous);
+  expect((await h.catalog.get(scope, tripId))?.archived).toBe(false);
+});
+it('a failed archive save signals storage failure without granting access, and clears only on archive retry', async () => {
+  const h = await setup();
+  let failed = true;
+  const store = {
+    ...h.store,
+    rememberArchived: async (...args: Parameters<DraftTripStore['rememberArchived']>) => {
+      if (failed) throw new Error('disk full');
+      await h.store.rememberArchived(...args);
+    },
+  };
+  const catalog = new DraftCatalog(async () => store);
+  await catalog.rememberOptions(scope, tripId, options);
+  await expect(catalog.rememberArchived(scope, tripId, true)).rejects.toThrow('disk full');
+  await catalog.rememberName(scope, tripId, 'Name');
+  expect(catalog.getSnapshot().storageFailed).toBe(true);
+  expect((await catalog.get(scope, tripId))?.archived).toBeNull();
+  failed = false;
+  await catalog.rememberArchived(scope, tripId, true);
   expect(catalog.getSnapshot().storageFailed).toBe(false);
 });

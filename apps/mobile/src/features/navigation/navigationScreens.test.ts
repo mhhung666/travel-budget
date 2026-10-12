@@ -1,7 +1,10 @@
+import { formatDate } from '@/i18n/format';
+import { onlineManager } from '@tanstack/react-query';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { isValidElement, type ReactElement, type ReactNode } from 'react';
 import AppLayout from '@/app/(app)/_layout';
 import { MyScreen } from './MyScreen';
+import { TripCandidateRow } from './TripCandidateRow';
 import { SelectTripScreen } from './SelectTripScreen';
 import { LocalWorkScreen } from './LocalWorkScreen';
 import { TripContext } from './TripContext';
@@ -16,6 +19,10 @@ import { TabRouter } from 'expo-router/build/react-navigation/routers';
 vi.mock('@/features/expenses/PendingReceipts', () => ({ PendingReceipts: 'PendingReceipts' }));
 const h = vi.hoisted(() => ({
   status: 'signedIn',
+  actor: 'account',
+  version: 1,
+  hidden: false,
+  candidates: vi.fn(),
   online: true,
   pathname: '/trips',
   tripId: 'a',
@@ -36,9 +43,24 @@ const h = vi.hoisted(() => ({
     data: {
       pages: [
         {
+          metadata: { counts: { archived: 2, unarchived: 43 }, quickAdd: { directTripId: 'a' } },
           items: [
-            { id: 'a', name: 'Trip A' },
-            { id: 'b', name: 'Trip B' },
+            {
+              id: 'a',
+              name: 'Trip A',
+              archived: false,
+              startDate: null,
+              endDate: null,
+              phase: 'unscheduled',
+            },
+            {
+              id: 'b',
+              name: 'Trip B',
+              archived: false,
+              startDate: null,
+              endDate: null,
+              phase: 'unscheduled',
+            },
           ],
         },
       ],
@@ -47,14 +69,21 @@ const h = vi.hoisted(() => ({
     isError: false,
     error: undefined as unknown,
     refetch: vi.fn(),
+    refresh: vi.fn(),
+    isFetching: false,
     hasNextPage: false,
     isFetchingNextPage: false,
     fetchNextPage: vi.fn(),
   },
   local: {
     data: [
-      { tripId: 'a', name: 'Local A', options: {} as object | undefined },
-      { tripId: 'b', name: 'Local B', options: undefined },
+      {
+        tripId: 'a',
+        name: 'Local A',
+        archived: null as boolean | null,
+        options: {} as object | undefined,
+      },
+      { tripId: 'b', name: 'Local B', archived: null as boolean | null, options: undefined },
     ],
     scope: { environment: 'https://example/api/v1', accountId: 'account' },
     isPending: false,
@@ -143,20 +172,39 @@ vi.mock('@/features/auth/AuthProvider', () => ({
   useAuth: () => ({
     status: h.status,
     user: { id: 'account', username: 'test', displayName: 'TEST account' },
-    manager: { api: { environment: 'https://example/api/v1' }, logout: h.logout },
+    manager: {
+      api: { environment: 'https://example/api/v1' },
+      logout: h.logout,
+      getSignInVersion: () => h.version,
+      getSnapshot: () => ({ status: h.status, user: { id: h.actor } }),
+    },
   }),
 }));
 vi.mock('@/features/auth/errorMessage', () => ({
   errorMessage: () => 'failure',
   isAccessDenied: (error: unknown) => error === 'denied',
 }));
-vi.mock('@/features/trips/queries', () => ({ useTrips: () => h.remote, useTrip: () => h.trip }));
+vi.mock('@/features/trips/queries', () => ({
+  useTripCandidates: (enabled: boolean) => {
+    h.candidates(enabled);
+    return h.remote;
+  },
+  useTrip: () => h.trip,
+}));
 vi.mock('@/features/expenses/entryQueries', () => ({
   useExpenseOptions: () => ({ refetch: vi.fn() }),
 }));
 vi.mock('@/features/localDrafts/provider', () => ({
   useLocalTrips: () => h.local,
-  useDraftCatalog: () => ({ catalog: { isVisible: () => h.visible } }),
+  useDraftCatalog: () => ({
+    catalog: {
+      isVisible: () => h.visible,
+      hasDenied: () => h.hidden,
+      captureAccess: () => () => {
+        if (!h.visible) throw new Error('denied');
+      },
+    },
+  }),
 }));
 vi.mock('@/features/expenses/entryProvider', () => ({
   useExpenseQueue: () => ({ records: h.queue }),
@@ -165,6 +213,7 @@ vi.mock('@/features/tripEntry/provider', () => ({
   useTripEntry: () => ({ records: h.operations }),
 }));
 vi.mock('@/providers/useOnline', () => ({ useOnline: () => h.online }));
+vi.mock('@/i18n/useDisplayFormat', () => ({ useDisplayFormat: () => ({ locale: 'en' }) }));
 vi.mock('@/i18n/useMessages', () => ({
   useMessages: () => new Proxy({}, { get: (_object, key) => String(key) }),
 }));
@@ -178,6 +227,11 @@ function nodes(node: ReactNode): Element[] {
   if (Array.isArray(node)) return node.flatMap(nodes);
   if (!isValidElement(node)) return [];
   const element = node as Element;
+  if (element.type === TripCandidateRow)
+    return [
+      element,
+      ...nodes(TripCandidateRow(element.props as Parameters<typeof TripCandidateRow>[0])),
+    ];
   if (element.type === EntryGroup)
     return [element, ...nodes(EntryGroup(element.props as Parameters<typeof EntryGroup>[0]))];
   if (element.type === LocalWorkLink) return nodes(LocalWorkLink(element.props));
@@ -193,6 +247,10 @@ function press(element: Element) {
 }
 beforeEach(() => {
   h.status = 'signedIn';
+  h.actor = 'account';
+  h.version = 1;
+  h.hidden = false;
+  vi.spyOn(onlineManager, 'isOnline').mockImplementation(() => h.online);
   h.online = h.visible = true;
   h.pathname = '/trips';
   h.tripId = 'a';
@@ -265,8 +323,9 @@ it('never chooses a trip automatically, blocks rapid selection, and preserves th
   expect(h.replace).not.toHaveBeenCalled();
   const item = (list.props.data as { id: string; name: string }[])[0];
   const row = (list.props.renderItem as (props: { item: typeof item }) => Element)({ item });
-  press(row);
-  press(row);
+  const button = find(row, 'testID', `record-trip-${item.id}`);
+  press(button);
+  press(button);
   expect(h.replace).toHaveBeenCalledExactlyOnceWith({
     pathname: '/trips/[id]/expenses/new',
     params: { id: 'a' },
@@ -279,9 +338,18 @@ it('never chooses a trip automatically, blocks rapid selection, and preserves th
 it('offline selection uses only snapshots with options, and denial immediately removes all names', () => {
   h.online = false;
   let list = find(render(SelectTripScreen), 'testID', 'record-trips');
-  expect(list.props.data).toEqual([{ id: 'a', name: 'Local A' }]);
+  expect(list.props.data).toEqual([{ id: 'a', name: 'Local A', localGroup: 'unknown' }]);
   const item = (list.props.data as { id: string; name: string }[])[0];
-  press((list.props.renderItem as (props: { item: typeof item }) => Element)({ item }));
+  press(
+    find(
+      (list.props.renderItem as (props: { item: typeof item; index: number }) => Element)({
+        item,
+        index: 0,
+      }),
+      'testID',
+      'record-trip-a'
+    )
+  );
   expect(h.replace).toHaveBeenCalledWith({ pathname: '/drafts/[id]', params: { id: 'a' } });
   h.online = true;
   h.visible = false;
@@ -575,4 +643,86 @@ it('keeps measured overflow in menu mode when moving the header into the padded 
   h.width = 768;
   tree = chrome();
   expect(nodes(tree).some((node) => node.type === 'SafeAreaView')).toBe(true);
+});
+it.each(['account', 'login', 'revoked', 'offline'])(
+  'a stale candidate handler cannot navigate after %s changes',
+  (kind) => {
+    const list = find(render(SelectTripScreen), 'testID', 'record-trips');
+    const item = (list.props.data as { id: string; name: string }[])[0];
+    const row = (list.props.renderItem as (props: { item: typeof item; index: number }) => Element)(
+      { item, index: 0 }
+    );
+    if (kind === 'account') h.actor = 'other';
+    if (kind === 'login') h.version++;
+    if (kind === 'revoked') h.visible = false;
+    if (kind === 'offline') h.online = false;
+    press(find(row, 'testID', 'record-trip-a'));
+    expect(h.replace).not.toHaveBeenCalled();
+  }
+);
+it('candidate rows include full names, shared literal dates and phases without financial amounts', () => {
+  const item = {
+    id: 'a',
+    name: 'Long travel name '.repeat(20),
+    trip: {
+      id: 'a',
+      name: 'Long travel name '.repeat(20),
+      startDate: '2026-10-12',
+      endDate: '2026-10-13',
+      phase: 'ongoing' as const,
+      archived: false,
+      memberCount: 2,
+      description: null,
+      destination: null,
+      mySpent: 123456,
+      myBalance: 987654,
+    },
+  };
+  const row = render(() => TripCandidateRow({ item, onPress: vi.fn() }))!;
+  const button = find(row, 'testID', 'record-trip-a');
+  expect(button.props.accessibilityLabel).toContain(item.name);
+  expect(button.props.accessibilityLabel).toContain(formatDate('2026-10-12', 'en'));
+  expect(button.props.accessibilityLabel).toContain('ongoing');
+  expect(button.props.accessibilityLabel).not.toContain('123456');
+  expect(nodes(row).some((n) => n.props.numberOfLines !== undefined)).toBe(false);
+});
+it('an archived-only account links to archived trips and keeps create/join, without claiming there are no trips', () => {
+  const pages = h.remote.data.pages;
+  h.remote.data.pages = [{ ...pages[0], items: [] }];
+  const list = find(render(SelectTripScreen), 'testID', 'record-trips');
+  const empty = list.props.ListEmptyComponent as ReactNode;
+  expect(find(empty, 'children', 'noRecordTrips')).toBeDefined();
+  expect(find(empty, 'label', 'createTrip')).toBeDefined();
+  expect(find(empty, 'label', 'joinTrip')).toBeDefined();
+  press(find(empty, 'testID', 'record-view-archived'));
+  expect(h.replace).toHaveBeenCalledExactlyOnceWith({
+    pathname: '/trips',
+    params: { archive: 'archived' },
+  });
+  h.remote.data.pages = pages;
+});
+it('refresh uses the first-page reset entry and local-only login never enables the remote candidate query', () => {
+  const list = find(render(SelectTripScreen), 'testID', 'record-trips');
+  const refresh = list.props.refreshControl as Element;
+  (refresh.props.onRefresh as () => void)();
+  expect(h.remote.refresh).toHaveBeenCalled();
+  h.status = 'local';
+  const local = find(render(SelectTripScreen), 'testID', 'record-trips');
+  expect(h.candidates).toHaveBeenLastCalledWith(false);
+  expect(local.props.data).toEqual([{ id: 'a', name: 'Local A', localGroup: 'unknown' }]);
+});
+it('known revocation hides candidates without removing the manual archive entry or showing uncertain totals', () => {
+  const metadata = h.remote.data.pages[0].metadata;
+  h.remote.data.pages[0].metadata = { ...metadata, counts: { archived: 0, unarchived: 43 } };
+  h.hidden = true;
+  h.visible = false;
+  try {
+    const list = find(render(SelectTripScreen), 'testID', 'record-trips');
+    expect(list.props.data).toEqual([]);
+    const link = find(list.props.ListEmptyComponent as ReactNode, 'testID', 'record-view-archived');
+    expect(link.props.label).toBe('viewArchivedTrips');
+    expect(h.replace).not.toHaveBeenCalled();
+  } finally {
+    h.remote.data.pages[0].metadata = metadata;
+  }
 });

@@ -1,3 +1,4 @@
+import { tripSettingsSchema } from '@travel-budget/contracts';
 import type { QueryClient } from '@tanstack/react-query';
 import { ApiError } from '@/api/client';
 import { expenseOptionsSchema, landingSchema, tripsSchema } from '@/api/contracts';
@@ -11,6 +12,7 @@ export class DraftCatalog {
   private tail: Promise<unknown> = Promise.resolve();
   private blocked = new Map<string, { scope: PendingScope; tripId: string }>();
   private events = new Map<string, object>();
+  private archives = new Map<string, object>();
   private denials = new Map<string, object>();
   private unsavedDenials = new Map<string, { scope: PendingScope; tripId: string }>();
   private failures = new Set<string>();
@@ -59,6 +61,7 @@ export class DraftCatalog {
     const key = keyOf(scope, tripId);
     const denied = { scope, tripId };
     this.denials.set(key, denied);
+    this.archives.set(key, denied);
     this.events.set(key, denied);
     this.blocked.set(key, denied);
     this.unsavedDenials.set(key, denied);
@@ -85,6 +88,30 @@ export class DraftCatalog {
   rememberName(scope: PendingScope, tripId: string, name: string) {
     return this.enqueue(`name:${keyOf(scope, tripId)}`, (store) =>
       store.rememberName(scope, tripId, name, this.now())
+    );
+  }
+  /** Drain catalog writes and invalidate older reads before SQLite completes the receipt. */
+  beforeArchiveCompletion(scope: PendingScope, tripId: string) {
+    this.archives.set(keyOf(scope, tripId), {});
+    return this.tail.then(() => undefined);
+  }
+  archiveSaved(scope: PendingScope, tripId: string) {
+    const key = keyOf(scope, tripId);
+    this.archives.set(key, {});
+    this.failures.delete(`archive:${key}`);
+    this.publish(this.failures.size > 0);
+  }
+  captureArchive(scope: PendingScope) {
+    const versions = new Map(this.archives);
+    return (tripId: string) =>
+      versions.get(keyOf(scope, tripId)) === this.archives.get(keyOf(scope, tripId));
+  }
+  /** A known read or committed receipt only; never grants access or alters drafts. */
+  rememberArchived(scope: PendingScope, tripId: string, archived: boolean) {
+    const key = keyOf(scope, tripId);
+    this.archives.set(key, {});
+    return this.enqueue(`archive:${key}`, (store) =>
+      store.rememberArchived(scope, tripId, archived, this.now())
     );
   }
   private async readable() {
@@ -131,6 +158,10 @@ export class DraftCatalog {
   }
   observe(client: QueryClient) {
     const reads = new WeakMap<object, { denial: object | undefined }>();
+    const archiveReads = new WeakMap<
+      object,
+      { versions: Map<string, object>; retainedPages: Set<unknown> }
+    >();
     return client.getQueryCache().subscribe((event) => {
       if (event.type !== 'updated') return;
       const [environment, accountId, resource, tripId] = event.query.queryKey;
@@ -138,6 +169,18 @@ export class DraftCatalog {
       const scope = { environment, accountId };
       const optionsKey =
         resource === 'expense-options' && typeof tripId === 'string' ? keyOf(scope, tripId) : null;
+      if (
+        event.action.type === 'fetch' &&
+        ['trips', 'trip', 'trip-settings'].includes(String(resource))
+      ) {
+        const old = event.query.state.data as { pages?: unknown[] } | undefined;
+        archiveReads.set(event.query, {
+          versions: new Map(this.archives),
+          // Only fetch-more retains old pages. A fresh refetch must be observed even when
+          // React Query structurally shares an identical page with its previous cache.
+          retainedPages: new Set(event.query.state.fetchMeta?.fetchMore ? old?.pages : []),
+        });
+      }
       if (event.action.type === 'fetch' && optionsKey) {
         // Authorization belongs to the generation in which the read began, not when it arrived.
         reads.set(event.query, { denial: this.denials.get(optionsKey) });
@@ -168,6 +211,18 @@ export class DraftCatalog {
       }
       if (event.action.type !== 'success' || event.action.manual) return;
       const data = event.action.data;
+      const readArchives = archiveReads.get(event.query);
+      archiveReads.delete(event.query);
+      const rememberArchive = (id: string, archived: boolean) => {
+        const key = keyOf(scope, id);
+        if (
+          !readArchives ||
+          readArchives.versions.get(key) !== this.archives.get(key) ||
+          !this.isVisible(scope, id)
+        )
+          return;
+        void this.rememberArchived(scope, id, archived).catch(() => undefined);
+      };
       if (resource === 'expense-options' && typeof tripId === 'string') {
         const read = reads.get(event.query);
         reads.delete(event.query);
@@ -179,16 +234,27 @@ export class DraftCatalog {
       }
       if (resource === 'trip') {
         const trip = landingSchema.safeParse(data);
-        if (trip.success)
+        if (trip.success) {
           void this.rememberName(scope, trip.data.id, trip.data.name).catch(() => undefined);
+          rememberArchive(trip.data.id, trip.data.archived);
+        }
+      }
+      if (resource === 'trip-settings') {
+        const trip = tripSettingsSchema.safeParse(data);
+        if (trip.success) rememberArchive(trip.data.tripId, trip.data.archived);
       }
       if (resource === 'trips') {
         const pages = data as { pages?: unknown[] } | undefined;
         for (const page of pages?.pages ?? []) {
+          // Infinite-query successes also contain earlier pages. Do not replay their old
+          // archive states when a different page arrives after a confirmed change.
+          if (!page || typeof page !== 'object' || readArchives?.retainedPages.has(page)) continue;
           const parsed = tripsSchema.safeParse(page);
           if (parsed.success)
-            for (const trip of parsed.data.items)
+            for (const trip of parsed.data.items) {
               void this.rememberName(scope, trip.id, trip.name).catch(() => undefined);
+              rememberArchive(trip.id, trip.archived);
+            }
         }
       }
     });

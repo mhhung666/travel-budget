@@ -606,7 +606,7 @@ describe('B3 SQLite and frozen recovery', () => {
     const before = await db.getFirstAsync('SELECT payload FROM pending_expense');
     const eBefore = await db.getFirstAsync('SELECT payload FROM pending_mutation');
     await db.execAsync(
-      'ALTER TABLE pending_expense DROP COLUMN api_version; ALTER TABLE pending_expense DROP COLUMN base_currency; ALTER TABLE pending_expense DROP COLUMN money_scale; ALTER TABLE pending_mutation DROP COLUMN api_version; ALTER TABLE pending_mutation DROP COLUMN base_currency; ALTER TABLE pending_mutation DROP COLUMN money_scale; ALTER TABLE expense_queue DROP COLUMN api_version; PRAGMA user_version=8;'
+      'ALTER TABLE pending_expense DROP COLUMN api_version; ALTER TABLE pending_expense DROP COLUMN base_currency; ALTER TABLE pending_expense DROP COLUMN money_scale; ALTER TABLE pending_mutation DROP COLUMN api_version; ALTER TABLE pending_mutation DROP COLUMN base_currency; ALTER TABLE pending_mutation DROP COLUMN money_scale; ALTER TABLE expense_queue DROP COLUMN api_version; ALTER TABLE draft_trip DROP COLUMN archived; PRAGMA user_version = 8;'
     );
     const broken = {
       ...db,
@@ -625,7 +625,7 @@ describe('B3 SQLite and frozen recovery', () => {
     expect(await (await createMutationStore(db)).retryAt(scope)).toBeGreaterThan(
       Date.now() + 110000
     );
-    expect(await db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 10 });
+    expect(await db.getFirstAsync('PRAGMA user_version')).toEqual({ user_version: 11 });
   });
   it('C restores the original v2 UUID and endpoint after a lost answer', async () => {
     const db = open();

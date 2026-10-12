@@ -2,11 +2,12 @@ import { expenseOptionsSchema, type ExpenseOptions } from '@/api/contracts';
 import { databaseTask, migrateExpenseDatabase } from './expenseDatabase';
 import type { PendingScope, SqlDatabase } from './pendingExpenses';
 
-/** Only a name and form options, never ledger amounts, budgets, tokens or previews. */
+/** Only a name, known personal archive state and form options, never ledger amounts, budgets, tokens or previews. */
 export interface DraftTrip extends PendingScope {
   tripId: string;
   name: string | null;
   options: ExpenseOptions | null;
+  archived: boolean | null;
   updatedAt: number;
 }
 export interface DraftTripStore {
@@ -20,12 +21,19 @@ export interface DraftTripStore {
     options: ExpenseOptions,
     now: number
   ): Promise<void>;
+  rememberArchived(
+    scope: PendingScope,
+    tripId: string,
+    archived: boolean,
+    now: number
+  ): Promise<void>;
   deny(scope: PendingScope, tripId: string): Promise<void>;
 }
 interface Row {
   trip_id: string;
   name: string | null;
   options: string | null;
+  archived: number | null;
   updated_at: number;
 }
 export async function createDraftTripStore(db: SqlDatabase): Promise<DraftTripStore> {
@@ -36,13 +44,18 @@ export async function createDraftTripStore(db: SqlDatabase): Promise<DraftTripSt
     scope.accountId,
     tripId,
   ];
-  const decode = (scope: PendingScope, row: Row): DraftTrip => ({
-    ...scope,
-    tripId: row.trip_id,
-    name: row.name,
-    options: row.options ? expenseOptionsSchema.parse(JSON.parse(row.options)) : null,
-    updatedAt: row.updated_at,
-  });
+  const decode = (scope: PendingScope, row: Row): DraftTrip => {
+    if (row.archived !== null && row.archived !== 0 && row.archived !== 1)
+      throw new Error('INVALID_TRIP_ARCHIVE');
+    return {
+      ...scope,
+      tripId: row.trip_id,
+      name: row.name,
+      options: row.options ? expenseOptionsSchema.parse(JSON.parse(row.options)) : null,
+      archived: row.archived === null ? null : row.archived === 1,
+      updatedAt: row.updated_at,
+    };
+  };
   return {
     list: (scope) =>
       serial(async () =>
@@ -86,12 +99,23 @@ export async function createDraftTripStore(db: SqlDatabase): Promise<DraftTripSt
           now
         );
       }),
+    rememberArchived: (scope, tripId, archived, now) =>
+      serial(async () => {
+        await db.runAsync(
+          `INSERT INTO draft_trip (environment, account_id, trip_id, archived, updated_at)
+           VALUES (?, ?, ?, ?, ?) ON CONFLICT (environment, account_id, trip_id)
+           DO UPDATE SET archived = excluded.archived WHERE draft_trip.denied = 0`,
+          ...params(scope, tripId),
+          archived ? 1 : 0,
+          now
+        );
+      }),
     deny: (scope, tripId) =>
       serial(async () => {
         await db.runAsync(
           `INSERT INTO draft_trip (environment, account_id, trip_id, updated_at, denied)
         VALUES (?, ?, ?, 0, 1) ON CONFLICT (environment, account_id, trip_id)
-        DO UPDATE SET name = NULL, options = NULL, denied = 1`,
+        DO UPDATE SET name = NULL, options = NULL, archived = NULL, denied = 1`,
           ...params(scope, tripId)
         );
       }),

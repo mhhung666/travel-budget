@@ -70,6 +70,7 @@ export function TripEntryProvider({ children }: PropsWithChildren) {
             throw error;
           }
         },
+        beforeArchiveCompletion: (scope, tripId) => catalog.beforeArchiveCompletion(scope, tripId),
         exited: (scope, tripId) => {
           const hidden = catalog.deny(scope, tripId);
           void client.cancelQueries({
@@ -84,6 +85,8 @@ export function TripEntryProvider({ children }: PropsWithChildren) {
           void client.invalidateQueries({ queryKey: keyOf(scope) });
         },
         committed: async (scope, tripId, result) => {
+          if (result.status === 'committed' && result.operation === 'trip.archive')
+            catalog.archiveSaved(scope, tripId);
           if (
             result.status === 'committed' &&
             result.operation === 'trip.access' &&

@@ -13,6 +13,7 @@ import { LocalWorkLink } from './LocalWorkLink';
 import { EntryGroup } from '@/components/EntryGroup';
 
 const h = vi.hoisted(() => ({
+  params: {} as { archive?: string },
   locale: 'en' as keyof typeof messages,
   dark: false,
   fontScale: 1,
@@ -67,6 +68,7 @@ const h = vi.hoisted(() => ({
 vi.mock('react', async (original) => ({
   ...(await original<typeof import('react')>()),
   useEffect: () => undefined,
+  useCallback: (fn: unknown) => fn,
   useState: (initial: unknown) =>
     initial && typeof initial === 'object' && 'value' in initial
       ? [
@@ -111,7 +113,16 @@ vi.mock('react-native', () => ({
   ),
   useWindowDimensions: () => ({ width: h.width, fontScale: h.fontScale }),
 }));
-vi.mock('expo-router', () => ({ router: { push: h.push } }));
+vi.mock('expo-router', () => ({
+  router: {
+    push: h.push,
+    setParams: (params: object) => {
+      h.params = params;
+    },
+  },
+  useLocalSearchParams: () => h.params,
+  useFocusEffect: (fn: () => void) => fn(),
+}));
 vi.mock('@/components/frame', () => ({ ScreenFrame: 'ScreenFrame' }));
 vi.mock('@/components/ui', async () => {
   const { colors } = await import('@/theme/tokens');
@@ -210,6 +221,7 @@ const trip: Trip = {
   myBalance: -0.01,
 };
 beforeEach(() => {
+  h.params = {};
   vi.clearAllMocks();
   Object.assign(h, {
     locale: 'en',
@@ -605,4 +617,16 @@ it('an open more dialog cannot carry the previous account name into a new login'
   expect(nodes(TripsScreen()).some((node) => node.props.visible === true)).toBe(true);
   h.user = { id: 'another-account' };
   expect(nodes(TripsScreen()).some((node) => node.props.visible === true)).toBe(false);
+});
+it('the global archived navigation request selects the archive tab even on a retained homepage, then consumes the request', () => {
+  h.params = { archive: 'archived' };
+  list();
+  const screen = list();
+  expect(h.archiveSelection.value).toBe('archived');
+  expect(h.params.archive).toBeUndefined();
+  expect(
+    nodes(screen.props.ListHeaderComponent as ReactNode).find(
+      (n) => n.props.testID === 'trips-archived'
+    )?.props.selected
+  ).toBe(true);
 });

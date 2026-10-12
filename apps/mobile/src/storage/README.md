@@ -12,7 +12,7 @@ access token 與帳務查詢快取只放記憶體；本機身分只存 SecureSto
 
 草稿交給 C 的 pending 建立與來源狀態改變在同一 SQLite 交易；結案也以交易清理，明確拒絕才恢復原始輸入。所有共用連線操作序列執行，不把 C 的查詢混入交接交易。真 SQLite 測試涵蓋舊表升級、檔案重開、修訂／捨棄競態、寫入與清理失敗，以及子程序在交接交易前後直接結束；測試不代替 iOS／Android 裝置驗收。
 
-`draftTrips.ts` 定義版本 3 的最小旅行快照：按環境／帳號／旅行保存名稱、成員／分類選項與更新時間。拒絕標記清空快照私人內容但保留 D1 原始輸入；旅行名稱讀取不能解除拒絕，只有新選項成功保存才可恢復。共用同一 SQLite 連線與序列；Web adapter 仍不載入 SQLite。本機身分、草稿與快照的操作邊界見 [架構](../../docs/ARCHITECTURE.md#受限離線入口d2)。
+`draftTrips.ts` 定義版本 3 的最小旅行快照：按環境／帳號／旅行保存名稱、成員／分類選項與更新時間；T3a schema 11 新增 nullable archived，舊快照為未知，確認封存與終局 receipt 同交易保存，失敗回滾保留 pending／UUID。拒絕標記清空快照私人內容但保留 D1 原始輸入；旅行名稱讀取不能解除拒絕，只有新選項成功保存才可恢復。共用同一 SQLite 連線與序列；Web adapter 仍不載入 SQLite。本機身分、草稿與快照的操作邊界見 [架構](../../docs/ARCHITECTURE.md#受限離線入口d2)。
 
 `mutations.ts` 在版本 7 新增 E1 `pending_mutation`，使用同一連線／交易升級與帳號限速，但與 `expense_queue` 分表。只保存明確確認的旅行建立／加入 body 與固定 UUID；不存未確認表單。所有讀寫隔離環境／帳號，未結案不可改或刪；終局結果清除 payload（邀請碼），保留最小提示直到使用者移除。一般拒絕或 not_found 不刪不確定紀錄；409 標記獨立於限速。收到 429 沿用 `expense_rate_limit`，提示移除／結案不清期限，與 C／D 同步鏡像共用。
 
@@ -20,6 +20,6 @@ G2b 沿用 schema 8。expense_draft 的 raw JSON 可加 currency／rateText／ra
 
 B3 使用 schema 9，C／E envelope 保存 API 版與帳本單位，舊 frozen JSON 不重寫；草稿／快照與恢復規則集中見 [B3 架構](../../docs/ARCHITECTURE.md#b3mobile-帳本與舊資料恢復)。B5c-2 使用 schema 10，`expense_queue.api_version` 保存入列版本（舊列 v1、新列 v2），prepare 依此交 C。B5d-1 起 C／E insert 與 D prepare 只接受 v2，舊 v1 列照常解碼；`remove(…, 'abandoned')` 與 mutation `abandon` 只供使用者捨棄退役紀錄。
 
-`preferences.ts` 另開 `travel-budget-preferences.db`，單列 `device_preferences` 只存 version 1 的 language／appearance，與帳務 schema 10、限速、帳號 scope 及 SecureStore 分離。單一 UPSERT 原子替換，序列化由根層 PreferenceStore 負責；登出不清除。損壞或較新格式不得靜默覆寫，使用者可明確重設這兩項設定。`preferences.web.ts` 以 localStorage 保存非敏感偏好，不引入 SQLite wasm。Expo Go／development build／不同 App 容器不承諾互相搬移；卸載或清除 App 資料可能移除偏好。
+`preferences.ts` 另開 `travel-budget-preferences.db`，單列 `device_preferences` 只存 version 1 的 language／appearance，與帳務資料庫、限速、帳號 scope 及 SecureStore 分離。單一 UPSERT 原子替換，序列化由根層 PreferenceStore 負責；登出不清除。損壞或較新格式不得靜默覆寫，使用者可明確重設這兩項設定。`preferences.web.ts` 以 localStorage 保存非敏感偏好，不引入 SQLite wasm。Expo Go／development build／不同 App 容器不承諾互相搬移；卸載或清除 App 資料可能移除偏好。
 
 `avatarWrites.ts`／`avatarWriteDatabase.ts` 為獨立本人頭像確認紀錄，按環境／帳號隔離，固定原 UUID／body／隨機本機檔名，取消及終局單向保存；SQLite 失敗不送出。讀取損壞資料不靜默清除，終局保存後才清圖並確認移除提示。Web preview adapter 不引入 SQLite，未提供此原生寫入流程。照片與公開 URL 不進登入 credential；詳細恢復見 [M2 架構](../../docs/ARCHITECTURE.md#m2-頭像與確認工作)。

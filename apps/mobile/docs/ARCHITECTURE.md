@@ -298,7 +298,7 @@ receiptFiles 用 Expo picker／manipulator／filesystem：圖片最長邊 2400�
 
 ## T1 旅行列表資料
 
-新 `tripListQuery`／`useTripList` 與現有 `useTrips` 並存，T2 首頁已切換，T3 候選尚未開始。key 延續 trips 前綴並增加 archive／sort，環境、帳號、本地日期及 v2 仍隔離；requestAs 保護原帳號、signal 取消請求，不落盤。缺全量 metadata 或模式／日期不符拒絕讀取，不能以第一頁猜計數／唯一性。後端仍全量讀取並批次驗證／摘要，Web 列表與 quick-add 共用排序 helper；詳細規則見 [T1 契約](BACKEND_CONTRACT.md#t1-旅行列表篩選與排序)。
+T2 首頁與 T3a 候選使用 `tripListQuery`／`useTripList`，候選透過 `useTripCandidates` 指定 unarchived／quick-add；原無參數 useTrips 已移除。key 延續 trips 前綴並增加 archive／sort，環境、帳號、本地日期及 v2 仍隔離；requestAs 保護原帳號、signal 取消請求，不落盤。缺全量 metadata 或模式／日期不符拒絕讀取，不能以第一頁猜計數／唯一性。後端仍全量讀取並批次驗證／摘要，Web 列表與 quick-add 共用排序 helper；詳細規則見 [T1 契約](BACKEND_CONTRACT.md#t1-旅行列表篩選與排序)。
 
 ## T2 列表與共用封存
 
@@ -307,3 +307,9 @@ TripsScreen 採 T1 的 unarchived／archived + list；tripListRows 僅分組／�
 PersonalArchive 的頁內 ArchiveFlow 共用 fresh settings／archiveRevision、確認 UI、原 E engine.confirm 及恢復路由。設定與列表不各自寫 HTTP；未確認 context 只在記憶體，確認後由原 SQLite 保存 UUID。run 同步防雙擊，beforeSend 檢查登入世代、前景、連線、access capture、可見性和共用限速；卸載／晚到回應不更新新帳號。衝突要求重新讀取並明確確認，未知鎖定轉原操作；已提交與資料刷新失敗分開。
 
 tripListCache 在取消讀取後只保留第一頁，保留存取拒絕、其他環境／帳號；成功寫入的 refreshTripData 沿 trips 前綴失效全部模式，managementRefresh 同時失效 settings。首頁回前景／重連與下拉也重設；不增加全頁背景抓取、SQLite 欄位或新 provider。完整行為與限制見 [FEATURES](FEATURES.md#t2-旅行首頁與個人封存)。
+
+## T3a 候選與最小本機狀態
+
+SelectTripScreen 保留 FlatList／明確 replace 與取消歷史；tripCandidates 只對後端順序去重／遮罩，TripCandidateRow 用共用日期函式，完整名稱／階段不截斷且含無障礙標籤，不呈現財務摘要。線上登入才啟用候選查詢；離線／local 身分只讀本機。點擊重核目前登入世代、帳號、連線與 catalog access generation，沒有自動導航或帳務提交。已封存首頁連結由首頁 focus 消耗參數，已掛載首頁也能切頁。
+
+schema 11 在 draft_trip 新增 nullable archived：null 為舊／未知，升級不重寫任何 frozen input、UUID、deny、pending 或 429。catalog 僅接成功且已驗證的讀取、直接 settings／landing 或終局 receipt；拒絕清空此狀態，metadata／名稱永不解除 deny。封存 receipt 與狀態在 mutations.complete 同交易，完成前排空舊 catalog 寫入並使早先讀取失效；成功 callback 只通知重讀。catalog 分開保存 archive read 世代、拒絕世代及載入更多時保留的頁面，載入後頁不重播舊頁狀態，完整重讀即使結構共用相同頁面仍更新；晚到的舊資料不能覆蓋已確認封存。離線不存日期或推算旅行階段，三組仍可明確進原草稿；帳號／環境／旅行隔離與原恢復鏈不變。

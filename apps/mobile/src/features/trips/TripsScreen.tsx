@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Modal, RefreshControl, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScrollChrome } from '@/components/scrollChrome';
 import { ScreenFrame } from '@/components/frame';
-import { router } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { errorMessage, isAccessDenied } from '@/features/auth/errorMessage';
 import { Action, Copy, Notice, Title, styles, usePalette } from '@/components/ui';
 import { useMessages } from '@/i18n/useMessages';
@@ -19,6 +19,7 @@ import { useTripList } from './queries';
 import { groupHeading, visibleTripRows, usableTripCounts } from './tripListRows';
 
 export function TripsScreen() {
+  const params = useLocalSearchParams<{ archive?: string }>();
   const t = useMessages();
   const p = usePalette();
   const { manager, user } = useAuth();
@@ -26,8 +27,16 @@ export function TripsScreen() {
   const [archiveSelection, setArchiveSelection] = useState<{
     owner: string;
     value: 'unarchived' | 'archived';
-  }>({ owner, value: 'unarchived' });
+  }>({ owner, value: params.archive === 'archived' ? 'archived' : 'unarchived' });
   const archive = archiveSelection.owner === owner ? archiveSelection.value : 'unarchived';
+  useFocusEffect(
+    useCallback(() => {
+      if (params.archive !== 'archived') return;
+      setArchiveSelection({ owner, value: 'archived' });
+      // Consume the navigation request, so a later global entry can select this tab again.
+      router.setParams({ archive: undefined });
+    }, [params.archive, owner])
+  );
   const setArchive = (value: 'unarchived' | 'archived') => setArchiveSelection({ owner, value });
   const [selected, setSelected] = useState<{ trip: Trip; owner: string } | null>(null);
   const [archiveBusy, setArchiveBusy] = useState(false);

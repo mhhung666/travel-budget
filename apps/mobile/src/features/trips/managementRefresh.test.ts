@@ -18,7 +18,9 @@ function fixture() {
     denial = 1;
   const requestAs = vi.fn(async (_actor, path, _schema, options): Promise<unknown> => {
     options?.beforeSend?.();
-    return path.includes('landing') ? { name: 'New name' } : { members: [], categories: [] };
+    return path.includes('landing')
+      ? { name: 'New name', archived: true }
+      : { members: [], categories: [] };
   });
   const manager = {
     api: { environment: scope.environment },
@@ -27,6 +29,7 @@ function fixture() {
     requestAs,
   };
   const catalog = {
+    captureArchive: () => () => true,
     captureAccess: () => {
       const d = denial;
       return () => {
@@ -35,6 +38,7 @@ function fixture() {
     },
     isVisible: () => true,
     rememberName: vi.fn(),
+    rememberArchived: vi.fn(),
     rememberOptions: vi.fn(),
     deny: vi.fn(async () => undefined),
   };
@@ -62,6 +66,7 @@ it('success updates persisted name/options and invalidates reads without another
   const f = fixture();
   await f.run();
   expect(f.catalog.rememberName).toHaveBeenCalledWith(scope, tripId, 'New name');
+  expect(f.catalog.rememberArchived).toHaveBeenCalledWith(scope, tripId, true);
   expect(f.catalog.rememberOptions).toHaveBeenCalledOnce();
   expect(h.refresh).toHaveBeenCalledOnce();
   expect(f.requestAs.mock.calls.every((call) => !call[3]?.method)).toBe(true);
@@ -119,7 +124,7 @@ it('a late old options response cannot replace the refreshed roster or virtual f
   };
   f.requestAs.mockImplementation(async (_actor, path, _schema, options) => {
     options?.beforeSend?.();
-    return path.includes('landing') ? { name: 'Trip' } : fresh;
+    return path.includes('landing') ? { name: 'Trip', archived: false } : fresh;
   });
   await f.run();
   resolve({ members: [{ id: 'd'.repeat(24), displayName: 'Old' }], categories: [] });
