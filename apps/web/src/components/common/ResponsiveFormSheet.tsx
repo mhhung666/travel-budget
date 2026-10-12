@@ -1,5 +1,6 @@
 'use client';
 
+import { useLayoutEffect, useRef } from 'react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import {
   Dialog,
@@ -32,6 +33,10 @@ export interface ResponsiveFormSheetProps {
   children: React.ReactNode;
   /** 桌機 Dialog 寬度覆寫（預設 sm:max-w-[600px]）。 */
   desktopClassName?: string;
+  /** Replaces the view inside the same modal; keeps the underlying form and scroll position. */
+  subview?: { title: React.ReactNode; content: React.ReactNode };
+  onOpenAutoFocus?: (event: Event) => void;
+  onCloseAutoFocus?: (event: Event) => void;
 }
 
 /**
@@ -48,23 +53,59 @@ export function ResponsiveFormSheet({
   footer,
   children,
   desktopClassName,
+  subview,
+  onOpenAutoFocus,
+  onCloseAutoFocus,
 }: ResponsiveFormSheetProps) {
   const isDesktop = useMediaQuery('(min-width: 768px)');
+  const body = useRef<HTMLDivElement>(null);
+  const scrollTop = useRef(0);
+  const showingSubview = !!subview;
+  useLayoutEffect(() => {
+    if (!showingSubview && body.current) body.current.scrollTop = scrollTop.current;
+  }, [showingSubview, isDesktop, open]);
+  const content = (
+    <>
+      <div
+        ref={body}
+        hidden={showingSubview}
+        inert={showingSubview || undefined}
+        aria-hidden={showingSubview || undefined}
+        className={cn('min-h-0 flex-1 overflow-y-auto py-4', isDesktop ? 'px-6' : 'px-4')}
+        onScroll={(event) => {
+          if (!showingSubview) scrollTop.current = event.currentTarget.scrollTop;
+        }}
+      >
+        {children}
+      </div>
+      {subview && (
+        <div className="min-h-0 flex-1 overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+          {subview.content}
+        </div>
+      )}
+    </>
+  );
 
   if (isDesktop) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
-          className={cn('flex max-h-[90vh] flex-col gap-0 p-0 sm:max-w-[600px]', desktopClassName)}
+          onOpenAutoFocus={onOpenAutoFocus}
+          onCloseAutoFocus={onCloseAutoFocus}
+          className={cn(
+            'flex max-h-[90vh] flex-col gap-0 p-0 sm:max-w-[600px]',
+            showingSubview && '[&>button]:hidden',
+            desktopClassName
+          )}
         >
-          <DialogHeader className="border-b px-6 py-4">
-            <DialogTitle>{title}</DialogTitle>
+          <DialogHeader className={showingSubview ? 'sr-only' : 'border-b px-6 py-4 pr-14'}>
+            <DialogTitle>{subview?.title ?? title}</DialogTitle>
             {description && (
               <DialogDescription className="sr-only">{description}</DialogDescription>
             )}
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto px-6 py-4">{children}</div>
-          {footer && (
+          {content}
+          {!showingSubview && footer && (
             <DialogFooter className="gap-2 border-t px-6 py-4 sm:gap-0">{footer}</DialogFooter>
           )}
         </DialogContent>
@@ -75,15 +116,26 @@ export function ResponsiveFormSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
+        onOpenAutoFocus={onOpenAutoFocus}
+        onCloseAutoFocus={onCloseAutoFocus}
         side="bottom"
-        className="flex h-[100dvh] flex-col gap-0 rounded-none border-t-0 p-0"
+        className={cn(
+          'flex h-[100dvh] flex-col gap-0 rounded-none border-t-0 p-0',
+          showingSubview && '[&>button]:hidden'
+        )}
       >
-        <SheetHeader className="border-b px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] text-left">
-          <SheetTitle>{title}</SheetTitle>
+        <SheetHeader
+          className={
+            showingSubview
+              ? 'sr-only'
+              : 'border-b px-4 pr-14 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] text-left'
+          }
+        >
+          <SheetTitle>{subview?.title ?? title}</SheetTitle>
           {description && <SheetDescription className="sr-only">{description}</SheetDescription>}
         </SheetHeader>
-        <div className="flex-1 overflow-y-auto px-4 py-4">{children}</div>
-        {footer && (
+        {content}
+        {!showingSubview && footer && (
           <div className="border-t px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
             {footer}
           </div>

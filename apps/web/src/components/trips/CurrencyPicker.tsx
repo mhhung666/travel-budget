@@ -25,6 +25,7 @@ export interface CurrencySearchPanelProps {
   autoFocusSearch?: boolean;
   /** Narrow panels require explicit keyboard navigation before Enter; a soft Search key only searches. */
   enterSelection?: 'active' | 'navigated';
+  layout?: 'popover' | 'sheet';
 }
 
 /** Mount for each opening: search resets, while only the controlled value owns the checkmark. */
@@ -37,6 +38,7 @@ export function CurrencySearchPanel({
   disabled = false,
   autoFocusSearch = true,
   enterSelection = 'active',
+  layout = 'popover',
 }: CurrencySearchPanelProps) {
   const t = useTranslations('currencyPicker');
   const tCommon = useTranslations('common');
@@ -91,7 +93,12 @@ export function CurrencySearchPanel({
 
   return (
     <div
-      className="flex min-h-0 max-h-[min(32rem,var(--radix-popover-content-available-height,80dvh))] flex-col"
+      className={cn(
+        'flex min-h-0 flex-col',
+        layout === 'sheet'
+          ? 'h-full'
+          : 'max-h-[min(32rem,var(--radix-popover-content-available-height,80dvh))]'
+      )}
       onKeyDown={(event) => {
         if (event.key === 'Escape' && !composing.current && !event.nativeEvent.isComposing) {
           event.preventDefault();
@@ -196,7 +203,10 @@ export function CurrencySearchPanel({
         id={`${id}-list`}
         role="listbox"
         aria-labelledby={`${id}-title`}
-        className="min-h-0 max-h-80 overflow-y-auto overscroll-contain p-2"
+        className={cn(
+          'min-h-0 overflow-y-auto overscroll-contain p-2',
+          layout === 'sheet' ? 'flex-1' : 'max-h-80'
+        )}
       >
         {groups.map(
           (group, index) =>
@@ -258,6 +268,7 @@ interface CurrencyPickerProps extends Omit<CurrencySearchPanelProps, 'onCancel'>
   open: boolean;
   onOpenChange: (open: boolean) => void;
   trigger: ReactElement;
+  onCloseAutoFocus?: (event: Event) => void;
 }
 
 /** Popover shell; narrow creation can mount the same panel inside its existing sheet. */
@@ -266,6 +277,7 @@ export function CurrencyPicker({
   onOpenChange,
   trigger,
   onSelect,
+  onCloseAutoFocus,
   ...panel
 }: CurrencyPickerProps) {
   const t = useTranslations('currencyPicker');
@@ -277,6 +289,7 @@ export function CurrencyPicker({
         aria-label={panel.title ?? t('title')}
         className="w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)] p-0"
         onOpenAutoFocus={(event) => event.preventDefault()}
+        onCloseAutoFocus={onCloseAutoFocus}
         onEscapeKeyDown={(event) => {
           if (event.isComposing || event.keyCode === 229) event.preventDefault();
         }}

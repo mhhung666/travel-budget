@@ -2025,6 +2025,16 @@
       "VND": "Vietnamese Dong",
       "PHP": "Philippine Peso",
       "IDR": "Indonesian Rupiah"
+    },
+    "creation": {
+      "title": "Choose ledger base currency",
+      "description": "Trip totals, shares and settlement use this currency. It cannot be changed after creation.",
+      "loading": "Loading available currencies…",
+      "onlyTwd": "Currently only {currency} is available",
+      "unavailable": "Unable to confirm available currencies. Please retry.",
+      "offline": "Connect to confirm available currencies and create a trip.",
+      "notAllowed": "You cannot currently create a trip in {currency}. Please choose again.",
+      "creating": "Creating…"
     }
   }
 }

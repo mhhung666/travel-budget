@@ -2018,6 +2018,16 @@
       "VND": "越南盾",
       "PHP": "菲律宾比索",
       "IDR": "印度尼西亚盾"
+    },
+    "creation": {
+      "title": "选择账本基准币别",
+      "description": "此旅行的总额、分账与结算以此币别计算，建立后无法更改。",
+      "loading": "正在加载可用币别…",
+      "onlyTwd": "目前仅开放 {currency}",
+      "unavailable": "无法确认可用币别，请重试。",
+      "offline": "请联网后确认可用币别并建立旅行。",
+      "notAllowed": "目前无法以 {currency} 建立旅行，请重新选择。",
+      "creating": "建立中…"
     }
   }
 }

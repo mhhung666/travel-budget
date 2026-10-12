@@ -37,7 +37,7 @@ export default function CurrencyCombobox({ excluded, onSelect, disabled }: Curre
           aria-haspopup="dialog"
           aria-expanded={open}
           disabled={disabled}
-          className="min-h-[52px] w-full justify-between whitespace-normal sm:w-72"
+          className="h-auto min-h-[52px] w-full justify-between whitespace-normal sm:w-72"
         >
           <span className="flex items-center gap-2 text-muted-foreground">
             <Plus aria-hidden="true" className="h-4 w-4 shrink-0" />
