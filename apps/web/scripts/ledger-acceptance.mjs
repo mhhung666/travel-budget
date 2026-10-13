@@ -45,6 +45,7 @@ export async function createLedgerAcceptance({ db, ObjectId, passwordHash, date 
     email: `b4-${letter}@example.invalid`,
     password: passwordHash,
     isVirtual: false,
+    createdAt: new Date(),
   }));
   await db.collection('users').insertMany(actors);
   const trips = Object.keys(ledgerCases).map((base, index) => ({

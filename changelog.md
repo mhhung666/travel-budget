@@ -9,6 +9,8 @@
 - Mobile：BC2a 搜尋 Modal 與 BC2b 能力／離開提醒／本機 pending 守衛完成，基準撤回保留選值、表單隔離登入世代；既有 E 原 body／UUID 恢復與正式 gate 保留。
 - Mobile 全部 1,794 項＋工具 48 項、check／三平台匯出通過。BC2a 已提交、BC2b 已提交；iPhone／iPad／VoiceOver 與 BC3 跨端待驗，Expo 既有四項 patch 更新提示未處理。現況見[共同規格](docs/design/BASE_CURRENCY_CREATION.md#bc2b-表單狀態與原操作恢復)。
 
+- BC3：使用者確認已驗收，正式開放未執行；保留既有 Web／iPhone／iPad 三幣新建與首次 .01、雙向畫面讀回及 iPhone USD 丟回應恢復局部通過；修正 fixture 日期與 Mobile 還款撤銷漏傳幣別，B4 三幣新增／部分還款／撤銷與跨端局部讀回一致。Mobile 1,797 項＋工具 48 項、check／三平台匯出通過；USD 建立 429 原 UUID 期限後恢復局部通過，完整畫面／故障／B4 矩陣仍待驗，正式 gate 與 F 不變，見[驗收入口](apps/mobile/docs/LOCAL_ACCEPTANCE.md#bc3-建立到首次記帳交接)。
+
 ### 2026-10-12
 
 - Web／Mobile：完成 T1–T3b 列表篩選／分組、個人封存、線上／離線候選及全量快捷記帳；UX-T1／T2 統一頁首、分頁、卡片與確認互動，保留原 UUID、權限及草稿恢復。

@@ -1,0 +1,1491 @@
+{
+  "commit": "7f6bc35f2194e3cf6ce15eb7d4e54bec3317fe8d",
+  "capturedAt": "2026-10-12T21:44:01.766Z",
+  "operator": "Codex",
+  "platform": "Web IAB desktop 1280x900 / narrow 390x844",
+  "fixture": "tb_mobile_3f9763c900ad42239eeedff834b2629f",
+  "cases": [
+    {
+      "currency": "TWD",
+      "tripId": "6acd544c44b0aa062319c8aa",
+      "tripCount": 1,
+      "expenseCount": 1,
+      "createReceipt": {
+        "id": "6acd53418f890ea5a6de3685:9046d3e2-c062-4061-8900-74659e9a38de",
+        "fingerprint": "b761ff34981f52444707d2a64ff21bfad0945741f9b2584de081fb5a422f2250"
+      },
+      "expenseReceipt": {
+        "id": "6acd544c44b0aa062319c8aa:6acd53418f890ea5a6de3685:aa80f45c-12e0-48f2-86c8-273858d15057",
+        "fingerprint": "af6fe2d442306cbf532c84b7e2a5d0ff55ca03a2c92e2b5de657500e6283d5a9"
+      },
+      "amount": 0.01,
+      "originalAmount": 0.01,
+      "exchangeRate": 1,
+      "share": 0.01,
+      "httpReadback": {
+        "/landing": {
+          "ledger": {
+            "baseCurrency": "TWD",
+            "moneyScale": 2
+          },
+          "mySpent": 0.01,
+          "myBalance": 0
+        },
+        "/expenses": {
+          "ledger": {
+            "baseCurrency": "TWD",
+            "moneyScale": 2
+          },
+          "itemCount": 1,
+          "amount": 0.01
+        },
+        "/settlement": {
+          "ledger": {
+            "baseCurrency": "TWD",
+            "moneyScale": 2
+          },
+          "totalExpenses": 0.01,
+          "totalOwed": 0.01,
+          "balance": 0
+        }
+      }
+    },
+    {
+      "currency": "USD",
+      "tripId": "6acd538644b0aa062319c8a2",
+      "tripCount": 1,
+      "expenseCount": 1,
+      "createReceipt": {
+        "id": "6acd53418f890ea5a6de3685:a6e0607d-1d89-41e2-b117-89a29668fd13",
+        "fingerprint": "589d972a158bf521aba5b902739a330662e7bdffde5dcb08d3f49556367b5e6f"
+      },
+      "expenseReceipt": {
+        "id": "6acd538644b0aa062319c8a2:6acd53418f890ea5a6de3685:1cea6661-ef72-4d1e-b8c5-3c4c5d0ed829",
+        "fingerprint": "11b00b3ee09044675f320e1bdec13790a7fb441af793837435036631e0d52f40"
+      },
+      "amount": 0.01,
+      "originalAmount": 0.01,
+      "exchangeRate": 1,
+      "share": 0.01,
+      "httpReadback": {
+        "/landing": {
+          "ledger": {
+            "baseCurrency": "USD",
+            "moneyScale": 2
+          },
+          "mySpent": 0.01,
+          "myBalance": 0
+        },
+        "/expenses": {
+          "ledger": {
+            "baseCurrency": "USD",
+            "moneyScale": 2
+          },
+          "itemCount": 1,
+          "amount": 0.01
+        },
+        "/settlement": {
+          "ledger": {
+            "baseCurrency": "USD",
+            "moneyScale": 2
+          },
+          "totalExpenses": 0.01,
+          "totalOwed": 0.01,
+          "balance": 0
+        }
+      }
+    },
+    {
+      "currency": "JPY",
+      "tripId": "6acd540f44b0aa062319c8a6",
+      "tripCount": 1,
+      "expenseCount": 1,
+      "createReceipt": {
+        "id": "6acd53418f890ea5a6de3685:cc70276d-0176-42c4-9c93-c6c40b87fe00",
+        "fingerprint": "b6faef38c30e1a536ff5c76c03121c5f5bcac240ba5a43a11ead5040321aa14e"
+      },
+      "expenseReceipt": {
+        "id": "6acd540f44b0aa062319c8a6:6acd53418f890ea5a6de3685:c61cf658-cdf3-4faa-92be-462bd834dff4",
+        "fingerprint": "0b351747ce2be6df9ffdf4c5b8f27712b12b9e21d0556bafacbae6b50397d4cb"
+      },
+      "amount": 0.01,
+      "originalAmount": 0.01,
+      "exchangeRate": 1,
+      "share": 0.01,
+      "httpReadback": {
+        "/landing": {
+          "ledger": {
+            "baseCurrency": "JPY",
+            "moneyScale": 2
+          },
+          "mySpent": 0.01,
+          "myBalance": 0
+        },
+        "/expenses": {
+          "ledger": {
+            "baseCurrency": "JPY",
+            "moneyScale": 2
+          },
+          "itemCount": 1,
+          "amount": 0.01
+        },
+        "/settlement": {
+          "ledger": {
+            "baseCurrency": "JPY",
+            "moneyScale": 2
+          },
+          "totalExpenses": 0.01,
+          "totalOwed": 0.01,
+          "balance": 0
+        }
+      }
+    }
+  ],
+  "nativeUiVerified": false,
+  "limitations": [
+    "English light/default text only; screenshot evidence remains in Codex tool outputs.",
+    "Fault matrix, B4 fixed cases, four languages and readers remain pending.",
+    "B4 fixture users were missing createdAt; patched disposable users and tool.",
+    "USD shell initially showed zero after commit; later full reload displayed 0.01; immediate refresh needs follow-up.",
+    "iPhone→Web UI readback passed for three currencies; Full locale/accessibility/fault/B4 matrix remains pending; Web→iPhone three-currency UI readback passed; Web→iPad three-currency cold restart readback passed. iPad three-currency creation/first expense, Web UI readback and native cold restart also passed; fixture remains active for remaining acceptance."
+  ],
+  "gateOff": {
+    "fixture": "tb_mobile_ba8a89c8e81c424c942d7ad172542d96",
+    "gate": false,
+    "tripCount": 1,
+    "tripId": "6acd555e88e8e959035ee97c",
+    "baseCurrency": "TWD",
+    "receiptId": "6acd552776a76c1aa444ecff:3e2fa13a-b3f6-4c0d-a80b-780dc9b182e1",
+    "fingerprint": "98964a6a6ca40e82041d77c3c13a5191cc373619357b19da24987b2499e144b5",
+    "webUiOnlyTwd": true,
+    "fixtureProfileSerializationPassed": true
+  },
+  "iosEnvironment": {
+    "checkedAt": "2026-10-13",
+    "xcode": "27.0",
+    "tool": "Device Hub",
+    "device": "79681614-0FDC-4DE2-9B6B-F2E5A7B7053B",
+    "runtime": "iOS 27.0",
+    "booted": true,
+    "homeAccessibilityVisible": true,
+    "bc3AppVerified": "partial",
+    "correction": "Simulator.app absence does not block Xcode 27; Device Hub is the installed simulator UI."
+  },
+  "iPhone": {
+    "commit": "7f6bc35f2194e3cf6ce15eb7d4e54bec3317fe8d",
+    "capturedAt": "2026-10-13T05:08:59.307Z",
+    "operator": "Codex",
+    "platform": "iPhone",
+    "fixture": "tb_mobile_3862d3844dfe47fda278ba88eb961115",
+    "cases": [
+      {
+        "currency": "TWD",
+        "tripId": "6acdbcc3e15ca94118d6370a",
+        "tripCount": 1,
+        "expenseCount": 1,
+        "createReceipt": {
+          "id": "6acdba0b9ab04daefe1e609c:9e17f9f4-f68e-44e2-a992-cc705e6bc946",
+          "fingerprint": "44647f977f354243cb493c631010fbeb5e6caf2813091e064680978790dbda3b"
+        },
+        "expenseReceipt": {
+          "id": "6acdbcc3e15ca94118d6370a:6acdba0b9ab04daefe1e609c:1a4ce263-626c-44cf-9cb3-6248a567da8a",
+          "fingerprint": "59a9173d694478a56309a85543f85c5a6b8d93cb6a5e344de57bcd15ad6f5f25"
+        },
+        "amount": 0.01,
+        "originalAmount": 0.01,
+        "exchangeRate": 1,
+        "share": 0.01,
+        "httpReadback": {
+          "/landing": {
+            "ledger": {
+              "baseCurrency": "TWD",
+              "moneyScale": 2
+            },
+            "mySpent": 0.01,
+            "myBalance": 0
+          },
+          "/expenses": {
+            "ledger": {
+              "baseCurrency": "TWD",
+              "moneyScale": 2
+            },
+            "itemCount": 1,
+            "amount": 0.01
+          },
+          "/settlement": {
+            "ledger": {
+              "baseCurrency": "TWD",
+              "moneyScale": 2
+            },
+            "totalExpenses": 0.01,
+            "totalOwed": 0.01,
+            "balance": 0
+          }
+        }
+      },
+      {
+        "currency": "USD",
+        "tripId": "6acdbbb8e15ca94118d63700",
+        "tripCount": 1,
+        "expenseCount": 1,
+        "createReceipt": {
+          "id": "6acdba0b9ab04daefe1e609c:d05b4f1a-b621-44f7-81d1-e6d4d4a6f5d2",
+          "fingerprint": "fbfd7139361a7d97e9a415e0b7a43213191a21c3da8502a173f1a53fc0665c37"
+        },
+        "expenseReceipt": {
+          "id": "6acdbbb8e15ca94118d63700:6acdba0b9ab04daefe1e609c:8fad4919-7218-44bd-b6e9-bf78e6755630",
+          "fingerprint": "5d998e7a1972bf254d99d64dfaf3a5e5d92a68027f12fdea318bf25a439fe612"
+        },
+        "amount": 0.01,
+        "originalAmount": 0.01,
+        "exchangeRate": 1,
+        "share": 0.01,
+        "httpReadback": {
+          "/landing": {
+            "ledger": {
+              "baseCurrency": "USD",
+              "moneyScale": 2
+            },
+            "mySpent": 0.01,
+            "myBalance": 0
+          },
+          "/expenses": {
+            "ledger": {
+              "baseCurrency": "USD",
+              "moneyScale": 2
+            },
+            "itemCount": 1,
+            "amount": 0.01
+          },
+          "/settlement": {
+            "ledger": {
+              "baseCurrency": "USD",
+              "moneyScale": 2
+            },
+            "totalExpenses": 0.01,
+            "totalOwed": 0.01,
+            "balance": 0
+          }
+        }
+      },
+      {
+        "currency": "JPY",
+        "tripId": "6acdbc4fe15ca94118d63706",
+        "tripCount": 1,
+        "expenseCount": 1,
+        "createReceipt": {
+          "id": "6acdba0b9ab04daefe1e609c:2debe314-48b7-4dfb-90d0-eedad8b61e18",
+          "fingerprint": "1a242916ce96b3c5fdecf8c5ad02902e51c8b4f8c9d60455abcd9f595353d89e"
+        },
+        "expenseReceipt": {
+          "id": "6acdbc4fe15ca94118d63706:6acdba0b9ab04daefe1e609c:c3ae9155-be0a-498d-a4a2-6430a45be213",
+          "fingerprint": "a347eae0e7f07d99bbfe50e042e9cc99a78146b0cc089c97bc48e9eec8e47653"
+        },
+        "amount": 0.01,
+        "originalAmount": 0.01,
+        "exchangeRate": 1,
+        "share": 0.01,
+        "httpReadback": {
+          "/landing": {
+            "ledger": {
+              "baseCurrency": "JPY",
+              "moneyScale": 2
+            },
+            "mySpent": 0.01,
+            "myBalance": 0
+          },
+          "/expenses": {
+            "ledger": {
+              "baseCurrency": "JPY",
+              "moneyScale": 2
+            },
+            "itemCount": 1,
+            "amount": 0.01
+          },
+          "/settlement": {
+            "ledger": {
+              "baseCurrency": "JPY",
+              "moneyScale": 2
+            },
+            "totalExpenses": 0.01,
+            "totalOwed": 0.01,
+            "balance": 0
+          }
+        }
+      }
+    ],
+    "nativeUiVerified": true,
+    "locale": "en",
+    "appearance": "light",
+    "textSize": "default",
+    "device": "79681614-0FDC-4DE2-9B6B-F2E5A7B7053B",
+    "runtime": "iOS 27.0",
+    "expoGo": "57.0.9",
+    "webUiReadback": {
+      "TWD": {
+        "share": 0.01,
+        "balance": 0
+      },
+      "USD": {
+        "share": 0.01,
+        "balance": 0,
+        "settlementUiVerified": true
+      },
+      "JPY": {
+        "share": 0.01,
+        "balance": 0
+      }
+    },
+    "coldRestartHappyReadback": true,
+    "dropCreate": {
+      "before": {
+        "fixture": "tb_mobile_3862d3844dfe47fda278ba88eb961115",
+        "tripCount": 1,
+        "tripId": "6acdbd58e15ca94118d63710",
+        "receiptId": "6acdba0b9ab04daefe1e609c:155ee7d8-515b-4774-b2e9-a40ef876c3d3",
+        "fingerprint": "362513cd67df8a8c1b6b4ee4615c896ff09857d13e5d0b3483cf5e2a5d59dd34",
+        "ledger": {
+          "baseCurrency": "USD",
+          "moneyScale": 2
+        },
+        "capturedAt": "2026-10-13T05:11:11.841Z"
+      },
+      "after": {
+        "fixture": "tb_mobile_3862d3844dfe47fda278ba88eb961115",
+        "tripCount": 1,
+        "tripId": "6acdbd58e15ca94118d63710",
+        "receiptId": "6acdba0b9ab04daefe1e609c:155ee7d8-515b-4774-b2e9-a40ef876c3d3",
+        "fingerprint": "362513cd67df8a8c1b6b4ee4615c896ff09857d13e5d0b3483cf5e2a5d59dd34",
+        "ledger": {
+          "baseCurrency": "USD",
+          "moneyScale": 2
+        },
+        "capturedAt": "2026-10-13T05:13:17.837Z",
+        "coldRestart": "Device Hub Restart",
+        "sameUuidAndFingerprint": true,
+        "completedUiObserved": true
+      }
+    },
+    "dropExpense": {
+      "before": {
+        "tripId": "6acdbd58e15ca94118d63710",
+        "tripCount": 1,
+        "expenseId": "6acdbe84e15ca94118d63712",
+        "expenseCount": 1,
+        "createReceiptId": "6acdba0b9ab04daefe1e609c:155ee7d8-515b-4774-b2e9-a40ef876c3d3",
+        "createFingerprint": "362513cd67df8a8c1b6b4ee4615c896ff09857d13e5d0b3483cf5e2a5d59dd34",
+        "expenseReceiptId": "6acdbd58e15ca94118d63710:6acdba0b9ab04daefe1e609c:f0829b8a-d787-4dba-b911-6dfcf7b80ab9",
+        "expenseFingerprint": "95e1c48bf4e22b01c66b2458ac93ef4e9a73413749dd34bd7dd970ba98757d6f",
+        "amount": 0.01,
+        "share": 0.01,
+        "exchangeRate": 1,
+        "baseCurrency": "USD",
+        "fixture": "tb_mobile_3862d3844dfe47fda278ba88eb961115"
+      },
+      "recovery": "completed after Device Hub Restart; original UUID and fingerprints unchanged",
+      "after": {
+        "tripId": "6acdbd58e15ca94118d63710",
+        "tripCount": 1,
+        "expenseId": "6acdbe84e15ca94118d63712",
+        "expenseCount": 1,
+        "createReceiptId": "6acdba0b9ab04daefe1e609c:155ee7d8-515b-4774-b2e9-a40ef876c3d3",
+        "createFingerprint": "362513cd67df8a8c1b6b4ee4615c896ff09857d13e5d0b3483cf5e2a5d59dd34",
+        "expenseReceiptId": "6acdbd58e15ca94118d63710:6acdba0b9ab04daefe1e609c:f0829b8a-d787-4dba-b911-6dfcf7b80ab9",
+        "expenseFingerprint": "95e1c48bf4e22b01c66b2458ac93ef4e9a73413749dd34bd7dd970ba98757d6f",
+        "amount": 0.01,
+        "share": 0.01,
+        "exchangeRate": 1,
+        "baseCurrency": "USD",
+        "fixture": "tb_mobile_3862d3844dfe47fda278ba88eb961115"
+      },
+      "pendingOperationsAfterRecovery": 0,
+      "sameUuidAndFingerprint": true
+    },
+    "wire": [
+      {
+        "capturedAt": "2026-10-13T05:13:17.846Z",
+        "counts": {
+          "forwarded": 48,
+          "disconnect": 0,
+          "timeout": 0,
+          "dropped": 1
+        },
+        "recovery": {
+          "status": "matched-observed-baselines",
+          "observedWrites": 7,
+          "unknownLookups": 0,
+          "operations": [
+            {
+              "domain": "E",
+              "actor": "6acdba0b9ab04daefe1e609c",
+              "id": "d05b4f1a-b621-44f7-81d1-e6d4d4a6f5d2",
+              "frozen": {
+                "version": 2,
+                "path": "/api/v2/trips",
+                "method": "POST",
+                "fingerprint": "e915ec812a3967e05cf74e80d23f30472ebd1f0630ceccc9a3309415c198663d"
+              },
+              "writes": 1,
+              "lookups": 0
+            },
+            {
+              "domain": "C:6acdbbb8e15ca94118d63700",
+              "actor": "6acdba0b9ab04daefe1e609c",
+              "id": "8fad4919-7218-44bd-b6e9-bf78e6755630",
+              "frozen": {
+                "version": 2,
+                "path": "/api/v2/trips/6acdbbb8e15ca94118d63700/expenses",
+                "method": "POST",
+                "fingerprint": "de826c7053a765eb66b69dec52a5e47b7bf0256cac9a89da77febcde26305ee6"
+              },
+              "writes": 1,
+              "lookups": 1
+            },
+            {
+              "domain": "E",
+              "actor": "6acdba0b9ab04daefe1e609c",
+              "id": "2debe314-48b7-4dfb-90d0-eedad8b61e18",
+              "frozen": {
+                "version": 2,
+                "path": "/api/v2/trips",
+                "method": "POST",
+                "fingerprint": "4819cd7725d7a35e3732a2c2e7fb86c75eae5c4caa352ff7a859f90a927c33d2"
+              },
+              "writes": 1,
+              "lookups": 0
+            },
+            {
+              "domain": "C:6acdbc4fe15ca94118d63706",
+              "actor": "6acdba0b9ab04daefe1e609c",
+              "id": "c3ae9155-be0a-498d-a4a2-6430a45be213",
+              "frozen": {
+                "version": 2,
+                "path": "/api/v2/trips/6acdbc4fe15ca94118d63706/expenses",
+                "method": "POST",
+                "fingerprint": "89ec829bac939ceb34294960b77e09f611d7aed2d2638be6ddc6bc2f74535261"
+              },
+              "writes": 1,
+              "lookups": 1
+            },
+            {
+              "domain": "E",
+              "actor": "6acdba0b9ab04daefe1e609c",
+              "id": "9e17f9f4-f68e-44e2-a992-cc705e6bc946",
+              "frozen": {
+                "version": 2,
+                "path": "/api/v2/trips",
+                "method": "POST",
+                "fingerprint": "843e08b253bb81b66666635037c88427030f540ef4af45ea468a5f9a4a396982"
+              },
+              "writes": 1,
+              "lookups": 0
+            },
+            {
+              "domain": "C:6acdbcc3e15ca94118d6370a",
+              "actor": "6acdba0b9ab04daefe1e609c",
+              "id": "1a4ce263-626c-44cf-9cb3-6248a567da8a",
+              "frozen": {
+                "version": 2,
+                "path": "/api/v2/trips/6acdbcc3e15ca94118d6370a/expenses",
+                "method": "POST",
+                "fingerprint": "919d63b162f1216f21e769204c44d5d07acf8db2152fb0fae7dfcaa9fb77221d"
+              },
+              "writes": 1,
+              "lookups": 1
+            },
+            {
+              "domain": "E",
+              "actor": "6acdba0b9ab04daefe1e609c",
+              "id": "155ee7d8-515b-4774-b2e9-a40ef876c3d3",
+              "frozen": {
+                "version": 2,
+                "path": "/api/v2/trips",
+                "method": "POST",
+                "fingerprint": "e8d23291d48e1648ec9ee3d3d407033c09dd45517b849d7d680664ce878463c1"
+              },
+              "writes": 1,
+              "lookups": 1
+            }
+          ]
+        }
+      },
+      {
+        "capturedAt": "2026-10-13T07:28:04.620Z",
+        "counts": {
+          "forwarded": 180,
+          "disconnect": 258,
+          "timeout": 0,
+          "dropped": 1
+        },
+        "recovery": {
+          "status": "matched-observed-baselines",
+          "observedWrites": 16,
+          "unknownLookups": 0,
+          "operations": [
+            {
+              "domain": "C:6acdbd58e15ca94118d63710",
+              "actor": "6acdba0b9ab04daefe1e609c",
+              "id": "f0829b8a-d787-4dba-b911-6dfcf7b80ab9",
+              "frozen": {
+                "version": 2,
+                "path": "/api/v2/trips/6acdbd58e15ca94118d63710/expenses",
+                "method": "POST",
+                "fingerprint": "921d22a2fa9c98045714b3cd45d4fa532f0d43c172ea4c7af56122cd8abe898d"
+              },
+              "writes": 1,
+              "lookups": 2
+            },
+            {
+              "domain": "E",
+              "actor": "6acdba0b9ab04daefe1e609c",
+              "id": "b94df2e7-36bb-4f09-ab69-4a3a1cd1c6da",
+              "frozen": {
+                "version": 2,
+                "path": "/api/v2/trips",
+                "method": "POST",
+                "fingerprint": "9182d14e798184ddf243fd5eed76ba2c7e7e53011970164e8c5f76920a4a1f83"
+              },
+              "writes": 1,
+              "lookups": 0
+            },
+            {
+              "domain": "C:6acdca16e15ca94118d63716",
+              "actor": "6acdba0b9ab04daefe1e609c",
+              "id": "f87dd834-7ddd-45d6-b70f-9726335f6892",
+              "frozen": {
+                "version": 2,
+                "path": "/api/v2/trips/6acdca16e15ca94118d63716/expenses",
+                "method": "POST",
+                "fingerprint": "0f33fe877937201e69961ef49ad7cd80b8b2df3d94d673ea654e9a248adccbed"
+              },
+              "writes": 1,
+              "lookups": 1
+            },
+            {
+              "domain": "E",
+              "actor": "6acdba0b9ab04daefe1e609c",
+              "id": "cec615b0-6a6e-4479-af6a-1da0c422258f",
+              "frozen": {
+                "version": 2,
+                "path": "/api/v2/trips",
+                "method": "POST",
+                "fingerprint": "8d53a688508194beea30bdbede0a5164105a8af2245e0cd539d5d8d7c0063e27"
+              },
+              "writes": 1,
+              "lookups": 0
+            },
+            {
+              "domain": "C:6acdcb38e15ca94118d6371a",
+              "actor": "6acdba0b9ab04daefe1e609c",
+              "id": "54428d41-63dd-4720-bf7f-efb7cd1ca496",
+              "frozen": {
+                "version": 2,
+                "path": "/api/v2/trips/6acdcb38e15ca94118d6371a/expenses",
+                "method": "POST",
+                "fingerprint": "8751222e6dc02fb4b2b069086bd492a940abd00682deac42c082d7a8ebf3056d"
+              },
+              "writes": 1,
+              "lookups": 1
+            },
+            {
+              "domain": "E",
+              "actor": "6acdba0b9ab04daefe1e609c",
+              "id": "6744a9f6-2ad4-422b-846b-2712544cc548",
+              "frozen": {
+                "version": 2,
+                "path": "/api/v2/trips",
+                "method": "POST",
+                "fingerprint": "6c464769d0da7b867f2c6160369e6a353a091d365fac5b1df3accfb5da3e7be3"
+              },
+              "writes": 1,
+              "lookups": 0
+            },
+            {
+              "domain": "C:6acdccf5e15ca94118d6371e",
+              "actor": "6acdba0b9ab04daefe1e609c",
+              "id": "8c18630d-4db8-4a1f-9736-369ec5be6fe3",
+              "frozen": {
+                "version": 2,
+                "path": "/api/v2/trips/6acdccf5e15ca94118d6371e/expenses",
+                "method": "POST",
+                "fingerprint": "b79aa72ae611c2a10e42f81b22259b2214e7916deefa5624f6a1bce0d8f27249"
+              },
+              "writes": 1,
+              "lookups": 1
+            },
+            {
+              "domain": "C:6acdba0b9ab04daefe1e60a0",
+              "actor": "6acdba0b9ab04daefe1e609c",
+              "id": "e2571640-f8a2-482f-8987-898fe680bd32",
+              "frozen": {
+                "version": 2,
+                "path": "/api/v2/trips/6acdba0b9ab04daefe1e60a0/expenses",
+                "method": "POST",
+                "fingerprint": "99e3f4f8a7f8cd1b3455513529dc519a139ca4bb383582011dfc1d18f46f323b"
+              },
+              "writes": 1,
+              "lookups": 1
+            },
+            {
+              "domain": "E",
+              "actor": "6acdba0b9ab04daefe1e609c",
+              "id": "cac2c9cc-d25c-43a0-8ee0-59c0fb203afb",
+              "frozen": {
+                "version": 2,
+                "path": "/api/v2/trips/6acdba0b9ab04daefe1e60a0/payments",
+                "method": "POST",
+                "fingerprint": "378451f06ac3d07aa97f4b2248398612ba5c39a345c433ce58c042d1d61411d5"
+              },
+              "writes": 1,
+              "lookups": 0
+            },
+            {
+              "domain": "E",
+              "actor": "6acdba0b9ab04daefe1e609c",
+              "id": "0afd4cf4-5185-4af3-b9aa-cf4aa05c42ce",
+              "frozen": {
+                "version": 2,
+                "path": "/api/v2/trips/6acdba0b9ab04daefe1e60a0/payments/6acdd624e15ca94118d63737",
+                "method": "DELETE",
+                "fingerprint": "2c16341840dd7664b0ac498335640f6a592c33968ce08aa2cd9cab56fc61e378"
+              },
+              "writes": 1,
+              "lookups": 0
+            },
+            {
+              "domain": "C:6acdba0b9ab04daefe1e60a1",
+              "actor": "6acdba0b9ab04daefe1e609c",
+              "id": "2b76ebdd-5b0f-4337-9f34-fb0728a7acfb",
+              "frozen": {
+                "version": 2,
+                "path": "/api/v2/trips/6acdba0b9ab04daefe1e60a1/expenses",
+                "method": "POST",
+                "fingerprint": "7672c3b6eb72d35449fb277257c6a57ce1b12c0a58ad48d14a13b4e2e04326a7"
+              },
+              "writes": 1,
+              "lookups": 1
+            },
+            {
+              "domain": "E",
+              "actor": "6acdba0b9ab04daefe1e609c",
+              "id": "60743e93-cd91-4168-ab34-ca3afbd00712",
+              "frozen": {
+                "version": 2,
+                "path": "/api/v2/trips/6acdba0b9ab04daefe1e60a1/payments",
+                "method": "POST",
+                "fingerprint": "4f1a3b22e9bf1e45108c29c548ab2ffaf623547ffd9c1994598b6d57771ae77b"
+              },
+              "writes": 1,
+              "lookups": 0
+            },
+            {
+              "domain": "E",
+              "actor": "6acdba0b9ab04daefe1e609c",
+              "id": "1f9e041f-ab64-4764-8ffd-f2b1451e72f7",
+              "frozen": {
+                "version": 2,
+                "path": "/api/v2/trips/6acdba0b9ab04daefe1e60a1/payments/6acddbdee15ca94118d6373f",
+                "method": "DELETE",
+                "fingerprint": "953e93587807d0be826078cb8f339f3db4db654cf21d18c8d5fb7c8030bebdb9"
+              },
+              "writes": 1,
+              "lookups": 0
+            },
+            {
+              "domain": "C:6acdba0b9ab04daefe1e609f",
+              "actor": "6acdba0b9ab04daefe1e609c",
+              "id": "d9954c7c-2452-4e07-bcdc-530c2a3d40fa",
+              "frozen": {
+                "version": 2,
+                "path": "/api/v2/trips/6acdba0b9ab04daefe1e609f/expenses",
+                "method": "POST",
+                "fingerprint": "11ff2c097727addfe960599203712bf64a9bae4ba500c0603a8571351edfecc5"
+              },
+              "writes": 1,
+              "lookups": 1
+            },
+            {
+              "domain": "E",
+              "actor": "6acdba0b9ab04daefe1e609c",
+              "id": "d9e05841-fb1e-4270-aa47-230fb6cf1972",
+              "frozen": {
+                "version": 2,
+                "path": "/api/v2/trips/6acdba0b9ab04daefe1e609f/payments",
+                "method": "POST",
+                "fingerprint": "8f0e2bc637c7103a5c52c98c521be4c147a1e509eb3ebf6a32c3b14808bcab56"
+              },
+              "writes": 1,
+              "lookups": 0
+            },
+            {
+              "domain": "E",
+              "actor": "6acdba0b9ab04daefe1e609c",
+              "id": "ddd0cba1-3343-4b0b-bd2e-ec6ec748e76d",
+              "frozen": {
+                "version": 2,
+                "path": "/api/v2/trips/6acdba0b9ab04daefe1e609f/payments/6acddd0ee15ca94118d63747",
+                "method": "DELETE",
+                "fingerprint": "b409a9ba3fea208035c455c86e2ec0c02f5ac74e45705136154d0713671d0b86"
+              },
+              "writes": 1,
+              "lookups": 0
+            }
+          ]
+        },
+        "note": "Includes iPhone/iPad happy paths and B4 fixed cases; offline disconnects from locked-Mac period are retained."
+      }
+    ]
+  },
+  "iPad": {
+    "commit": "7f6bc35f2194e3cf6ce15eb7d4e54bec3317fe8d",
+    "capturedAt": "2026-10-13T06:18:18.128Z",
+    "operator": "Codex",
+    "platform": "iPad",
+    "fixture": "tb_mobile_3862d3844dfe47fda278ba88eb961115",
+    "cases": [
+      {
+        "currency": "TWD",
+        "tripId": "6acdca16e15ca94118d63716",
+        "tripCount": 1,
+        "expenseCount": 1,
+        "createReceipt": {
+          "id": "6acdba0b9ab04daefe1e609c:b94df2e7-36bb-4f09-ab69-4a3a1cd1c6da",
+          "fingerprint": "73af5e762c0e7a4c66d1ad522ebbff130204eee03ea8359ed5474982d8fc8b38"
+        },
+        "expenseReceipt": {
+          "id": "6acdca16e15ca94118d63716:6acdba0b9ab04daefe1e609c:f87dd834-7ddd-45d6-b70f-9726335f6892",
+          "fingerprint": "c047cbd19e21827e5ec66b77f5f6529cf8289097ed54d3cf619f3c19a1dae681"
+        },
+        "amount": 0.01,
+        "originalAmount": 0.01,
+        "exchangeRate": 1,
+        "share": 0.01,
+        "httpReadback": {
+          "/landing": {
+            "ledger": {
+              "baseCurrency": "TWD",
+              "moneyScale": 2
+            },
+            "mySpent": 0.01,
+            "myBalance": 0
+          },
+          "/expenses": {
+            "ledger": {
+              "baseCurrency": "TWD",
+              "moneyScale": 2
+            },
+            "itemCount": 1,
+            "amount": 0.01
+          },
+          "/settlement": {
+            "ledger": {
+              "baseCurrency": "TWD",
+              "moneyScale": 2
+            },
+            "totalExpenses": 0.01,
+            "totalOwed": 0.01,
+            "balance": 0
+          }
+        }
+      },
+      {
+        "currency": "JPY",
+        "tripId": "6acdcb38e15ca94118d6371a",
+        "tripCount": 1,
+        "expenseCount": 1,
+        "createReceipt": {
+          "id": "6acdba0b9ab04daefe1e609c:cec615b0-6a6e-4479-af6a-1da0c422258f",
+          "fingerprint": "cfbe6ecd868cf16ef25f99cedd876edc6043f534bc3a70517bec82c812750b0a"
+        },
+        "expenseReceipt": {
+          "id": "6acdcb38e15ca94118d6371a:6acdba0b9ab04daefe1e609c:54428d41-63dd-4720-bf7f-efb7cd1ca496",
+          "fingerprint": "9d466cb85d796c4efa32931759f4622502c2ed35c698b11d2b42f98209cb1dec"
+        },
+        "amount": 0.01,
+        "originalAmount": 0.01,
+        "exchangeRate": 1,
+        "share": 0.01,
+        "httpReadback": {
+          "/landing": {
+            "ledger": {
+              "baseCurrency": "JPY",
+              "moneyScale": 2
+            },
+            "mySpent": 0.01,
+            "myBalance": 0
+          },
+          "/expenses": {
+            "ledger": {
+              "baseCurrency": "JPY",
+              "moneyScale": 2
+            },
+            "itemCount": 1,
+            "amount": 0.01
+          },
+          "/settlement": {
+            "ledger": {
+              "baseCurrency": "JPY",
+              "moneyScale": 2
+            },
+            "totalExpenses": 0.01,
+            "totalOwed": 0.01,
+            "balance": 0
+          }
+        }
+      },
+      {
+        "currency": "USD",
+        "tripId": "6acdccf5e15ca94118d6371e",
+        "tripCount": 1,
+        "expenseCount": 1,
+        "createReceipt": {
+          "id": "6acdba0b9ab04daefe1e609c:6744a9f6-2ad4-422b-846b-2712544cc548",
+          "fingerprint": "86f8fe57efcdf704f5c1a4a23cc2de1d5d26408d73ee30cf1fdefb5ede707a10"
+        },
+        "expenseReceipt": {
+          "id": "6acdccf5e15ca94118d6371e:6acdba0b9ab04daefe1e609c:8c18630d-4db8-4a1f-9736-369ec5be6fe3",
+          "fingerprint": "cd4e340a682d2b891d56e123cd31483655e48f5c23d6519acd0edb729cc31f9f"
+        },
+        "amount": 0.01,
+        "originalAmount": 0.01,
+        "exchangeRate": 1,
+        "share": 0.01,
+        "httpReadback": {
+          "/landing": {
+            "ledger": {
+              "baseCurrency": "USD",
+              "moneyScale": 2
+            },
+            "mySpent": 0.01,
+            "myBalance": 0
+          },
+          "/expenses": {
+            "ledger": {
+              "baseCurrency": "USD",
+              "moneyScale": 2
+            },
+            "itemCount": 1,
+            "amount": 0.01
+          },
+          "/settlement": {
+            "ledger": {
+              "baseCurrency": "USD",
+              "moneyScale": 2
+            },
+            "totalExpenses": 0.01,
+            "totalOwed": 0.01,
+            "balance": 0
+          }
+        }
+      }
+    ],
+    "nativeUiVerified": true,
+    "device": "TravelBudget BC3 iPad / iPad Pro 13-inch M5 (16GB)",
+    "os": "iPadOS 27.0",
+    "expoGo": "57.0.9",
+    "locale": "en",
+    "appearance": "light",
+    "textSize": "default (3)",
+    "webUiReadback": true,
+    "coldRestart": "Device Hub Restart",
+    "coldRestartReadback": true
+  },
+  "webReverse": {
+    "commit": "7f6bc35f2194e3cf6ce15eb7d4e54bec3317fe8d",
+    "capturedAt": "2026-10-13T06:28:42.267Z",
+    "operator": "Codex",
+    "platform": "WebReverse",
+    "fixture": "tb_mobile_3862d3844dfe47fda278ba88eb961115",
+    "cases": [
+      {
+        "currency": "TWD",
+        "tripId": "6acdce2be15ca94118d63724",
+        "tripCount": 1,
+        "expenseCount": 1,
+        "createReceipt": {
+          "id": "6acdba0b9ab04daefe1e609c:18bd91d3-c83b-494d-9680-9a3adfe4bf66",
+          "fingerprint": "8c863cd2e5ea9b5fc6551c4079d6797a2d0dd277def02e53a101650ad42db172"
+        },
+        "expenseReceipt": {
+          "id": "6acdce2be15ca94118d63724:6acdba0b9ab04daefe1e609c:593c28b8-4daa-4849-bc7f-93141988d513",
+          "fingerprint": "1126036b73fa0dd4ec08dd998f411aa9567dc362ff31f419568e5c8ac6afaf6d"
+        },
+        "amount": 0.01,
+        "originalAmount": 0.01,
+        "exchangeRate": 1,
+        "share": 0.01,
+        "httpReadback": {
+          "ledger": {
+            "baseCurrency": "TWD",
+            "moneyScale": 2
+          },
+          "mySpent": 0.01,
+          "myBalance": 0,
+          "expenseCount": 1,
+          "totalExpenses": 0.01,
+          "totalOwed": 0.01
+        }
+      },
+      {
+        "currency": "USD",
+        "tripId": "6acdce8be15ca94118d63728",
+        "tripCount": 1,
+        "expenseCount": 1,
+        "createReceipt": {
+          "id": "6acdba0b9ab04daefe1e609c:7e7e7a08-970f-41c5-8419-16b0e1bd9250",
+          "fingerprint": "e226363f67a9f868e02abe9ad9b5cdaa6842458ae0088b63057741a761e659bc"
+        },
+        "expenseReceipt": {
+          "id": "6acdce8be15ca94118d63728:6acdba0b9ab04daefe1e609c:51df3540-c3c2-4fcd-8ac2-61f19985f1fc",
+          "fingerprint": "6e0d6c45bd769883182fbabf9ed3c9a225f2ea6c023cfb8c4d4c7660f9757fc2"
+        },
+        "amount": 0.01,
+        "originalAmount": 0.01,
+        "exchangeRate": 1,
+        "share": 0.01,
+        "httpReadback": {
+          "ledger": {
+            "baseCurrency": "USD",
+            "moneyScale": 2
+          },
+          "mySpent": 0.01,
+          "myBalance": 0,
+          "expenseCount": 1,
+          "totalExpenses": 0.01,
+          "totalOwed": 0.01
+        }
+      },
+      {
+        "currency": "JPY",
+        "tripId": "6acdcf3fe15ca94118d6372c",
+        "tripCount": 1,
+        "expenseCount": 1,
+        "createReceipt": {
+          "id": "6acdba0b9ab04daefe1e609c:b6cb8c86-2aaa-477d-854e-40074ba08269",
+          "fingerprint": "eb084f4ad53877b1b14eae3fc1ab61c56521a00d7404b5d54830da818be5d928"
+        },
+        "expenseReceipt": {
+          "id": "6acdcf3fe15ca94118d6372c:6acdba0b9ab04daefe1e609c:780a2c28-a453-4236-a07d-32856b63c9a7",
+          "fingerprint": "092ac3b9caee4858ea97a9e3ba3921561c69bc2023c20bb0d13db8a7a27e49f0"
+        },
+        "amount": 0.01,
+        "originalAmount": 0.01,
+        "exchangeRate": 1,
+        "share": 0.01,
+        "httpReadback": {
+          "ledger": {
+            "baseCurrency": "JPY",
+            "moneyScale": 2
+          },
+          "mySpent": 0.01,
+          "myBalance": 0,
+          "expenseCount": 1,
+          "totalExpenses": 0.01,
+          "totalOwed": 0.01
+        }
+      }
+    ],
+    "nativeUiVerified": false,
+    "webUiVerified": true,
+    "iPadUiReadback": true,
+    "iPadColdRestartReadback": true,
+    "iPhoneUiReadback": true,
+    "locale": "en",
+    "appearance": "light",
+    "textSize": "default",
+    "iPhoneReadbackMethod": "Expo Go foreground refresh; three currencies .01 / zero balance"
+  },
+  "b4USD": {
+    "fixture": "tb_mobile_3862d3844dfe47fda278ba88eb961115",
+    "operator": "Codex",
+    "platform": "iPhone iOS 27.0 / English / light / default",
+    "baseline": "7f6bc35f plus payment revocation fix",
+    "stages": {
+      "expense": {
+        "currency": "USD",
+        "stage": "expense",
+        "tripId": "6acdba0b9ab04daefe1e60a0",
+        "counts": {
+          "expenses": 1,
+          "payments": 0,
+          "receipts": 1
+        },
+        "balanceCents": {
+          "6acdba0b9ab04daefe1e609c": 1340,
+          "6acdba0b9ab04daefe1e609d": -670,
+          "6acdba0b9ab04daefe1e609e": -670
+        },
+        "receipts": [
+          {
+            "key": "6acdba0b9ab04daefe1e60a0:6acdba0b9ab04daefe1e609c:e2571640-f8a2-482f-8987-898fe680bd32",
+            "operation": "expense.create",
+            "status": "committed",
+            "resourceId": "6acdd5cde15ca94118d63733",
+            "contractVersion": 2,
+            "ledger": {
+              "baseCurrency": "USD",
+              "moneyScale": 2
+            },
+            "fingerprint": "99ce0fe0888c97f3a14ec7263b66e0b85cf52e8c609fd2fe8567988116bfdba9"
+          }
+        ]
+      },
+      "partial": {
+        "currency": "USD",
+        "stage": "partial",
+        "tripId": "6acdba0b9ab04daefe1e60a0",
+        "counts": {
+          "expenses": 1,
+          "payments": 1,
+          "receipts": 2
+        },
+        "balanceCents": {
+          "6acdba0b9ab04daefe1e609c": 1005,
+          "6acdba0b9ab04daefe1e609d": -335,
+          "6acdba0b9ab04daefe1e609e": -670
+        },
+        "receipts": [
+          {
+            "key": "6acdba0b9ab04daefe1e609c:cac2c9cc-d25c-43a0-8ee0-59c0fb203afb",
+            "operation": "payment.create",
+            "status": "committed",
+            "resourceId": "6acdd624e15ca94118d63737",
+            "contractVersion": 2,
+            "ledger": {
+              "baseCurrency": "USD",
+              "moneyScale": 2
+            },
+            "fingerprint": "33271c2d69283f79355040b88cbeadc75813fd937dadb517a4240506f565c2e0"
+          },
+          {
+            "key": "6acdba0b9ab04daefe1e60a0:6acdba0b9ab04daefe1e609c:e2571640-f8a2-482f-8987-898fe680bd32",
+            "operation": "expense.create",
+            "status": "committed",
+            "resourceId": "6acdd5cde15ca94118d63733",
+            "contractVersion": 2,
+            "ledger": {
+              "baseCurrency": "USD",
+              "moneyScale": 2
+            },
+            "fingerprint": "99ce0fe0888c97f3a14ec7263b66e0b85cf52e8c609fd2fe8567988116bfdba9"
+          }
+        ]
+      },
+      "revoked": {
+        "currency": "USD",
+        "stage": "revoked",
+        "tripId": "6acdba0b9ab04daefe1e60a0",
+        "counts": {
+          "expenses": 1,
+          "payments": 0,
+          "receipts": 3
+        },
+        "balanceCents": {
+          "6acdba0b9ab04daefe1e609c": 1340,
+          "6acdba0b9ab04daefe1e609d": -670,
+          "6acdba0b9ab04daefe1e609e": -670
+        },
+        "receipts": [
+          {
+            "key": "6acdba0b9ab04daefe1e609c:0afd4cf4-5185-4af3-b9aa-cf4aa05c42ce",
+            "operation": "payment.delete",
+            "status": "committed",
+            "resourceId": "6acdd624e15ca94118d63737",
+            "contractVersion": 2,
+            "ledger": {
+              "baseCurrency": "USD",
+              "moneyScale": 2
+            },
+            "fingerprint": "69b730633be130eb118983186cde3d5415b98e8c7c6cc41641d4b5da6d8248a3"
+          },
+          {
+            "key": "6acdba0b9ab04daefe1e609c:cac2c9cc-d25c-43a0-8ee0-59c0fb203afb",
+            "operation": "payment.create",
+            "status": "committed",
+            "resourceId": "6acdd624e15ca94118d63737",
+            "contractVersion": 2,
+            "ledger": {
+              "baseCurrency": "USD",
+              "moneyScale": 2
+            },
+            "fingerprint": "33271c2d69283f79355040b88cbeadc75813fd937dadb517a4240506f565c2e0"
+          },
+          {
+            "key": "6acdba0b9ab04daefe1e60a0:6acdba0b9ab04daefe1e609c:e2571640-f8a2-482f-8987-898fe680bd32",
+            "operation": "expense.create",
+            "status": "committed",
+            "resourceId": "6acdd5cde15ca94118d63733",
+            "contractVersion": 2,
+            "ledger": {
+              "baseCurrency": "USD",
+              "moneyScale": 2
+            },
+            "fingerprint": "99ce0fe0888c97f3a14ec7263b66e0b85cf52e8c609fd2fe8567988116bfdba9"
+          }
+        ]
+      }
+    },
+    "webUiPartialAndRevokedReadback": true,
+    "iPhoneUiPreviewSavedPartialAndRevokedReadback": true,
+    "webOwnBudget": {
+      "budget": 10,
+      "spent": 6.7,
+      "left": 3.3
+    },
+    "revocationFix": "PaymentScreen retained prepared base_currency; previous attempt rejected before persistence/network send",
+    "remaining": [
+      "USD iPad partial readback not captured",
+      "public/export/privacy/statistics",
+      "fault matrix"
+    ],
+    "iPadRevokedReadback": true
+  },
+  "validationAfterPaymentFix": {
+    "mobileTests": 1797,
+    "toolTests": 48,
+    "focusedTests": 35,
+    "check": "passed",
+    "threePlatformExport": "passed",
+    "sourceBundleLocalOnly": true
+  },
+  "b4JPY": {
+    "fixture": "tb_mobile_3862d3844dfe47fda278ba88eb961115",
+    "operator": "Codex",
+    "locale": "en",
+    "appearance": "light",
+    "textSize": "default",
+    "expensePlatform": "iPad",
+    "revokePlatform": "iPhone",
+    "stages": {
+      "expense": {
+        "currency": "JPY",
+        "stage": "expense",
+        "tripId": "6acdba0b9ab04daefe1e60a1",
+        "counts": {
+          "expenses": 1,
+          "payments": 0,
+          "receipts": 1
+        },
+        "balanceCents": {
+          "6acdba0b9ab04daefe1e609c": 6667,
+          "6acdba0b9ab04daefe1e609d": -3334,
+          "6acdba0b9ab04daefe1e609e": -3333
+        },
+        "receipts": [
+          {
+            "key": "6acdba0b9ab04daefe1e60a1:6acdba0b9ab04daefe1e609c:2b76ebdd-5b0f-4337-9f34-fb0728a7acfb",
+            "operation": "expense.create",
+            "status": "committed",
+            "resourceId": "6acddb67e15ca94118d6373b",
+            "contractVersion": 2,
+            "ledger": {
+              "baseCurrency": "JPY",
+              "moneyScale": 2
+            },
+            "fingerprint": "ec8327fbf1b2f15cacbd7d3ff0fca7f6632d9801df590b5afa0852974e54bc0f"
+          }
+        ]
+      },
+      "partial": {
+        "currency": "JPY",
+        "stage": "partial",
+        "tripId": "6acdba0b9ab04daefe1e60a1",
+        "counts": {
+          "expenses": 1,
+          "payments": 1,
+          "receipts": 2
+        },
+        "balanceCents": {
+          "6acdba0b9ab04daefe1e609c": 6666,
+          "6acdba0b9ab04daefe1e609d": -3333,
+          "6acdba0b9ab04daefe1e609e": -3333
+        },
+        "receipts": [
+          {
+            "key": "6acdba0b9ab04daefe1e609c:60743e93-cd91-4168-ab34-ca3afbd00712",
+            "operation": "payment.create",
+            "status": "committed",
+            "resourceId": "6acddbdee15ca94118d6373f",
+            "contractVersion": 2,
+            "ledger": {
+              "baseCurrency": "JPY",
+              "moneyScale": 2
+            },
+            "fingerprint": "524894f12c97f361cd3550304d9526f80656b76d23d4e5e64f1950d5ace9498c"
+          },
+          {
+            "key": "6acdba0b9ab04daefe1e60a1:6acdba0b9ab04daefe1e609c:2b76ebdd-5b0f-4337-9f34-fb0728a7acfb",
+            "operation": "expense.create",
+            "status": "committed",
+            "resourceId": "6acddb67e15ca94118d6373b",
+            "contractVersion": 2,
+            "ledger": {
+              "baseCurrency": "JPY",
+              "moneyScale": 2
+            },
+            "fingerprint": "ec8327fbf1b2f15cacbd7d3ff0fca7f6632d9801df590b5afa0852974e54bc0f"
+          }
+        ]
+      },
+      "revoked": {
+        "currency": "JPY",
+        "stage": "revoked",
+        "tripId": "6acdba0b9ab04daefe1e60a1",
+        "counts": {
+          "expenses": 1,
+          "payments": 0,
+          "receipts": 3
+        },
+        "balanceCents": {
+          "6acdba0b9ab04daefe1e609c": 6667,
+          "6acdba0b9ab04daefe1e609d": -3334,
+          "6acdba0b9ab04daefe1e609e": -3333
+        },
+        "receipts": [
+          {
+            "key": "6acdba0b9ab04daefe1e609c:1f9e041f-ab64-4764-8ffd-f2b1451e72f7",
+            "operation": "payment.delete",
+            "status": "committed",
+            "resourceId": "6acddbdee15ca94118d6373f",
+            "contractVersion": 2,
+            "ledger": {
+              "baseCurrency": "JPY",
+              "moneyScale": 2
+            },
+            "fingerprint": "6afc960c7e02bdf193e09df19d4bd14ea947c124a99f5195f66e4fb90cc0b8ec"
+          },
+          {
+            "key": "6acdba0b9ab04daefe1e609c:60743e93-cd91-4168-ab34-ca3afbd00712",
+            "operation": "payment.create",
+            "status": "committed",
+            "resourceId": "6acddbdee15ca94118d6373f",
+            "contractVersion": 2,
+            "ledger": {
+              "baseCurrency": "JPY",
+              "moneyScale": 2
+            },
+            "fingerprint": "524894f12c97f361cd3550304d9526f80656b76d23d4e5e64f1950d5ace9498c"
+          },
+          {
+            "key": "6acdba0b9ab04daefe1e60a1:6acdba0b9ab04daefe1e609c:2b76ebdd-5b0f-4337-9f34-fb0728a7acfb",
+            "operation": "expense.create",
+            "status": "committed",
+            "resourceId": "6acddb67e15ca94118d6373b",
+            "contractVersion": 2,
+            "ledger": {
+              "baseCurrency": "JPY",
+              "moneyScale": 2
+            },
+            "fingerprint": "ec8327fbf1b2f15cacbd7d3ff0fca7f6632d9801df590b5afa0852974e54bc0f"
+          }
+        ]
+      }
+    },
+    "partialUiReadback": ["Web", "iPhone", "iPad"],
+    "revokedUiReadback": ["Web", "iPad"],
+    "note": "No repeated entries; one expense, zero payments, three terminal receipts after revocation",
+    "threeDecimalPaymentRejectedBeforeWrite": true
+  },
+  "b4TWD": {
+    "fixture": "tb_mobile_3862d3844dfe47fda278ba88eb961115",
+    "operator": "Codex",
+    "locale": "en",
+    "appearance": "light",
+    "textSize": "default",
+    "expensePlatform": "iPhone",
+    "revokePlatform": "iPad",
+    "stages": {
+      "expense": {
+        "currency": "TWD",
+        "stage": "expense",
+        "tripId": "6acdba0b9ab04daefe1e609f",
+        "counts": {
+          "expenses": 1,
+          "payments": 0,
+          "receipts": 1
+        },
+        "balanceCents": {
+          "6acdba0b9ab04daefe1e609c": 6667,
+          "6acdba0b9ab04daefe1e609d": -3334,
+          "6acdba0b9ab04daefe1e609e": -3333
+        },
+        "receipts": [
+          {
+            "key": "6acdba0b9ab04daefe1e609f:6acdba0b9ab04daefe1e609c:d9954c7c-2452-4e07-bcdc-530c2a3d40fa",
+            "operation": "expense.create",
+            "status": "committed",
+            "resourceId": "6acddcbae15ca94118d63743",
+            "contractVersion": 2,
+            "ledger": {
+              "baseCurrency": "TWD",
+              "moneyScale": 2
+            },
+            "fingerprint": "9f7b94a686407aab11ff24adbde254d929fb378a905ef162d1585a46b37a8e4d"
+          }
+        ]
+      },
+      "partial": {
+        "currency": "TWD",
+        "stage": "partial",
+        "tripId": "6acdba0b9ab04daefe1e609f",
+        "counts": {
+          "expenses": 1,
+          "payments": 1,
+          "receipts": 2
+        },
+        "balanceCents": {
+          "6acdba0b9ab04daefe1e609c": 6666,
+          "6acdba0b9ab04daefe1e609d": -3333,
+          "6acdba0b9ab04daefe1e609e": -3333
+        },
+        "receipts": [
+          {
+            "key": "6acdba0b9ab04daefe1e609c:d9e05841-fb1e-4270-aa47-230fb6cf1972",
+            "operation": "payment.create",
+            "status": "committed",
+            "resourceId": "6acddd0ee15ca94118d63747",
+            "contractVersion": 2,
+            "ledger": {
+              "baseCurrency": "TWD",
+              "moneyScale": 2
+            },
+            "fingerprint": "cd5b07ee383364cea5011603159319ae9e16d372271048a010f52ef7c6dc667d"
+          },
+          {
+            "key": "6acdba0b9ab04daefe1e609f:6acdba0b9ab04daefe1e609c:d9954c7c-2452-4e07-bcdc-530c2a3d40fa",
+            "operation": "expense.create",
+            "status": "committed",
+            "resourceId": "6acddcbae15ca94118d63743",
+            "contractVersion": 2,
+            "ledger": {
+              "baseCurrency": "TWD",
+              "moneyScale": 2
+            },
+            "fingerprint": "9f7b94a686407aab11ff24adbde254d929fb378a905ef162d1585a46b37a8e4d"
+          }
+        ]
+      },
+      "revoked": {
+        "currency": "TWD",
+        "stage": "revoked",
+        "tripId": "6acdba0b9ab04daefe1e609f",
+        "counts": {
+          "expenses": 1,
+          "payments": 0,
+          "receipts": 3
+        },
+        "balanceCents": {
+          "6acdba0b9ab04daefe1e609c": 6667,
+          "6acdba0b9ab04daefe1e609d": -3334,
+          "6acdba0b9ab04daefe1e609e": -3333
+        },
+        "receipts": [
+          {
+            "key": "6acdba0b9ab04daefe1e609c:d9e05841-fb1e-4270-aa47-230fb6cf1972",
+            "operation": "payment.create",
+            "status": "committed",
+            "resourceId": "6acddd0ee15ca94118d63747",
+            "contractVersion": 2,
+            "ledger": {
+              "baseCurrency": "TWD",
+              "moneyScale": 2
+            },
+            "fingerprint": "cd5b07ee383364cea5011603159319ae9e16d372271048a010f52ef7c6dc667d"
+          },
+          {
+            "key": "6acdba0b9ab04daefe1e609c:ddd0cba1-3343-4b0b-bd2e-ec6ec748e76d",
+            "operation": "payment.delete",
+            "status": "committed",
+            "resourceId": "6acddd0ee15ca94118d63747",
+            "contractVersion": 2,
+            "ledger": {
+              "baseCurrency": "TWD",
+              "moneyScale": 2
+            },
+            "fingerprint": "4bd8c4655e5e41884759f3cfd1a4226d0c3a9253568d4f60f92c3cff7278bb1f"
+          },
+          {
+            "key": "6acdba0b9ab04daefe1e609f:6acdba0b9ab04daefe1e609c:d9954c7c-2452-4e07-bcdc-530c2a3d40fa",
+            "operation": "expense.create",
+            "status": "committed",
+            "resourceId": "6acddcbae15ca94118d63743",
+            "contractVersion": 2,
+            "ledger": {
+              "baseCurrency": "TWD",
+              "moneyScale": 2
+            },
+            "fingerprint": "9f7b94a686407aab11ff24adbde254d929fb378a905ef162d1585a46b37a8e4d"
+          }
+        ]
+      }
+    },
+    "partialUiReadback": ["Web", "iPhone", "iPad"],
+    "revokedUiReadback": ["Web", "iPad", "iPhone"],
+    "note": "No repeated entries; one expense, zero payments, three terminal receipts after revocation"
+  },
+  "create429USD": {
+    "before": {
+      "fixture": "tb_mobile_3862d3844dfe47fda278ba88eb961115",
+      "capturedAt": "2026-10-13T07:35:41.842Z",
+      "tripCount": 0,
+      "receiptCount": 0,
+      "uuid": "1eaaade1-a52e-478c-9c56-786b8a2ee98c"
+    },
+    "after": {
+      "fixture": "tb_mobile_3862d3844dfe47fda278ba88eb961115",
+      "capturedAt": "2026-10-13T07:37:59.100Z",
+      "tripCount": 1,
+      "receiptCount": 1,
+      "uuid": "1eaaade1-a52e-478c-9c56-786b8a2ee98c",
+      "tripId": "6acddfc5e15ca94118d6374a",
+      "fingerprint": "1e221f46f5f364cba0f74456c893e42e3994d30807d9026dc7b712c442fe2956"
+    },
+    "retryAfterSeconds": 180,
+    "deadline": "2026-10-13T07:35:40.797Z",
+    "observed31SecondsBlocked": true,
+    "coldRestart": "Device Hub Restart; Expo Go PID 25351 disappeared and new PID 42042 observed",
+    "events": [
+      {
+        "method": "POST",
+        "path": "/api/v2/trips",
+        "status": 429,
+        "at": 1791876760797,
+        "injected": true,
+        "mutationRequest": {
+          "id": "1eaaade1-a52e-478c-9c56-786b8a2ee98c",
+          "fingerprint": "68172240193cb19fcc684d12953546241211bc6e25e637c48e7a7cef1553b269"
+        },
+        "userId": "6acdba0b9ab04daefe1e609c"
+      },
+      {
+        "method": "GET",
+        "path": "/api/v2/mutation-requests/1eaaade1-a52e-478c-9c56-786b8a2ee98c",
+        "status": 200,
+        "at": 1791877013070,
+        "userId": "6acdba0b9ab04daefe1e609c"
+      },
+      {
+        "method": "GET",
+        "path": "/api/v2/mutation-requests/1eaaade1-a52e-478c-9c56-786b8a2ee98c",
+        "status": 200,
+        "at": 1791877061741,
+        "userId": "6acdba0b9ab04daefe1e609c"
+      },
+      {
+        "method": "POST",
+        "path": "/api/v2/trips",
+        "status": 200,
+        "at": 1791877061768,
+        "mutationRequest": {
+          "id": "1eaaade1-a52e-478c-9c56-786b8a2ee98c",
+          "fingerprint": "68172240193cb19fcc684d12953546241211bc6e25e637c48e7a7cef1553b269"
+        },
+        "userId": "6acdba0b9ab04daefe1e609c"
+      }
+    ],
+    "wireRecoveryStatus": "matched-observed-baselines",
+    "sameUuidAndBodyHash": true,
+    "completedUiObserved": true,
+    "limitation": "App reopened after deadline; post-restart pre-deadline UI needs a separate case"
+  }
+}

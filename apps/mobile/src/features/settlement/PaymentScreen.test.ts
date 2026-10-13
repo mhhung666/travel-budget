@@ -2,6 +2,7 @@ import { PaymentScreen } from './PaymentScreen';
 import * as labelHelpers from './paymentLabels';
 import { beforeEach, expect, it, vi } from 'vitest';
 import type { PaymentContext } from '@travel-budget/contracts';
+import { paymentDeleteV2Input } from '@travel-budget/contracts';
 const h = vi.hoisted(() => ({
   values: [] as unknown[],
   refs: [] as { current: unknown }[],
@@ -337,6 +338,42 @@ it('revocation cancellation writes nothing; changed raw identity is reviewed aga
     body: { expected_revision: latest.revision },
   });
 });
+
+it.each(['TWD', 'USD', 'JPY'])(
+  'revocation confirmation retains the %s ledger required by v2',
+  async (baseCurrency) => {
+    paymentId = tripId;
+    const context = {
+      ledger: { baseCurrency, moneyScale: 2 },
+      payment: {
+        id: paymentId,
+        fromId: peerId,
+        toId: h.scope.accountId,
+        fromName: 'B',
+        toName: 'A',
+        amount: 3.35,
+        note: '',
+        createdAt: '2026-10-13T00:00:00.000Z',
+      },
+      revision: 'a'.repeat(64),
+    };
+    h.request.mockResolvedValue(context);
+    await open();
+    action('confirmPayment').onPress();
+    await flush();
+    h.confirm.mockResolvedValue({ kind: 'not-sent' });
+    action('revokePayment').onPress();
+    await flush();
+    const payload = h.confirm.mock.calls[0][1];
+    expect(payload.body.base_currency).toBe(baseCurrency);
+    expect(
+      paymentDeleteV2Input.safeParse({
+        ...payload.body,
+        client_request_id: '11111111-1111-4111-8111-111111111111',
+      }).success
+    ).toBe(true);
+  }
+);
 
 it('puts parties, amount and note before optional settlement, keeping raw input and iOS keyboard controls', async () => {
   await open();

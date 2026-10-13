@@ -87,8 +87,12 @@ export function PaymentScreen({
   const [latest, setLatest] = useState<Context | null>(null);
   const [fields, setFields] = useState<PaymentFields | null>(null);
   const [prepared, setPrepared] = useState<
-    | Omit<PaymentCreateInput, 'client_request_id'>
-    | Omit<PaymentDeleteInput, 'client_request_id'>
+    | ((
+        | Omit<PaymentCreateInput, 'client_request_id'>
+        | Omit<PaymentDeleteInput, 'client_request_id'>
+      ) & {
+        base_currency?: string;
+      })
     | null
   >(null);
   const [busy, setBusy] = useState(false);
@@ -304,7 +308,10 @@ export function PaymentScreen({
             operation: 'payment.delete',
             tripId,
             paymentId,
-            body: { expected_revision: prepared.expected_revision },
+            body: {
+              ...(prepared.base_currency ? { base_currency: prepared.base_currency } : {}),
+              expected_revision: prepared.expected_revision,
+            },
           })
         : 'from_id' in prepared
           ? await entry.confirm(scope, { operation: 'payment.create', tripId, body: prepared })
