@@ -2,13 +2,13 @@
 
 原生 API 使用 `/api/v2`，auth／me 與帳務／旅行管理沿用同一 bearer session、授權服務、交易與資料庫。B5 已退役全部 32 個 `/api/v1` 會員 route，未知舊路徑回 404，不轉送其他契約；OpenAPI 只發布 v2。歷史 TWD 解碼／receipt 與帳號隔離保留，退役決策見 [B5 摘要](../../mobile/docs/archive/README.md#b5-v1-退役與-v2-整併2026-10-09)。
 
-非 TWD 建立預設關閉，B4 跨端待驗見 [固定案例](../../mobile/docs/LOCAL_ACCEPTANCE.md#b4-固定帳務案例)。Web 已使用新版帳本 adapter，公開路徑與瀏覽器恢復見 [B2 架構](ARCHITECTURE.md#b2-web-帳本與恢復)。
+非 TWD 建立預設開啟，不需設定環境變數；B4 其餘跨端待驗見 [固定案例](../../mobile/docs/LOCAL_ACCEPTANCE.md#b4-固定帳務案例)。Web 已使用新版帳本 adapter，公開路徑與瀏覽器恢復見 [B2 架構](ARCHITECTURE.md#b2-web-帳本與恢復)。
 
 ## B1 基準幣別契約
 
 - Trip 的 `baseCurrency` 在建立時固定；缺欄位的舊 Trip／Expense／Payment／私人預算才是 TWD，非法值或子帳務單位不符回 `503 LEDGER_DATA_INVALID`。新帳務與預算保存單位；不回填或換算舊金額。
 - v2 金額回應／context 帶 `ledger: { baseCurrency, moneyScale: 2 }`；金額輸入必填 `base_currency`，原幣／匯率明確提供，匯率表示每單位原幣換得多少帳本幣。基準原幣 rate 必須 1，TWD 在其他帳本可用外幣匯率；JPY 也保留 0.01。單筆金額／份額／付款／預算上限 10 億；聚合不套用單筆上限，但超出安全分值回 `503 MONEY_TOTAL_OUT_OF_RANGE`。
-- `/api/v2/capabilities` 回傳支援幣別及建立開關；`ENABLE_NON_TWD_LEDGER` 預設關閉，只有字串 `true` 啟用新非 TWD 建立。關閉不影響既有非 TWD 帳務與恢復。此旗標未加入遠端設定；B4 獨立驗收通過後另依使用者指示開放。
+- `/api/v2/capabilities` 回傳支援幣別及建立開關；未設定 `ENABLE_NON_TWD_LEDGER` 時預設開啟新非 TWD 建立；可選設 `false` 關閉，`true` 開啟，其他明確值視為關閉。關閉不影響既有非 TWD 帳務與原 UUID 恢復。Web／Mobile 都依能力回應顯示候選；程式預設已改，未部署或修改遠端環境。
 - `/api/v2/trips/:id/exchange-rates` 從既有 TWD-per-unit 日快照推導原幣／基準匯率，跨外幣日期需相同。缺資料列入 `unavailable`，不補匯率；供應商故障回 503，可繼續手動輸入。`V2ReferenceRates` 以旅行基準為 1 驗證（B5e 起不再沿用 TWD 快照的 `TWD = 1` 規則，非 TWD 旅行不再因回應驗證失敗回 503）。
 - 舊 Web 帳務 action 身分已於 B5d-3 刪除，舊公開 URL `/api/public/trips/*` 已於 B5e 刪除；Web v2 身分／公開 v2 路徑可讀寫實際帳本。原生 v1 列表／深連結的同類阻擋已隨 B5d-2 移除。
 - v2 新增支出的合法凍結請求在業務驗證被拒時（如預覽後付款／分攤成員退出、加總不符），於父旅行交易內保存 `VALIDATION_ERROR` 終局 receipt，查詢回 `rejected` 及實際 ledger；單位不符仍為 `LEDGER_CURRENCY_MISMATCH`。先核對已有 receipt，原 UUID 重播保留原終局，不因成員重新加入而改寫；已提交結果不受後續名冊／附件變動影響。schema／身分拒絕與未知 DB／儲存錯誤不冒充可確認的業務終局，客戶端不能憑任意 400 清除未知操作。
@@ -147,11 +147,11 @@ U3c-2 修正 MongoDB 8／driver 7.2 的 transaction CSOT／getMore 相容性：�
 
 新增獨立、自身 bearer 的 v2 契約（全部 no-store、Vary Authorization）：
 
-| 端點                             | 契約                                                 |
+| 端點 | 契約 |
 | -------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `GET /me/avatar`                 | `{ avatarUrl: string                                 | null, revision }`；公開圖片 URL，不含 Email、密碼或 token。                                                                     |
-| `POST /me/avatar/requests`       | 嚴格 `{ action: replace                              | remove, client_request_id, expectedRevision }`；replace 額外必填 contentType、size。回原 UUID 的 pending／committed／rejected。 |
-| `GET /me/avatar/requests/:uuid`  | 只查詢原 receipt；不存在為 not_found，不推斷未執行。 |
+| `GET /me/avatar` | `{ avatarUrl: string                                 | null, revision }`；公開圖片 URL，不含 Email、密碼或 token。 |
+| `POST /me/avatar/requests` | 嚴格 `{ action: replace                              | remove, client_request_id, expectedRevision }`；replace 額外必填 contentType、size。回原 UUID 的 pending／committed／rejected。 |
+| `GET /me/avatar/requests/:uuid` | 只查詢原 receipt；不存在為 not_found，不推斷未執行。 |
 | `POST /me/avatar/requests/:uuid` | `{ action: upload                                    | finish                                                                                                                          | cancel }`；upload 可帶 120 秒 PUT ticket，finish 重驗 HEAD。取消先消耗 UUID，未開始的 remove 不因此被送出。 |
 
 UUID 及白名單／1 byte–4 MiB／JPEG、PNG、WebP 由共用 schema 驗證；server 產生本人 key，不接受 URL、儲存 key、actor 或其他欄位。MongoDB 本人 fence 內原子寫入頭像、revision、終局與清理工作，已提交原 UUID 重播回原結果，不重新套用；同 UUID 不同內容回 IDEMPOTENCY_CONFLICT。衝突 RESOURCE_CHANGED、驗證拒絕、取消 CANCELLED、到期 EXPIRED 保存終局；未知 HTTP／儲存故障保留 pending，不換 UUID。GET 不修改 fence；HEAD 失敗與不存在分開，未上傳回 UPLOAD_INCOMPLETE 可手動續送。Native ticket 以 If-None-Match 防覆寫，412 後仍核對实际 size／type 與原確認值。

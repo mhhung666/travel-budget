@@ -1,8 +1,10 @@
 # 新旅行：基準幣別選擇
 
-更新：2026-10-13。狀態：**BC1 Web 已提交；BC2a App 選擇器已實作、已提交，BC2b 表單狀態已實作、已提交；BC3 已由使用者確認驗收；正式開放尚未執行**。順序為 Web → iOS App → 開放驗收；沿用既有 B1–B5 帳務，不重新改造金額模型。本文件是 BC 的共同規格，兩端不另開設計版本。Android 裝置驗收延後。
+更新：2026-10-13。狀態：**BC1 Web 已提交；BC2a App 選擇器已實作、已提交，BC2b 表單狀態已實作、已提交；BC3 已由使用者確認驗收；非 TWD 預設開啟程式已改、尚未部署**。順序為 Web → iOS App → 開放驗收；沿用既有 B1–B5 帳務，不重新改造金額模型。本文件是 BC 的共同規格，兩端不另開設計版本。Android 裝置驗收延後。
 
-2026-10-13 使用者回報「已驗收」。此為使用者確認，不補造逐項工具或裝置證據；既有記錄與未附證據的細項保留在驗收文件。正式後端 `ENABLE_NON_TWD_LEDGER=true` 與重新部署仍待使用者明確指示，本次未改任何環境設定。
+2026-10-13 使用者回報「已驗收」，並要求非 TWD 新建不需 env、直接預設開啟。未設定 `ENABLE_NON_TWD_LEDGER` 即開啟；可選明確設為 `false` 關閉，`true` 開啟，其他明確值關閉。程式預設已改，尚未部署；既有環境若明確設 `false` 仍維持關閉。Web／App 共用 capabilities，沒有新契約、資料遷移或手機設定。使用者確認不補造逐項工具或裝置證據，既有記錄仍保留。
+
+預設開啟回歸涵蓋未設定、明確 true／false 與無效設定，並核對 capabilities 契約；Web 2,573 項測試通過、646 項環境案例略過，根 check／Web build 通過。本次已提交、未部署。
 
 ## 範圍與現況
 
@@ -12,8 +14,8 @@
 | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | [Web 建立表單](../../apps/web/src/components/trips/CreateTripDialog.tsx)                                                                                | BC1b 已接可搜尋單選、能力狀態、基準變動草稿與送出鎖定；結果不明依原 UUID 凍結、查詢與恢復，終局保存後完成或解鎖。 |
 | [Web 搜尋核心](../../apps/web/src/components/trips/CurrencyPicker.tsx)／[設定 adapter](../../apps/web/src/components/trips/detail/CurrencyCombobox.tsx) | 建立表單與常用設定已沿用同一搜尋核心，分別保留單選與新增常用用途。                                                |
-| [App 建立表單](../../apps/mobile/src/features/tripEntry/TripFormScreen.tsx)                                                                             | 已讀 capabilities；現有搜尋限 3 字元代碼、最多 12 個 Chip，改為可搜尋完整清單。                                   |
-| [後端能力](../../apps/web/src/lib/ledger.ts)／[建立服務](../../apps/web/src/lib/tripEntry.ts)                                                           | 已支援非 TWD、不可變基準與 UUID 收據；`ENABLE_NON_TWD_LEDGER` 預設關閉，Web／App 共用。                           |
+| [App 建立表單](../../apps/mobile/src/features/tripEntry/TripFormScreen.tsx)                                                                             | BC2 已接完整幣別搜尋、能力與離開提醒守衛；原 UUID／body 恢復及登入世代隔離。                                      |
+| [後端能力](../../apps/web/src/lib/ledger.ts)／[建立服務](../../apps/web/src/lib/tripEntry.ts)                                                           | 已支援非 TWD、不可變基準與 UUID 收據；`ENABLE_NON_TWD_LEDGER` 未設定時預設開啟，Web／App 共用。                   |
 | [B4 待驗](../../apps/mobile/docs/LOCAL_ACCEPTANCE.md#b4-固定帳務案例)                                                                                   | 跨端精確帳務與恢復仍待驗；本計畫不把舊工程通過視為已可開放。                                                      |
 
 ## 共同 UI／UX 設計
@@ -252,4 +254,4 @@ BC3 的逐步操作、證據欄位與工具涵蓋界線已整理至[單一驗收
 - BC2：補對應畫面行為／持久化回歸；App 重啟／換帳號／429／未知結果保留既有邊界。不改 D 僅限 TWD 基準＋TWD 原幣＋均分的限制。
 - BC3：金額／預算／結算／公開分享／匯出／跨帳本統計及 Web／App 互讀，直接按 [B4](../../apps/mobile/docs/LOCAL_ACCEPTANCE.md#b4-固定帳務案例) 執行；缺參考匯率不影響建立空帳本。同基準記帳不依賴匯率服務。
 - Web 跑受影響行為與整合測試、應用 check／build；App 跑受影響測試、check／三平台 export。修改 contracts 才更新 schema／OpenAPI 並驗同步；跨 workspace 變動依根規範跑完整檢查。實際畫面操作與裝置結果另記，不以 bundle 匯出代替。
-- 每片完成後先獨立審查再接下一片，更新根 changelog；本文件維護現行規格、必要整合方式與剩餘工作，BC 全部實作後將工程結果合併 archive，不另開逐輪報告。BC1a／BC1b／BC1c／BC2a 已提交、BC2b 已提交，均未部署；正式 gate 不變，產品版本只在使用者要求提交時依根規則調整。
+- 每片完成後先獨立審查再接下一片，更新根 changelog；本文件維護現行規格、必要整合方式與剩餘工作，BC 全部實作後將工程結果合併 archive，不另開逐輪報告。BC1a／BC1b／BC1c／BC2a 已提交、BC2b 已提交，均未部署；非 TWD 建立預設已依使用者指示開啟，產品版本只在使用者要求提交時依根規則調整。
