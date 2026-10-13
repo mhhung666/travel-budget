@@ -491,72 +491,66 @@ describe.skipIf(!uri || !optIn)('B2 Web with an owned replica-set database', () 
   it.each(['TWD', 'USD', 'JPY'])(
     'BC1c creates and recovers one %s ledger, then defaults the first expense to its base at rate 1',
     async (currency) => {
-      vi.stubEnv('ENABLE_NON_TWD_LEDGER', 'true');
-      try {
-        const body = {
-          client_request_id: randomUUID(),
-          base_currency: currency,
-          name: 'Created ledger',
-          description: '',
-          start_date: null,
-          end_date: null,
-        };
-        const created = await createLedgerTrip(body, null);
-        expect(created.success).toBe(true);
-        if (!created.success) throw new Error(created.error);
-        const id = created.data.id;
-        const nativeId = new mongo.ObjectId(id);
-        vi.stubEnv('ENABLE_NON_TWD_LEDGER', 'false');
-        expect(await createLedgerTrip(body, null)).toEqual(created);
-        const receipt = await getLedgerMutation(body.client_request_id);
-        expect(receipt.success).toBe(true);
-        if (!receipt.success) throw new Error(receipt.error);
-        expect(receipt.data).toMatchObject({
-          status: 'committed',
-          operation: 'trip.create',
-          result: { tripId: id },
-          ledger: { baseCurrency: currency, moneyScale: 2 },
-        });
-        expect(await db.collection('trips').countDocuments({ _id: nativeId })).toBe(1);
-        expect(
-          await db
-            .collection<{ _id: string }>('mutationrequests')
-            .countDocuments({ _id: `${ids[0]}:${body.client_request_id}` })
-        ).toBe(1);
-        const tripRead = await getTrip(id);
-        expect(tripRead.success).toBe(true);
-        if (!tripRead.success) throw new Error(tripRead.error);
-        expect(tripRead.data.ledger?.baseCurrency).toBe(currency);
-        expect(getTripDefaultCurrency(tripRead.data.currency_settings, currency)).toBe(currency);
-        expect(resolveTripRates(tripRead.data.currency_settings, {}, currency)[currency]).toBe(1);
-        const expenseBody = {
-          client_request_id: randomUUID(),
-          base_currency: currency,
-          payer_id: ids[0],
-          original_amount: 0.01,
-          currency,
-          exchange_rate: 1,
-          description: 'First cent',
-          category: 'food' as const,
-          date: '2026-10-12',
-          splits: [{ user_id: ids[0], share_amount: 0.01 }],
-        };
-        const first = await createLedgerExpense(id, expenseBody);
-        expect(first.success).toBe(true);
-        expect(await createLedgerExpense(id, expenseBody)).toEqual(first);
-        expect(await db.collection('expenses').countDocuments({ trip: nativeId })).toBe(1);
-        const row = await db.collection('expenses').findOne({ trip: nativeId });
-        expect(row).toMatchObject({
-          baseCurrency: currency,
-          currency,
-          amount: 0.01,
-          originalAmount: 0.01,
-          exchangeRate: 1,
-        });
-        expect(row!.splits[0].shareAmount).toBe(0.01);
-      } finally {
-        vi.stubEnv('ENABLE_NON_TWD_LEDGER', 'false');
-      }
+      const body = {
+        client_request_id: randomUUID(),
+        base_currency: currency,
+        name: 'Created ledger',
+        description: '',
+        start_date: null,
+        end_date: null,
+      };
+      const created = await createLedgerTrip(body, null);
+      expect(created.success).toBe(true);
+      if (!created.success) throw new Error(created.error);
+      const id = created.data.id;
+      const nativeId = new mongo.ObjectId(id);
+      expect(await createLedgerTrip(body, null)).toEqual(created);
+      const receipt = await getLedgerMutation(body.client_request_id);
+      expect(receipt.success).toBe(true);
+      if (!receipt.success) throw new Error(receipt.error);
+      expect(receipt.data).toMatchObject({
+        status: 'committed',
+        operation: 'trip.create',
+        result: { tripId: id },
+        ledger: { baseCurrency: currency, moneyScale: 2 },
+      });
+      expect(await db.collection('trips').countDocuments({ _id: nativeId })).toBe(1);
+      expect(
+        await db
+          .collection<{ _id: string }>('mutationrequests')
+          .countDocuments({ _id: `${ids[0]}:${body.client_request_id}` })
+      ).toBe(1);
+      const tripRead = await getTrip(id);
+      expect(tripRead.success).toBe(true);
+      if (!tripRead.success) throw new Error(tripRead.error);
+      expect(tripRead.data.ledger?.baseCurrency).toBe(currency);
+      expect(getTripDefaultCurrency(tripRead.data.currency_settings, currency)).toBe(currency);
+      expect(resolveTripRates(tripRead.data.currency_settings, {}, currency)[currency]).toBe(1);
+      const expenseBody = {
+        client_request_id: randomUUID(),
+        base_currency: currency,
+        payer_id: ids[0],
+        original_amount: 0.01,
+        currency,
+        exchange_rate: 1,
+        description: 'First cent',
+        category: 'food' as const,
+        date: '2026-10-12',
+        splits: [{ user_id: ids[0], share_amount: 0.01 }],
+      };
+      const first = await createLedgerExpense(id, expenseBody);
+      expect(first.success).toBe(true);
+      expect(await createLedgerExpense(id, expenseBody)).toEqual(first);
+      expect(await db.collection('expenses').countDocuments({ trip: nativeId })).toBe(1);
+      const row = await db.collection('expenses').findOne({ trip: nativeId });
+      expect(row).toMatchObject({
+        baseCurrency: currency,
+        currency,
+        amount: 0.01,
+        originalAmount: 0.01,
+        exchangeRate: 1,
+      });
+      expect(row!.splits[0].shareAmount).toBe(0.01);
     }
   );
 });

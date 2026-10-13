@@ -1,14 +1,20 @@
 // @vitest-environment node
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { mongo } from 'mongoose';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { withLedgerV2, validateLedgerChildren } from '@/lib/ledger';
+import {
+  withLedgerV2,
+  validateLedgerChildren,
+  parseLedgerInput,
+  ledgerFingerprint,
+} from '@/lib/ledger';
 import { enterTrip, readTripMutation, MUTATION_REQUESTS } from '@/lib/tripEntry';
 import { readPaymentContext, readPaymentRevokeContext, writePayment } from '@/lib/paymentWrite';
 import { readExpenseEditContext, maintainExpense } from '@/lib/expenseMaintenance';
 import { writeWebSettings, webSettingsRevision } from '@/lib/webSettingsWrite';
 import { manageTrip, readTripCurrency } from '@/lib/tripManagement';
 import { readTripAccess, manageTripAccess } from '@/lib/tripAccess';
+import { tripCreateInput } from '@travel-budget/contracts';
 import { withTripWriteInDatabase } from '@/lib/tripWriteTransaction';
 
 vi.mock('@/lib/env', () => ({
@@ -107,18 +113,35 @@ describe.skipIf(!uri || !allowed)('B1 isolated ledger transactions', () => {
       splits: [actor, peer, third].map((user) => ({ user, shareAmount: 6.7 })),
     });
   });
-  it('keeps a gate rejection terminal after enabling creation and on replay', async () => {
+  it('preserves a rejection saved by an older release instead of creating another trip', async () => {
     const uuid = randomUUID();
-    vi.stubEnv('ENABLE_NON_TWD_LEDGER', 'false');
+    const fingerprint = withLedgerV2(() => {
+      const input = parseLedgerInput(tripCreateInput, {
+        client_request_id: uuid,
+        name: 'New base',
+        base_currency: 'USD',
+      });
+      return createHash('sha256')
+        .update(JSON.stringify(ledgerFingerprint({ operation: 'trip.create', input })))
+        .digest('hex');
+    });
+    await db.collection<mongo.Document & { _id: string }>(MUTATION_REQUESTS).insertOne({
+      _id: `${ids[0]}:${uuid}`,
+      fingerprint,
+      contractVersion: 2,
+      ledger: { baseCurrency: 'USD', moneyScale: 2 },
+      terminal: {
+        status: 'rejected',
+        operation: 'trip.create',
+        code: 'FEATURE_NOT_AVAILABLE',
+        ledger: { baseCurrency: 'USD', moneyScale: 2 },
+      },
+      createdAt: new Date(),
+    });
     await expect(withLedgerV2(() => createTrip('USD', uuid))).rejects.toThrow(
       'FEATURE_NOT_AVAILABLE'
     );
-    vi.stubEnv('ENABLE_NON_TWD_LEDGER', 'true');
-    await expect(withLedgerV2(() => createTrip('USD', uuid))).rejects.toThrow(
-      'FEATURE_NOT_AVAILABLE'
-    );
-    const receipt = await withLedgerV2(() => readTripMutation(db, ids[0], uuid));
-    expect(receipt).toMatchObject({
+    expect(await withLedgerV2(() => readTripMutation(db, ids[0], uuid))).toMatchObject({
       status: 'rejected',
       ledger: { baseCurrency: 'USD', moneyScale: 2 },
     });
@@ -127,7 +150,6 @@ describe.skipIf(!uri || !allowed)('B1 isolated ledger transactions', () => {
   it.each(['USD', 'JPY', 'TWD'])(
     'creates %s once under concurrent identical UUIDs',
     async (base) => {
-      vi.stubEnv('ENABLE_NON_TWD_LEDGER', 'true');
       const uuid = randomUUID();
       const results = await Promise.all(
         Array.from({ length: 3 }, () => withLedgerV2(() => createTrip(base, uuid)))

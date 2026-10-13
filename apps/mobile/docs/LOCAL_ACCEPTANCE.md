@@ -32,7 +32,7 @@ BC1／BC2 工程已交付，BC3 的 Web／iPhone／iPad 搜尋選擇 → 建立 
 
 BC1／BC2 的已提交基線為 `7f6bc35f`，本段是待執行清單，不是操作通過紀錄。依序由驗收者完成：Web 桌面／窄版，再 iPhone／iPad；Android 延後。共同搜尋、四語、大字級與使用者任務條件只維護在[共同規格](../../../docs/design/BASE_CURRENCY_CREATION.md#跨端-uiux-完成條件)。
 
-1. 先跑下方隔離後端的預設模式：只開放 TWD 新建，既有 USD／JPY 旅行仍可讀寫。另啟新 fixture 的 `--ledger-creation` 模式核對 TWD／USD／JPY 新建；正式環境與 gate 不變。
+1. 啟動下方隔離後端，直接核對 TWD／USD／JPY 新建；工具與產品皆固定開放，沒有第二種開關模式。正式環境與部署不變。
 2. 各平台／幣別使用獨立、唯一測試名稱，登入該次 fixture 的 A 帳號，由畫面建立新旅行；不能以工具預建的 B4 旅行代替這一步。保留名稱、原建立 UUID、回應 trip ID 與確認前後畫面。
 3. 新旅行暫只保留建立者一人：立即開新增支出，預設記帳幣別須等於所選基準、匯率 1；輸入 0.01 並由本人付款／分攤，預覽及入帳都為 0.01，JPY 也保留小數。從另一端讀回同一旅行，核對本人的份額 0.01、餘額 0，再重啟讀回。
 4. 用全新測試名稱重做丟建立回應／重啟、丟首次支出回應／重啟與 429；在同一個未清理 fixture 保留原 UUID／body hash。新確認須受限速與能力守衛，原 UUID 恢復不改 body。429 的 SQLite 工程案例為 120 秒；現有代理注入 180 秒，裝置需以實際 Retry-After 判定，31 秒不能提早送出。
@@ -95,13 +95,11 @@ BC1／BC2 的已提交基線為 `7f6bc35f`，本段是待執行清單，不是�
 工具已補齊；**B4 獨立 Web／iPhone／iPad 逐項證據仍待補齊**，工具通過不替代裝置結果。產品非 TWD 新建預設已依使用者指示開啟、尚未部署。以下只操作工具自己建立的 loopback 資料庫，fixture／控制憑證及輸出保留在暫存目錄，不提交 Git。
 
 ```bash
-# 根目錄：隔離工具預設明確關閉新建，保留關閉回歸；與產品無 env 預設開啟不同
+# 根目錄：工具與產品皆固定開放非 TWD 新建，不需額外參數
 pnpm --filter @travel-budget/web dev:mobile-api
-# 要驗「建立非 TWD」時，改用這個指令；開關只影響該次自建後端
-pnpm --filter @travel-budget/web dev:mobile-api --ledger-creation
 ```
 
-輸出的 `fixture.json`（0600）新增 `ledgerAcceptance`：帳號 `b4-a`／`b4-b`／`b4-c`，依序為 A（管理員）／B／C；密碼沿用該次 fixture。三趟空旅行為舊 TWD（DB 缺基準）、USD、JPY，邀請碼與 ID 在檔案內。USD 預設記帳 JPY、自訂 JPY 0.0067／TWD 0.03，A 私人預算 10 USD。非 TWD 關閉開關時，既有旅行仍可讀寫；一般模式與本機開啟模式都需核對。啟動先跑真 HTTP／DB 核對，再清除這三趟工具產生的帳務與 receipt，保留空旅行給操作者；其他 fixture 不變。
+輸出的 `fixture.json`（0600）新增 `ledgerAcceptance`：帳號 `b4-a`／`b4-b`／`b4-c`，依序為 A（管理員）／B／C；密碼沿用該次 fixture。三趟空旅行為舊 TWD（DB 缺基準）、USD、JPY，邀請碼與 ID 在檔案內。USD 預設記帳 JPY、自訂 JPY 0.0067／TWD 0.03，A 私人預算 10 USD。新建與既有旅行都可讀寫，不再區分關閉／開啟模式。啟動先跑真 HTTP／DB 核對，再清除這三趟工具產生的帳務與 receipt，保留空旅行給操作者；其他 fixture 不變。
 
 ```bash
 # 另一個終端：建立供新版 Mobile 使用的故障代理，不啟動或操作裝置
@@ -137,7 +135,7 @@ fixture 終端的 `b4-state` 取得三趟完整帳務與 receipt 白名單 snaps
 | 編輯／衝突／還款／撤銷       | Web 先改後 Mobile 重確認；基本編輯保留原額／匯率／附件；付款及撤銷丟回應不重複扣抵，附 snapshot 與原 UUID。待驗。                         |
 | 舊 TWD／SQLite／429／撤權    | 升級保留舊 C／D／E 原 body，舊列不送出／只明確捨棄；保存失敗不送出、等待跨重啟有效、撤權晚到回應不得解鎖。SQLite 故障沿用原生工具，待驗。 |
 | 預算／跨旅程統計／公開／匯出 | USD 私人預算只對 A；TWD／USD 分組、不混算；JPY .01 顯示／朗讀／匯出完整，舊公開入口已移除（404）、新入口不含私人欄位。待驗。              |
-| 建立開關／回退               | 本機關／開模式分別核對新建、既有帳務及原 UUID 恢復；服務不支援 v2 不改走 v1。正式部署／開放另依指示，待驗。                               |
+| 建立能力／相容               | 固定開放下核對新建、既有帳務與歷史拒絕的原 UUID；服務不支援 v2 不改走 v1。正式部署／開放另依指示，待驗。                                  |
 
 開發檢查：Mobile 1,203 項行為測試與工具 40 項、Web 核對工具 7 項通過；根 check／contracts／build、三平台匯出及 Expo 相容性通過。一般關閉與本機開啟建立模式的完整真 HTTP 均通過；三種幣別各完成新增／部分還款／撤銷共 9 次丟回應，原 UUID 查回並由 CLI 核對 DB 精確值／筆數，沒有操作裝置。合成 wire 證據 `/var/folders/m4/fgf8qnv17_zcmkxf4s9cmd440000gn/T/travel-budget-ledger-network-9c3XRK/traffic-2.json`，HTTP 診斷 `/var/folders/m4/fgf8qnv17_zcmkxf4s9cmd440000gn/T/travel-budget-mobile-gjfmkn/next.log`；只使用自建資料庫，結束已清理。
 

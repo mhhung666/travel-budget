@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { randomUUID } from 'node:crypto';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   expenseCreateInput,
   expenseCreateV2Input,
@@ -23,7 +23,6 @@ import {
   checkReceiptVersion,
   moneyTotal,
   ledgerCapabilities,
-  nonTwdCreationEnabled,
 } from '@/lib/ledger';
 import { createTripSchema, updateTripSchema } from '@/lib/validation';
 import { computeLedgerSplits, computeSplits } from '@/lib/expenseSplit';
@@ -255,29 +254,14 @@ it('rejects a private budget in the wrong unit even in a batched read', async ()
   ).rejects.toThrow('LEDGER_DATA_INVALID');
 });
 
-describe('non-TWD creation defaults', () => {
-  afterEach(() => vi.unstubAllEnvs());
-  it('advertises full creation capabilities without any environment setting', () => {
-    vi.stubEnv('ENABLE_NON_TWD_LEDGER', undefined);
-    expect(nonTwdCreationEnabled()).toBe(true);
-    const capabilities = v2Schemas.V2Capabilities.parse(ledgerCapabilities());
-    expect(capabilities).toMatchObject({
-      ledgerContractVersion: 2,
-      moneyScale: 2,
-      nonTwdCreationEnabled: true,
-    });
-    expect(capabilities.supportedBaseCurrencies).toEqual(
-      expect.arrayContaining(['TWD', 'USD', 'JPY'])
-    );
+it('always advertises non-TWD creation while preserving the existing capability contract', () => {
+  const capabilities = v2Schemas.V2Capabilities.parse(ledgerCapabilities());
+  expect(capabilities).toMatchObject({
+    ledgerContractVersion: 2,
+    moneyScale: 2,
+    nonTwdCreationEnabled: true,
   });
-  it.each([
-    ['true', true],
-    ['false', false],
-    ['', false],
-    ['invalid', false],
-  ])('honors explicit setting %s', (setting, expected) => {
-    vi.stubEnv('ENABLE_NON_TWD_LEDGER', setting as string);
-    expect(nonTwdCreationEnabled()).toBe(expected);
-    expect(ledgerCapabilities().nonTwdCreationEnabled).toBe(expected);
-  });
+  expect(capabilities.supportedBaseCurrencies).toEqual(
+    expect.arrayContaining(['TWD', 'USD', 'JPY'])
+  );
 });

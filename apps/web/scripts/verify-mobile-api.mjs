@@ -54,15 +54,11 @@ import { createLocalMailbox } from './local-mailbox.mjs';
 
 const args = new Set(process.argv.slice(2));
 assert(
-  [...args].every((arg) => ['--serve', '--lan', '--mailbox', '--ledger-creation'].includes(arg)),
-  'Use --serve [--lan] [--mailbox] [--ledger-creation]'
+  [...args].every((arg) => ['--serve', '--lan', '--mailbox'].includes(arg)),
+  'Use --serve [--lan] [--mailbox]'
 );
 assert(!args.has('--lan') || args.has('--serve'), '--lan requires --serve');
 assert(!args.has('--mailbox') || args.has('--serve'), '--mailbox requires --serve');
-assert(
-  !args.has('--ledger-creation') || args.has('--serve'),
-  '--ledger-creation requires --serve and affects only the owned local backend'
-);
 const exec = promisify(execFile);
 const runId = randomUUID().replaceAll('-', '');
 const container = `tb-mobile-${runId}`;
@@ -521,7 +517,6 @@ try {
     AI_GATEWAY_API_KEY: '',
     OPENAI_API_KEY: '',
     CRON_SECRET: '',
-    ENABLE_NON_TWD_LEDGER: args.has('--ledger-creation') ? 'true' : 'false',
   });
   app = spawn(
     process.execPath,
@@ -4187,7 +4182,6 @@ try {
     ObjectId: mongoose.Types.ObjectId,
     date,
     origin,
-    creationEnabled: args.has('--ledger-creation'),
   });
   const b4 = await createLedgerAcceptance({
     db,
@@ -4371,7 +4365,6 @@ try {
         },
         date,
         ledgerAcceptance: b4.fixture,
-        ledgerCreationEnabled: args.has('--ledger-creation'),
         controlUrl,
         controlToken,
         ...(mailbox ? { mailboxUrl: mailbox.url, mailboxToken: mailbox.token } : {}),
@@ -4379,7 +4372,7 @@ try {
       { mode: 0o600 }
     );
     console.log(
-      `B4 accounts: b4-a, b4-b, b4-c; ledger creation gate (local only): ${args.has('--ledger-creation')}; trip IDs are in fixture.json`
+      `B4 accounts: b4-a, b4-b, b4-c; non-TWD creation enabled; trip IDs are in fixture.json`
     );
     console.log(`Local fixture details: ${join(artifacts, 'fixture.json')}`);
     const commandList = `${Object.keys(fixtureCommands).join(', ')}, quit`;

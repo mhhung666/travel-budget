@@ -103,13 +103,11 @@ export function terminalWithLedger<T>(terminal: T): T {
   };
 }
 export { moneyTotal } from './money';
-// Normal deployments need no flag; an explicit false still disables new non-TWD trips.
-export const nonTwdCreationEnabled = () => (process.env.ENABLE_NON_TWD_LEDGER ?? 'true') === 'true';
 export const ledgerCapabilities = () => ({
   ledgerContractVersion: 2 as const,
   moneyScale: 2 as const,
   supportedBaseCurrencies: getAllCurrencyCodes(),
-  nonTwdCreationEnabled: nonTwdCreationEnabled(),
+  nonTwdCreationEnabled: true,
 });
 
 const inputs = new Map<z.ZodType, z.ZodType>([

@@ -6,7 +6,6 @@ import {
   terminalWithLedger,
   checkReceiptVersion,
   authorizeLedger,
-  nonTwdCreationEnabled,
 } from './ledger';
 import { createHash, randomInt } from 'node:crypto';
 import { mongo } from 'mongoose';
@@ -219,24 +218,6 @@ export async function enterTrip(
             const requestedBase = (input as TripCreateInput & { base_currency: string })
               .base_currency;
             authorizeLedger({ baseCurrency: requestedBase });
-            if (requestedBase !== 'TWD' && !nonTwdCreationEnabled()) {
-              const terminal = {
-                status: 'rejected' as const,
-                operation,
-                code: 'FEATURE_NOT_AVAILABLE' as const,
-              };
-              await receipts.insertOne(
-                {
-                  _id: id,
-                  fingerprint: hash,
-                  ...receiptStamp(),
-                  terminal: terminalWithLedger(terminal),
-                  createdAt: new Date(),
-                },
-                { session }
-              );
-              return { terminal, delivery: undefined };
-            }
             const tripId = new mongo.ObjectId();
             await db.collection('trips').insertOne(
               {

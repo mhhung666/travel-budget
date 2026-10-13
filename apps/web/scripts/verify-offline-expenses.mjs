@@ -183,7 +183,6 @@ try {
     MONGODB_URI: uri,
     JWT_SECRET: jwtSecret,
     APP_URL: origin,
-    ENABLE_NON_TWD_LEDGER: 'false',
     EXPENSE_BACKGROUND_DELIVERY: 'off',
     NEXT_TELEMETRY_DISABLED: '1',
     RESEND_API_KEY: '',

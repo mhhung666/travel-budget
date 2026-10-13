@@ -1,10 +1,10 @@
 # 新旅行：基準幣別選擇
 
-更新：2026-10-13。狀態：**BC1 Web 已提交；BC2a App 選擇器已實作、已提交，BC2b 表單狀態已實作、已提交；BC3 已由使用者確認驗收；非 TWD 預設開啟程式已改、尚未部署**。順序為 Web → iOS App → 開放驗收；沿用既有 B1–B5 帳務，不重新改造金額模型。本文件是 BC 的共同規格，兩端不另開設計版本。Android 裝置驗收延後。
+更新：2026-10-13。狀態：**BC1 Web 已提交；BC2a App 選擇器已實作、已提交，BC2b 表單狀態已實作、已提交；BC3 已由使用者確認驗收；非 TWD 開關已移除、固定開放、尚未部署**。順序為 Web → iOS App → 開放驗收；沿用既有 B1–B5 帳務，不重新改造金額模型。本文件是 BC 的共同規格，兩端不另開設計版本。Android 裝置驗收延後。
 
-2026-10-13 使用者回報「已驗收」，並要求非 TWD 新建不需 env、直接預設開啟。未設定 `ENABLE_NON_TWD_LEDGER` 即開啟；可選明確設為 `false` 關閉，`true` 開啟，其他明確值關閉。程式預設已改，尚未部署；既有環境若明確設 `false` 仍維持關閉。Web／App 共用 capabilities，沒有新契約、資料遷移或手機設定。使用者確認不補造逐項工具或裝置證據，既有記錄仍保留。
+2026-10-13 使用者確認驗收並要求移除環境變數開關。非 TWD 新建固定開放，建立服務與隔離工具不再保留開／關兩種模式。capabilities 的既有 `nonTwdCreationEnabled` 固定 true，保留已安裝 App 契約相容性；候選仍以後端支援清單為準。既有 receipt 保留原終局，舊拒絕不因移除開關而重播成另一趟旅行。未新增契約、資料遷移或手機設定，尚未部署；原驗收證據不改寫。
 
-預設開啟回歸涵蓋未設定、明確 true／false 與無效設定，並核對 capabilities 契約；Web 2,573 項測試通過、646 項環境案例略過，根 check／Web build 通過。本次已提交、未部署。
+固定開放及 capabilities 契約回歸、Web 2,569 項測試通過、646 項環境案例略過；另以自有 MongoDB replica set 執行 33 項建立／帳務整合通過，包含歷史拒絕 receipt 重播及三幣首次 0.01。根 check／Web build 通過；真 HTTP 工具因現有開發伺服器占用未重跑，未停止他人程序。本次已提交、未部署。
 
 ## 範圍與現況
 
@@ -15,7 +15,7 @@
 | [Web 建立表單](../../apps/web/src/components/trips/CreateTripDialog.tsx)                                                                                | BC1b 已接可搜尋單選、能力狀態、基準變動草稿與送出鎖定；結果不明依原 UUID 凍結、查詢與恢復，終局保存後完成或解鎖。 |
 | [Web 搜尋核心](../../apps/web/src/components/trips/CurrencyPicker.tsx)／[設定 adapter](../../apps/web/src/components/trips/detail/CurrencyCombobox.tsx) | 建立表單與常用設定已沿用同一搜尋核心，分別保留單選與新增常用用途。                                                |
 | [App 建立表單](../../apps/mobile/src/features/tripEntry/TripFormScreen.tsx)                                                                             | BC2 已接完整幣別搜尋、能力與離開提醒守衛；原 UUID／body 恢復及登入世代隔離。                                      |
-| [後端能力](../../apps/web/src/lib/ledger.ts)／[建立服務](../../apps/web/src/lib/tripEntry.ts)                                                           | 已支援非 TWD、不可變基準與 UUID 收據；`ENABLE_NON_TWD_LEDGER` 未設定時預設開啟，Web／App 共用。                   |
+| [後端能力](../../apps/web/src/lib/ledger.ts)／[建立服務](../../apps/web/src/lib/tripEntry.ts)                                                           | 已支援非 TWD、不可變基準與 UUID 收據；沒有環境變數開關，capabilities 固定開放，Web／App 共用。                    |
 | [B4 待驗](../../apps/mobile/docs/LOCAL_ACCEPTANCE.md#b4-固定帳務案例)                                                                                   | 跨端精確帳務與恢復仍待驗；本計畫不把舊工程通過視為已可開放。                                                      |
 
 ## 共同 UI／UX 設計
@@ -126,7 +126,7 @@ Web 使用可及的單選搜尋模式（combobox／listbox／option 與 selected
 - 無關鍵字時常用幣別優先、其餘按代碼排序；精確代碼命中優先。清單可捲動且所有允許項均可到達，不截斷成前 12 筆。搜尋無結果提供清除搜尋，不自動選第一筆。
 - 選取即關閉，重開清空搜尋並定位已選項；取消／Esc／點外部關閉不改選值。Web 支援方向鍵、Enter 選取、Esc 關閉並返回觸發欄位；Enter 不得順便送出建立表單。
 - 四語為繁中、簡中、英文、日文；名稱顯示失敗退回代碼。代碼永遠保留，不能只用 `$` 等符號辨識。
-- 候選代碼以後端 `supportedBaseCurrencies` 為準；非 TWD gate 關閉時只允許 TWD，說明目前僅開放 TWD。客戶端 Intl 只負責名稱，不能自行擴大／縮小後端允許清單。
+- 候選代碼以後端 `supportedBaseCurrencies` 為準；後端固定開放非 TWD 建立。客戶端仍保留舊 capabilities 回應的 TWD 守衛，供舊服務或快取相容。客戶端 Intl 只負責名稱，不能自行擴大／縮小後端允許清單。
 - 初次能力載入／失敗時保留表單，顯示載入或重試並阻擋建立；重查期間不清除已選幣別。若最新能力不再允許已選值，提示重新選擇並阻擋送出，不默默改成 TWD。後端仍做最後驗證。
 - 草稿保留、未儲存離開判斷與清空草稿包含已選基準；搜尋字串不是帳務欄位。送出中禁止修改。已確認的 UUID／body 不因能力更新或搜尋改變；結果不明仍循既有收據恢復，確定拒絕才允許修正後重新確認。
 - 基準不同於支出原幣：建立後尚無常用設定時，以基準作為首次記帳預設；例如 USD 帳本仍可另設 JPY 原幣。基準匯率固定 1，其他幣別缺參考匯率時明示並讓使用者手動填寫，不捏造匯率。
@@ -170,7 +170,7 @@ BC1c 新增 16 項畫面／真 journal 故障回歸及 3 項隔離交易案例�
 
 ### BC2a App 搜尋選擇器
 
-建立表單在名稱後顯示中性基準欄位，取代三字搜尋與前 12 項 Chip。`BaseCurrencyField` 使用受控值／開關與獨立搜尋文字；四語常用名稱與 Web 對齊，其餘依 Intl、失敗退回代碼，英文名稱獨立可搜尋。候選只取目前 capabilities，gate 關閉時取 TWD 交集，不虛構缺少的 TWD。單一現值唯讀；原值失效則保留原值並允許明確改選。
+建立表單在名稱後顯示中性基準欄位，取代三字搜尋與前 12 項 Chip。`BaseCurrencyField` 使用受控值／開關與獨立搜尋文字；四語常用名稱與 Web 對齊，其餘依 Intl、失敗退回代碼，英文名稱獨立可搜尋。候選只取目前 capabilities，不虛構缺少的幣別；舊能力回應的 TWD 限制仍由客戶端相容處理。單一現值唯讀；原值失效則保留原值並允許明確改選。
 
 原生 Modal 有安全區、鍵盤避讓、固定標題／搜尋區與完整清單捲動；iPad 正常字級限寬，大字級使用全寬，欄位至少 52 點、選項至少 48 點且文字可換行。開啟先將閱讀器焦點交給標題，不自動叫鍵盤；空搜尋定位已選列，搜尋回到結果頂部。點列一次選取並關閉；取消／系統返回／閱讀器 escape 只關面板，清除與鍵盤搜尋鍵都不改值，關閉回到原欄位。背景表單保留掛載，面板開啟時建立回呼也阻擋確認。API、journal、UUID、SQLite 與正式 gate 不變。
 
@@ -201,7 +201,7 @@ BC2b 新增 22 項畫面／世代與 6 項真 SQLite 故障案例；Mobile 全�
 
 **核心邊界**：首輪不新增套件、共用 UI package、API 欄位或 migration。Web 與 App 的 React／原生 UI 各留在應用內；搜尋規則用本文件的共同案例核對，BC1a 建立一份兩端測試可讀的靜態 fixture，BC2 重用它，不把 UI 邏輯放入只負責 HTTP schemas 的 contracts。fixture 名稱是測試輸入，不替代產品四語來源。
 
-建立用途的候選為 `supportedBaseCurrencies` 去重後排序，gate 關閉再取 TWD 交集；不呼叫客戶端 `getAllCurrencyCodes()` 重新決定集合。常用設定 adapter 保留目前完整 ISO 候選來源。顯示名稱失敗只退回代碼，不刪除允許項。常用幣別名稱優先使用可供兩端對齊的四語文案，其餘用 Intl；英文搜尋名稱獨立產生，不依目前介面語言。
+建立用途的候選為 `supportedBaseCurrencies` 去重後排序，舊服務回應關閉時客戶端仍取 TWD 交集相容；不呼叫客戶端 `getAllCurrencyCodes()` 重新決定集合。常用設定 adapter 保留目前完整 ISO 候選來源。顯示名稱失敗只退回代碼，不刪除允許項。常用幣別名稱優先使用可供兩端對齊的四語文案，其餘用 Intl；英文搜尋名稱獨立產生，不依目前介面語言。
 
 `CommandItem` 的 `data-selected` 是活動列，不代表已確認幣別；BC1a 已改用既有 Popover／輸入框搭配受控 listbox，分開 `value`、`search`、`activeCode`，列的單選勾號／selected 語意只取 `value`。組字期間阻止選取及 submit，Enter 明確選取後也阻止穿透。
 
@@ -254,4 +254,4 @@ BC3 的逐步操作、證據欄位與工具涵蓋界線已整理至[單一驗收
 - BC2：補對應畫面行為／持久化回歸；App 重啟／換帳號／429／未知結果保留既有邊界。不改 D 僅限 TWD 基準＋TWD 原幣＋均分的限制。
 - BC3：金額／預算／結算／公開分享／匯出／跨帳本統計及 Web／App 互讀，直接按 [B4](../../apps/mobile/docs/LOCAL_ACCEPTANCE.md#b4-固定帳務案例) 執行；缺參考匯率不影響建立空帳本。同基準記帳不依賴匯率服務。
 - Web 跑受影響行為與整合測試、應用 check／build；App 跑受影響測試、check／三平台 export。修改 contracts 才更新 schema／OpenAPI 並驗同步；跨 workspace 變動依根規範跑完整檢查。實際畫面操作與裝置結果另記，不以 bundle 匯出代替。
-- 每片完成後先獨立審查再接下一片，更新根 changelog；本文件維護現行規格、必要整合方式與剩餘工作，BC 全部實作後將工程結果合併 archive，不另開逐輪報告。BC1a／BC1b／BC1c／BC2a 已提交、BC2b 已提交，均未部署；非 TWD 建立預設已依使用者指示開啟，產品版本只在使用者要求提交時依根規則調整。
+- 每片完成後先獨立審查再接下一片，更新根 changelog；本文件維護現行規格、必要整合方式與剩餘工作，BC 全部實作後將工程結果合併 archive，不另開逐輪報告。BC1a／BC1b／BC1c／BC2a 已提交、BC2b 已提交，均未部署；非 TWD 建立開關已依使用者指示移除，產品版本只在使用者要求提交時依根規則調整。

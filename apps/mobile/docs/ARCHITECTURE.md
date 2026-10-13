@@ -30,7 +30,7 @@ SQLite schema 10（B5c-2）在 D `expense_queue` 加 api_version：升級前的�
 
 v2 C 的業務驗證拒絕由後端交易保存 receipt，含 `VALIDATION_ERROR`；原 UUID 補查取得終局後，SQLite 原子解除 pending 並恢復 handed-off 草稿的原始輸入／新 revision，使用者重讀名冊及重新預覽後才能新確認。重啟只查詢；一般 400、`not_found` 或補查失敗仍保留原 UUID，不猜測未提交，也不直接換 UUID 解除阻塞。
 
-D 新舊 queued／prepared 均維持 TWD／匯率 1／均分；非 TWD 帳本與外幣只能保存草稿，入列／prepare／同步各自檢查。非 TWD 建立依後端 capabilities 顯示選擇，後端未設定開關時預設開啟、未部署，可明確關閉；App 不自行決定開放。iPhone＋iPad 操作由他人驗收，Android 僅保留工程相容；B4 未完成，完整裝置與閱讀器不在此結案。
+D 新舊 queued／prepared 均維持 TWD／匯率 1／均分；非 TWD 帳本與外幣只能保存草稿，入列／prepare／同步各自檢查。非 TWD 建立依後端 capabilities 顯示選擇，後端固定開放、未部署，沒有環境變數開關；既有能力欄位固定 true，App 不自行決定支援清單。iPhone＋iPad 操作由他人驗收，Android 僅保留工程相容；B4 未完成，完整裝置與閱讀器不在此結案。
 
 BC2a 的 `features/tripEntry/currencySelection.ts` 只處理候選、四語／英文顯示與搜尋排序，與 Web 共用靜態測試 fixture，沒有跨應用原始碼引用。`BaseCurrencyField` 受控接收基準、能力候選與面板開關；搜尋文字只留元件記憶體，不進 body／SQLite。原表單與 E 引擎保持掛載，Modal 僅有本機顯示／焦點／鍵盤操作，不新增查詢或 provider；BC2b 表單按環境／帳號／登入世代重建，能力 key 含原登入世代；requestAs 的 beforeSend／回應後與所有晚到回呼檢查原 owner。按鈕／回呼共用能力與本機 journal 守衛，送出同步 ref／已保存凍結防重；pending 只讀原 payload，查詢與重試仍交 E 引擎，不由能力清單重建 body。
 

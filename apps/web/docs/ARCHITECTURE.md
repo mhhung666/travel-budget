@@ -28,7 +28,7 @@ Next.js App Router 與 React 組成介面，TanStack Query 負責查詢、重新
 ## 主要資料關係
 
 - **旅程**：包含成員、角色、幣別設定及每位成員的私人預算；行程日、支出、還款、相簿、清單與筆記歸屬旅程。
-- **支出與結算**：支出記錄付款人、原幣、匯率與各成員分攤金額；結算依餘額與已登記還款產生轉帳建議，B1 模型可固定旅程基準幣別，缺欄位的舊資料為 TWD；Web 已支援讀寫既有非 TWD 帳本，新建非 TWD 預設開啟，環境變數可明確關閉。規則與交易隔離見 [B1 API](MOBILE_API.md#b1-基準幣別契約)。
+- **支出與結算**：支出記錄付款人、原幣、匯率與各成員分攤金額；結算依餘額與已登記還款產生轉帳建議，B1 模型可固定旅程基準幣別，缺欄位的舊資料為 TWD；Web 已支援讀寫既有非 TWD 帳本，新建非 TWD 固定開放，沒有環境變數開關。規則與交易隔離見 [B1 API](MOBILE_API.md#b1-基準幣別契約)。
 - **個人資料**：統計彙整個人分攤；飛行與住宿紀錄屬於使用者，刪除旅程只解除終身紀錄的旅程關聯。
 - **檔案**：收據、票券及相簿透過 R2 儲存，資料庫保存物件 key；公開相簿使用移除位置資訊的獨立副本。
 
@@ -58,7 +58,7 @@ Web 畫面只透過在 v2 context 執行的 Server Action 身分（`withLedgerAu
 
 新版未送出支出草稿的 key 包含 origin／帳號／旅行／單位／版本。舊未分帳號 LocalStorage 草稿留在原 key，顯示不含內容的提示，**不自動載入或改寫**，避免跨帳號顯示；已確認 outbox 照原 UUID 恢復。非 TWD 新增需連線，斷線可保留未確認表單，不降級為 TWD。其他操作只在確認後持久化，不新增離線授權。
 
-非 TWD 建立仍由伺服器能力及 `ENABLE_NON_TWD_LEDGER` 控制，未設定時預設開啟；明確 `false` 或其他非 `true` 值則關閉。B3 Mobile 已實作；B4 獨立 Web／iPhone／iPad 操作、PWA 升級矩陣及精確 DB 核對仍待完成；Android 延後。工程檢查與剩餘驗收集中於 [B 交接](../../mobile/docs/LOCAL_ACCEPTANCE.md#b-基準幣別驗收b1b2b3-實作交接)。
+非 TWD 建立固定開放；已移除環境變數與建立拒絕分支，capabilities 的既有布林欄位固定 true，支援清單仍由後端提供。B3 Mobile 已實作；B4 獨立 Web／iPhone／iPad 操作、PWA 升級矩陣及精確 DB 核對仍待完成；Android 延後。工程檢查與剩餘驗收集中於 [B 交接](../../mobile/docs/LOCAL_ACCEPTANCE.md#b-基準幣別驗收b1b2b3-實作交接)。
 
 ## 手機 HTTP adapter
 

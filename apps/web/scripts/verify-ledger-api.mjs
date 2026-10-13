@@ -12,7 +12,6 @@ export async function verifyLedgerApi({
   ObjectId,
   date,
   origin,
-  creationEnabled = false,
 }) {
   const session = await login('mobile-ledger');
   const actor = new ObjectId(session.user.id);
@@ -24,44 +23,24 @@ export async function verifyLedgerApi({
   const call = (path, options = {}) =>
     request(path, { token: session.accessToken, ...options });
   const cap = (await call('/capabilities', { schema: v2Schemas.V2Capabilities })).data;
-  assert.equal(cap.nonTwdCreationEnabled, creationEnabled);
-  if (creationEnabled) {
-    for (const base of ['USD', 'JPY']) {
-      const body = {
-        client_request_id: randomUUID(),
-        name: `B4 local create ${base}`,
-        base_currency: base,
-      };
-      const result = (await call('/trips', { body, schema: v2Schemas.V2TripMutationResult })).data;
-      const repeated = (await call('/trips', { body, schema: v2Schemas.V2TripMutationResult }))
-        .data;
-      assert.deepEqual(repeated, result);
-      assert.deepEqual(result.ledger, { baseCurrency: base, moneyScale: 2 });
-      assert.equal(
-        await db
-          .collection('trips')
-          .countDocuments({ _id: new ObjectId(result.tripId), baseCurrency: base }),
-        1
-      );
-    }
-  } else {
-    const blocked = {
+  assert.equal(cap.nonTwdCreationEnabled, true);
+  for (const base of ['USD', 'JPY']) {
+    const body = {
       client_request_id: randomUUID(),
-      name: 'Must not create',
-      base_currency: 'USD',
+      name: `B4 local create ${base}`,
+      base_currency: base,
     };
+    const result = (await call('/trips', { body, schema: v2Schemas.V2TripMutationResult })).data;
+    const repeated = (await call('/trips', { body, schema: v2Schemas.V2TripMutationResult }))
+      .data;
+    assert.deepEqual(repeated, result);
+    assert.deepEqual(result.ledger, { baseCurrency: base, moneyScale: 2 });
     assert.equal(
-      (await call('/trips', { body: blocked, status: 409 })).error.code,
-      'FEATURE_NOT_AVAILABLE'
+      await db
+        .collection('trips')
+        .countDocuments({ _id: new ObjectId(result.tripId), baseCurrency: base }),
+      1
     );
-    const rejected = (
-      await call(`/mutation-requests/${blocked.client_request_id}`, {
-        schema: v2Schemas.V2MutationRequest,
-      })
-    ).data;
-    assert.equal(rejected.code, 'FEATURE_NOT_AVAILABLE');
-    assert.deepEqual(rejected.ledger, unit);
-    assert.equal(await db.collection('trips').countDocuments({ name: blocked.name }), 0);
   }
 
   const trip = new ObjectId();
