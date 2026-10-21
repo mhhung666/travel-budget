@@ -1,6 +1,6 @@
 # 新旅行：基準幣別選擇
 
-更新：2026-10-13。狀態：**BC1 Web 已提交；BC2a App 選擇器已實作、已提交，BC2b 表單狀態已實作、已提交；BC3 已由使用者確認驗收；非 TWD 開關已移除、固定開放、尚未部署**。順序為 Web → iOS App → 開放驗收；沿用既有 B1–B5 帳務，不重新改造金額模型。本文件是 BC 的共同規格，兩端不另開設計版本。Android 裝置驗收延後。
+更新：2026-10-22。狀態：**BC1 Web 已提交；BC2a App 選擇器已實作、已提交，BC2b 表單狀態已實作、已提交；BC3 已由使用者確認驗收；非 TWD 開關已移除、固定開放、尚未部署**。順序為 Web → iOS App → 開放驗收；沿用既有 B1–B5 帳務，不重新改造金額模型。本文件是 BC 的共同規格，兩端不另開設計版本。Android 裝置驗收延後。
 
 2026-10-13 使用者確認驗收並要求移除環境變數開關。非 TWD 新建固定開放，建立服務與隔離工具不再保留開／關兩種模式。capabilities 的既有 `nonTwdCreationEnabled` 固定 true，保留已安裝 App 契約相容性；候選仍以後端支援清單為準。既有 receipt 保留原終局，舊拒絕不因移除開關而重播成另一趟旅行。未新增契約、資料遷移或手機設定，尚未部署；原驗收證據不改寫。
 
@@ -64,15 +64,15 @@
 
 ## 優先修復：高精度匯率阻擋記帳提交
 
-2026-10-21 已盤點並以 Chromium 最小表單重現，**僅規劃、尚未修改產品程式**；沒有使用者當次錯誤訊息／網路紀錄，以下確認的是程式中的可重現缺陷，尚不能排除其他送出錯誤。
+2026-10-22 **FX1 修復、FX2 工程與 Chromium 自動化回歸、FX3 App 相容回歸已完成並提交，尚未部署；Safari／iOS 實際操作待驗收者核對。** 修正的是已重現的 HTML 步進驗證缺陷；沒有使用者當次錯誤訊息／網路紀錄，不能推定所有送出錯誤均屬此原因。
 
 ### 原因與範圍
 
 - [referenceRates.ts](../../apps/web/src/lib/referenceRates.ts) 將來源報價取倒數，[referenceRateMath.ts](../../apps/web/src/lib/referenceRateMath.ts) 再按帳本基準換算，產生多位小數是正常結果。表單預填／刷新／載入既有支出保留完整數值。
-- Web [AdvancedFields.tsx](../../apps/web/src/components/trips/detail/expense-form/AdvancedFields.tsx) 卻設定 `type="number" min="0" step="0.000001"`。示例（非即時報價）`1 / 0.03123 = 32.02049311559398` 觸發 `stepMismatch`，瀏覽器阻止 submit，尚未進入後端。`0.123456789`、`1.23456789e-7` 同樣重現；`32.123456` 可送出。改用 `step="any"` 後四者都通過此層驗證。
+- Web [AdvancedFields.tsx](../../apps/web/src/components/trips/detail/expense-form/AdvancedFields.tsx) 修復前設定 `type="number" min="0" step="0.000001"`。示例（非即時報價）`1 / 0.03123 = 32.02049311559398` 觸發 `stepMismatch`，瀏覽器阻止 submit，尚未進入後端。`0.123456789`、`1.23456789e-7` 同樣重現；`32.123456` 可送出。現已改用 `step="any"`，不截斷數值。
 - [ExpenseFormSheet.tsx](../../apps/web/src/components/trips/detail/expense-form/ExpenseFormSheet.tsx) 的新增／編輯共用此欄位，且只在「更多設定」展開時掛載，因此相同資料可能在展開時失敗、收合時通過。自動報價、自訂匯率、歷史資料、恢復草稿都可能帶入高精度值。
 - [契約 expenseRate](../../packages/contracts/src/index.ts) 與後端沒有六位小數上限；金額到分不代表匯率也須截位。Mobile [parseRate](../../apps/mobile/src/features/expenses/input.ts) 已接受長小數及科學記號，原生輸入沒有 HTML step 限制；目前未找到相同原因的 App 缺陷。
-- Web [TripCurrencySettings.tsx](../../apps/web/src/components/trips/detail/TripCurrencySettings.tsx) 也有相同步進限制，但目前透過按鈕 handler 儲存，不能直接判定會被同樣攔下；納入一致性修正與回歸。
+- Web [TripCurrencySettings.tsx](../../apps/web/src/components/trips/detail/TripCurrencySettings.tsx) 也已移除相同步進限制；原本透過按鈕 handler 儲存，不將它視為同樣已確認的提交阻擋。回歸核對完整自訂值可載入、修改與保存。
 
 ### 實作順序與完成條件
 
@@ -80,7 +80,9 @@
 2. **FX2：Web 回歸與瀏覽器驗收，隨 FX1 同一交付。** 擴充既有 `expenseFormLayout.test.tsx`／匯率測試，以非整除報價與非 TWD 基準覆蓋新增、編輯僅改描述、手動輸入、刷新、草稿恢復及自訂設定。展開／收合都能觸發一次提交，提交完整匯率，金額／分攤一致；無效零／負數／空值／非有限值及換算溢位仍擋下。用實際 click 或 `requestSubmit()`，不能僅 `fireEvent.submit()` 繞過瀏覽器驗證，也不能只斷言 step 屬性。補 Chromium、Safari／iOS WebKit 實際表單確認及 Web check／相關測試／build。
 3. **FX3：App 相容回歸。** 重跑既有 `draft.test.ts`、`maintenance.test.ts`、`currencyRecovery.test.ts` 的長小數／極小匯率案例，確認預覽、確認、丟回應後原 UUID 恢復不改匯率或金額。先以回歸為範圍，發現 App 獨立問題才修改；目前不需改 v2 契約、資料模型、分攤演算法或 migration。
 
-本次驗證僅為 Chromium 原生 constraint validation 最小案例與原始碼追查，不是完整記帳流程驗收；本機缺少 Playwright WebKit 執行檔，Safari／iOS 尚未驗證。修復規模小，主要風險是為了縮短顯示而誤改計算值；完成條件為合法匯率不再被 UI 誤擋，且帳務精度與恢復行為保持原樣。
+工程結果：新增 19 項 Web 回歸，透過實際點擊提交覆蓋新增／描述編輯、非 TWD／極小匯率、展開／收合、刷新、手動值與草稿恢復、自訂設定及非法／超限值；舊欄位設定下其中 9 項失敗，修復後通過。Web 全部 2,588 項通過、646 項需 DB 環境案例略過；根 check／Web build 通過。Mobile 未改產品程式，指定三檔精度／恢復測試 114 項、全部 1,797 項與工具 48 項通過；契約、已確認 body／UUID、計算及歷史資料格式皆未改。
+
+既有 `test:offline-browser` 已補高精度案例，在隔離 MongoDB 與正式 PWA 的 Chromium 自動化通過：非 TWD 新增於展開／收合各提交一筆，核對完整匯率、金額與份額；歷史非均分支出只改描述、丟回應後重啟沿原 UUID 查回，只產生一次更新。重跑使用 Web 的 `pnpm test:offline-browser`，工具自行建立並清理測試容器／伺服器。這不是人工畫面或裝置驗收；本機缺少 Playwright WebKit 執行檔，Safari／iOS 的實際表單確認仍交驗收者，需特別核對展開／收合、長小數及科學記號的新增與描述編輯。
 
 ## 共同 UI／UX 設計
 
@@ -246,7 +248,7 @@ BC1c 新增 16 項畫面／真 journal 故障回歸及 3 項隔離交易案例�
 
 表單按環境／帳號／登入世代重建；能力查詢使用 requestAs，在 fetch 前及回應後檢查原世代。晚到結果／錯誤／延遲導覽不跨帳號或已卸載頁面；即使暫時失焦，已保存的操作仍凍結，避免重新確認。保存前失敗保留輸入，結果不明交接既有待處理畫面；重開表單若同種類 pending，唯讀顯示原保存名稱／日期／幣別與 UUID。沒有新 journal／SQLite 或恢復協定；新的能力只限制新確認，不限制原 UUID 查詢／原內容重試。
 
-BC2b 新增 22 項畫面／世代與 6 項真 SQLite 故障案例；Mobile 全部 1,794 項＋工具 48 項、check／三平台匯出通過。TWD／USD／JPY 保存原 body／UUID、換帳號／環境不讀到原操作、丟回應重啟只查詢、終局落盤失敗不解鎖、429 重啟 31 秒仍等到原 120 秒均已核對。Expo 相容性檢查的既有四項 patch 更新提示仍保留，本片未改依賴；Web／iPhone／iPad／VoiceOver 與 DB 的實際連續操作由 BC3 驗收者接手，正式 gate 不變。
+BC2b 新增 22 項畫面／世代與 6 項真 SQLite 故障案例；Mobile 全部 1,794 項＋工具 48 項、check／三平台匯出通過。TWD／USD／JPY 保存原 body／UUID、換帳號／環境不讀到原操作、丟回應重啟只查詢、終局落盤失敗不解鎖、429 重啟 31 秒仍等到原 120 秒均已核對。該片當時未改依賴；既有四項 Expo patch 相容性提示已於 2026-10-14 對齊修復，工程檢查見根 changelog；Web／iPhone／iPad／VoiceOver 與 DB 的實際連續操作由 BC3 驗收者接手，正式 gate 不變。
 
 ## 驗證與交接
 

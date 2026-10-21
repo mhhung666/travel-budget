@@ -158,7 +158,7 @@ export default function TripCurrencySettingsCard({
                         aria-label={`${row.code} · ${t('currencySettings.customRate')}`}
                         type="number"
                         min="0"
-                        step="0.000001"
+                        step="any"
                         inputMode="decimal"
                         value={row.rate}
                         onChange={(e) => setRate(row.code, e.target.value)}

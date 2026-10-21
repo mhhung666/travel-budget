@@ -9,6 +9,17 @@ allowBuilds:
   sharp: true
   unrs-resolver: true
 
+minimumReleaseAgeExclude:
+  - '@expo/cli@57.0.32'
+  - '@expo/config-plugins@57.0.11'
+  - '@expo/router-server@57.0.14'
+  - expo-modules-core@57.0.24
+  - expo-modules-jsi@57.1.3
+  - expo@57.0.31
+  - '@expo/ui@57.0.26'
+  - expo-network@57.0.3
+  - expo-router@57.0.29
+
 # Keep React ambient declarations consistent while app runtime versions stay independent.
 overrides:
   '@types/react': 19.2.17

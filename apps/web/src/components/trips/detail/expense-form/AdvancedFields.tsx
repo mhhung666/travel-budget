@@ -98,7 +98,7 @@ export function AdvancedFields({
               value={exchangeRate}
               onChange={(e) => onExchangeRateChange(e.target.value)}
               min="0"
-              step="0.000001"
+              step="any"
             />
             <TooltipProvider>
               <Tooltip>

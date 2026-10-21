@@ -32,6 +32,10 @@ export async function verifyWebLedgerBrowser({
       name: 'B2 USD ledger',
       hashCode: 'b2usdtest',
       baseCurrency: 'USD',
+      currencySettings: {
+        defaultCurrency: 'JPY',
+        currencies: [{ code: 'JPY', rate: 0.123456789 }],
+      },
       members,
       createdAt: now,
     },
@@ -54,7 +58,7 @@ export async function verifyWebLedgerBrowser({
       amount: 20.1,
       originalAmount: 3000,
       currency: 'JPY',
-      exchangeRate: 0.0067,
+      exchangeRate: 0.006700123456789,
       description: 'B2 foreign metadata',
       category: 'food',
       date: now,
@@ -115,6 +119,12 @@ export async function verifyWebLedgerBrowser({
   assert.equal(await page.getByText('NT$20.1', { exact: true }).count(), 0);
   await page.getByText('B2 foreign metadata', { exact: true }).click();
   await page.getByRole('button', { name: en.expense.edit, exact: true }).click();
+  assert.equal(await page.locator('#expense-exchange-rate').inputValue(), '0.006700123456789');
+  assert.equal(
+    await page.locator('#expense-exchange-rate').evaluate((input) => input.checkValidity()),
+    true,
+    'A historical full-precision rate must not block native form submission'
+  );
   await page.locator('#expense-description').fill('B2 response lost edit');
   let dropped = false;
   await page.route(url, async (route) => {
@@ -151,7 +161,7 @@ export async function verifyWebLedgerBrowser({
   assert.equal(saved.amount, 20.1);
   assert.equal(saved.originalAmount, 3000);
   assert.equal(saved.currency, 'JPY');
-  assert.equal(saved.exchangeRate, 0.0067);
+  assert.equal(saved.exchangeRate, 0.006700123456789);
   assert.deepEqual(
     saved.splits.map((s) => s.shareAmount),
     [8, 12.1]
@@ -170,6 +180,40 @@ export async function verifyWebLedgerBrowser({
   pass(
     'B2 production metadata edit keeps foreign/non-equal accounting and recovers a lost response once'
   );
+  for (const expanded of [true, false]) {
+    const description = `FX precise quote expanded=${expanded}`;
+    await page.goto(url);
+    await page.getByRole('button', { name: en.expense.add, exact: true }).first().click();
+    await page.locator('#expense-amount').fill('100.01');
+    await page.locator('#expense-description').fill(description);
+    // The pinned default quote is valid without truncation, whether mounted or collapsed.
+    if (expanded) {
+      await page.getByRole('button', { name: en.expense.form.moreSettings, exact: false }).click();
+      assert.equal(await page.locator('#expense-exchange-rate').inputValue(), '0.123456789');
+      assert.equal(
+        await page.locator('#expense-exchange-rate').evaluate((input) => input.checkValidity()),
+        true
+      );
+    }
+    await page.locator('button[form="expense-form"]').click();
+    await page.locator('#expense-description').waitFor({ state: 'hidden' });
+    const filter = { trip: usdTrip, description };
+    await eventually(
+      async () => (await db.collection('expenses').countDocuments(filter)) === 1,
+      'Full-precision foreign expense did not commit'
+    );
+    const created = await db.collection('expenses').findOne(filter);
+    assert.equal(created.baseCurrency, 'USD');
+    assert.equal(created.currency, 'JPY');
+    assert.equal(created.exchangeRate, 0.123456789);
+    assert.equal(created.originalAmount, 100.01);
+    assert.equal(created.amount, 12.35);
+    assert.deepEqual(
+      created.splits.map((s) => s.shareAmount),
+      [6.18, 6.17]
+    );
+    pass(`FX production native submit preserves the full quote and shares, expanded=${expanded}`);
+  }
   await page.goto(`${origin}/trips/${jpyTrip}/expenses`);
   await page.getByText('B2 JPY cents', { exact: true }).waitFor();
   await page.getByText('¥0.01', { exact: true }).first().waitFor();

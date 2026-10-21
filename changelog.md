@@ -4,13 +4,21 @@
 
 ## Unreleased
 
+### 2026-10-22
+
+- Mobile：修正複驗發現的 Expo 相容性失敗，對齊 Expo／constants／linking／network／router 五項同 SDK patch 與根 lockfile；保留 React／React Native 版本，pnpm 新增的發布等待期例外限於確切套件版本。開發規範補充交付時重跑相容性檢查。
+- 工程：獨立複驗確認 Expo 相容性 P2 已排除；Expo 相容性、frozen install、根 check／build、三平台匯出、Web 2,588 項與 Mobile 1,797 項＋工具 48 項通過，646 項環境案例略過。Web 匯率的既有 13 組 Chromium／PWA／MongoDB 複驗結論保留；Web 修正隨提交升 patch，Mobile 僅依賴維護不升版。Safari／iOS 仍待驗，未部署。
+
 ### 2026-10-21
 
-- 規劃：暫緩旅行基準幣別變更；確認 Web 高精度匯率與欄位步進限制衝突，Chromium 最小表單可重現提交遭阻擋，整理保留完整匯率的修復及跨端回歸範圍，見[共同設計](docs/design/BASE_CURRENCY_CREATION.md#優先修復高精度匯率阻擋記帳提交)。尚未實作，完整流程與 Safari／iOS 待驗。
+- Web：修復高精度匯率被瀏覽器步進驗證擋下的問題，記帳與自訂匯率接受完整數值，保留既有金額／分攤及原 UUID 恢復。新增 19 項回歸，涵蓋新增、描述編輯、展開／收合、刷新、草稿與無效值；不改 App、契約或歷史資料。
+- 工程：Web 2,588 項、Mobile 1,797 項＋工具 48 項、根 check／Web build 通過；646 項環境案例略過。隔離 Chromium／PWA／MongoDB 自動化核對高精度提交與丟回應恢復無重複；Safari／iOS 仍交驗收者，未部署。旅行基準變更維持暫緩，見[共同設計](docs/design/BASE_CURRENCY_CREATION.md#優先修復高精度匯率阻擋記帳提交)。
 
 ### 2026-10-14
 
 - 文件：盤點旅行設定變更基準幣別的資料、匯率、分攤／還款及跨端恢復影響；建議先開放未產生帳務的旅行，再另規劃完整轉換，見[共同設計](docs/design/BASE_CURRENCY_CREATION.md#後續評估在旅行設定變更基準幣別)。僅評估，未實作。
+- Mobile：修復 CI 的 Expo 相容性檢查失敗，對齊 Expo／crypto／router／splash-screen 四項 patch 與根 lockfile，保留 SDK 與 React Native 版本。
+- Web：移除帳本測試的未使用 import，清除 CI lint 警告。Frozen install、Expo 相容性、根 check／build、三平台匯出及 Web 2,569 項／Mobile 1,797 項＋工具 48 項通過；646 項 DB 環境案例略過。
 
 ### 2026-10-13
 
