@@ -18,6 +18,70 @@
 | [後端能力](../../apps/web/src/lib/ledger.ts)／[建立服務](../../apps/web/src/lib/tripEntry.ts)                                                           | 已支援非 TWD、不可變基準與 UUID 收據；沒有環境變數開關，capabilities 固定開放，Web／App 共用。                    |
 | [B4 待驗](../../apps/mobile/docs/LOCAL_ACCEPTANCE.md#b4-固定帳務案例)                                                                                   | 跨端精確帳務與恢復仍待驗；本計畫不把舊工程通過視為已可開放。                                                      |
 
+## 後續評估：在旅行設定變更基準幣別
+
+2026-10-21 決策：**使用者評估風險後暫緩，不排入開發；BC4／BC5 僅保留評估，建立後不可改規則維持。**
+
+2026-10-14 靜態盤點，**尚未實作，也未變更目前「建立後不可改」規則**。可新增此能力，但它是帳本單位變更，不等同既有「預設記帳幣別」；若需求只是用另一幣別看總額，應另做參考顯示，不重寫帳務。以下為建議範圍，尚非已核准的換算政策。
+
+### 現況與影響範圍
+
+| 範圍／程式入口                                                                                                                                                                                                                        | 必要處理                                                                                                                                                                                                                            |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Trip](../../apps/web/src/models/Trip.ts)、[Expense](../../apps/web/src/models/Expense.ts)、[Payment](../../apps/web/src/models/Payment.ts)                                                                                           | 三者 `baseCurrency` 都標示 immutable；支出 `amount`／`splits.shareAmount`、還款 `amount`、成員預算 total／categories 都是基準金額。不能只解除 Trip 限制或換幣別標籤。舊資料缺單位仍解作 TWD。                                       |
+| [ledger.ts](../../apps/web/src/lib/ledger.ts)、[tripManagement.ts](../../apps/web/src/lib/tripManagement.ts)                                                                                                                          | 一般旅行更新明確拒絕基準欄位；讀寫會核對子文件單位。不完整轉換會觸發 `LEDGER_DATA_INVALID`，影響旅行列表與統計等讀取。新增專用操作，不混入一般名稱／日期儲存。                                                                      |
+| [交易守衛](../../apps/web/src/lib/tripWriteTransaction.ts)                                                                                                                                                                            | 沿用同旅行 parent fence 與交易，序列化基準變更和記帳／還款／預算／設定／刪除。提交時重新驗資格、管理員、舊單位及 revision；不能只靠畫面讀到的空帳判斷。現有交易期限 20 秒，有資料轉換須評估規模，超限另設可恢復批次與完整讀寫隔離。 |
+| [支出維護](../../apps/web/src/lib/expenseMaintenance.ts)、[分攤](../../apps/web/src/lib/expenseSplit.ts)、[還款](../../apps/web/src/lib/paymentWrite.ts)                                                                              | 有帳務時須定義原幣／歷史匯率、新金額、尾差分配與已還款的換算政策。歷史支出沒有完整分攤模式／原始輸入，不能當成一律均分；還款只保存原帳本的金額與單位，不能推測實際付款原幣。                                                        |
+| [匯率設定](../../apps/web/src/lib/currencySettings.ts)、[預算](../../apps/web/src/lib/budgetWrite.ts)                                                                                                                                 | 自訂匯率的報價基準改變，不能原數字沿用；新基準有效匯率必為 1。常用幣別及明確選定的預設原幣可保留，未指定預設則跟隨新基準。私人預算不可讓管理員看見個別內容；首階段以是否存在阻擋，後續另定換算及告知規則。                          |
+| [共用契約](../../packages/contracts/src/index.ts)、Web action／Mobile v2 adapter                                                                                                                                                      | 新增可否變更及原因、專用確認輸入／結果、UUID receipt。現有 `ledgerSchema` 是 strict，只有代碼與 moneyScale，不能任意加欄位而假設舊 App 能讀。帳本世代與舊客戶端相容需先設計，不預設另開 v3。                                        |
+| [receipt 驗證](../../apps/web/src/lib/ledger.ts)、[Web journal](../../apps/web/src/lib/confirmedWebWrites.ts)、[App engine](../../apps/mobile/src/features/tripEntry/engine.ts)                                                       | 現在 receipt 單位會與目前帳本或原確認單位比較；換基準後，歷史成功不能被當成壞資料或重新執行。須分開原操作單位與目前帳本，定義變更操作的 before／after；保留原 UUID／body／終局、重新驗權限。連建立旅行的舊 receipt 也要涵蓋。       |
+| Web IndexedDB／App SQLite、草稿及離線佇列                                                                                                                                                                                             | 伺服器看不到其他裝置未送出的資料，不能承諾「沒有 pending」。過期確認須安全拒絕或重播原終局；未確認草稿保留原單位並要求重看，不直接重標或自動換算；App TWD-only 佇列限制仍保留。                                                     |
+| [Web 設定卡](../../apps/web/src/components/trips/detail/TripCurrencySettings.tsx)、[App 設定入口](../../apps/mobile/src/features/trips/TripSettingsScreen.tsx)／[幣別頁](../../apps/mobile/src/features/trips/TripCurrencyScreen.tsx) | 基準獨立於常用幣別／預設記帳幣別，重用既有搜尋選擇器；管理員可操作、成員唯讀、列出不可變更原因，獨立確認後才送出。建立頁不可更改文案、四語與閱讀器同步更新。                                                                        |
+| 快取與衍生結果                                                                                                                                                                                                                        | 更新旅行列表／詳情、記帳 options、預算、支出、結算、搜尋、統計及年度回顧；跨端前景刷新與舊表單檢查須涵蓋單位變更。公開分享與 CSV／JSON／Markdown／結算匯出回歸核對；既有行程 PDF 無帳務金額，通常無需改版。                         |
+| 活動／通知／稽核                                                                                                                                                                                                                      | 記錄操作者、時間、前後單位與換算依據。歷史通知／事件快照保留當時金額及單位；基準轉換不能重新發送原始新增支出通知。已下載的匯出檔不追溯改寫。                                                                                        |
+
+### 建議分階段
+
+1. **BC4a：共用後端與相容性。** 首版僅允許管理員在線上修改「從未產生帳務、沒有成員預算」的旅行；曾有支出／還款即使刪光或結清，也不視為從未記帳。須建立不可因刪除而清除的帳務使用標記，既有資料依可驗證歷史保守判定，不能只查目前筆數；需要回填時另列操作，這份盤點不執行 migration。成員／行程／相片本身不構成帳務限制。自訂匯率首版建議在確認時明示清除，保留常用代碼與明確預設原幣，不猜轉換值。
+2. **BC4b：Web 設定。** 提供目前基準、可搜尋改選、阻擋原因及確認內容；專用寫入沿用持久化確認與恢復，完成後刷新所有受影響讀取。先完成新後端和既有 App 的讀取、過期寫入、receipt 恢復相容驗證，才能開放 Web 操作。
+3. **BC4c：App 設定。** 接相同能力與操作，重用原生選擇器、登入世代及 journal；補鍵盤、返回、VoiceOver、iPad、大字級與四語。Web 先實作不代表可略過舊 App 相容性。
+4. **BC5：已有帳務的整本轉換，另行決策。** 需有預覽、匯率來源／日期、差額、受影響記錄數、前後稽核快照、衝突與恢復方案；金額與尾差政策確定後才拆實作。不把「只剩支出、沒有還款」當成可直接換標籤的簡單版本。
+
+首階段規模為**中等、跨後端／契約／雙端恢復機制**；有帳務轉換為**大型帳務改造**。現有跨幣別顯示／搜尋核心可重用，大多數頁面不需重做版型，主要工作是資料與操作一致性。
+
+### 有帳務轉換前必須決定的規則
+
+- **歷史金額怎麼換。** 原支出 USD 10、歷史匯率 32，帳本存 TWD 320；換 USD 基準時若用今日 30 直接除，會成 USD 10.67。但現有規則要求原幣等於基準時 rate = 1、amount = originalAmount，因此應為 USD 10。不能同時宣稱「所有舊基準金額統一乘一個倍率」與「既有原幣規則完全不變」。其他原幣要採哪天的匯率／是否保留歷史相對值也須明定。
+- **分攤與已還款怎麼處理。** 個別四捨五入後可能使原本結清的人重新欠 0.01；須決定是否禁止含還款旅行轉換、如何處理差額或保留原帳本。不得自動加一筆虛構付款來湊平；所有幣別仍沿用兩位帳本小數。
+- **反覆切換與舊請求。** TWD → USD → TWD 後，僅比對代碼看不出已換過；需要單調帳本世代或等效防護。舊 App 沒帶世代時，須在變更過的旅行限制相關寫入／提示更新，或採其他可證明安全的相容方案，不能只靠重新整理頁面。
+- **歷史及權限。** 原金額／匯率／分攤與原 receipt 不被覆寫失去稽核依據；管理員變更全團帳本與他人私人預算的告知、是否需其他成員同意，須在完整轉換前確認。
+
+### 必要驗證
+
+空帳變更與第一筆支出／預算／還款併發；已刪光但有歷史；TWD 缺欄位舊資料；自訂匯率重設；管理員撤權；重複確認／丟回應／重啟只執行一次；歷史建立／支出／設定 receipt 仍可恢復；其他裝置的未確認草稿與已確認佇列；TWD → USD → TWD 舊請求；strict schema 舊 App 相容；USD／JPY／非熱門幣別；公開／匯出／統計與四語。完整轉換再加金額上限、分攤總和、已結清尾差、交易失敗全回滾及大帳本恢復案例。
+
+本次僅閱讀程式並記錄評估，未跑行為測試、改產品程式、變更資料或提交；原有未提交修改保留。
+
+## 優先修復：高精度匯率阻擋記帳提交
+
+2026-10-21 已盤點並以 Chromium 最小表單重現，**僅規劃、尚未修改產品程式**；沒有使用者當次錯誤訊息／網路紀錄，以下確認的是程式中的可重現缺陷，尚不能排除其他送出錯誤。
+
+### 原因與範圍
+
+- [referenceRates.ts](../../apps/web/src/lib/referenceRates.ts) 將來源報價取倒數，[referenceRateMath.ts](../../apps/web/src/lib/referenceRateMath.ts) 再按帳本基準換算，產生多位小數是正常結果。表單預填／刷新／載入既有支出保留完整數值。
+- Web [AdvancedFields.tsx](../../apps/web/src/components/trips/detail/expense-form/AdvancedFields.tsx) 卻設定 `type="number" min="0" step="0.000001"`。示例（非即時報價）`1 / 0.03123 = 32.02049311559398` 觸發 `stepMismatch`，瀏覽器阻止 submit，尚未進入後端。`0.123456789`、`1.23456789e-7` 同樣重現；`32.123456` 可送出。改用 `step="any"` 後四者都通過此層驗證。
+- [ExpenseFormSheet.tsx](../../apps/web/src/components/trips/detail/expense-form/ExpenseFormSheet.tsx) 的新增／編輯共用此欄位，且只在「更多設定」展開時掛載，因此相同資料可能在展開時失敗、收合時通過。自動報價、自訂匯率、歷史資料、恢復草稿都可能帶入高精度值。
+- [契約 expenseRate](../../packages/contracts/src/index.ts) 與後端沒有六位小數上限；金額到分不代表匯率也須截位。Mobile [parseRate](../../apps/mobile/src/features/expenses/input.ts) 已接受長小數及科學記號，原生輸入沒有 HTML step 限制；目前未找到相同原因的 App 缺陷。
+- Web [TripCurrencySettings.tsx](../../apps/web/src/components/trips/detail/TripCurrencySettings.tsx) 也有相同步進限制，但目前透過按鈕 handler 儲存，不能直接判定會被同樣攔下；納入一致性修正與回歸。
+
+### 實作順序與完成條件
+
+1. **FX1：Web 最小修復。** 記帳匯率與自訂匯率欄位改用 `step="any"`，保留有限正數、同幣匯率 1、換算上限及既有分攤檢查。不要整張表單加 `noValidate`；不要用 `toFixed(6)` 截斷資料。預填、刷新、預覽、送出、儲存及重播維持同一數值；本次不另做顯示縮位 UX，也不修改歷史記錄或已確認 body／UUID。
+2. **FX2：Web 回歸與瀏覽器驗收，隨 FX1 同一交付。** 擴充既有 `expenseFormLayout.test.tsx`／匯率測試，以非整除報價與非 TWD 基準覆蓋新增、編輯僅改描述、手動輸入、刷新、草稿恢復及自訂設定。展開／收合都能觸發一次提交，提交完整匯率，金額／分攤一致；無效零／負數／空值／非有限值及換算溢位仍擋下。用實際 click 或 `requestSubmit()`，不能僅 `fireEvent.submit()` 繞過瀏覽器驗證，也不能只斷言 step 屬性。補 Chromium、Safari／iOS WebKit 實際表單確認及 Web check／相關測試／build。
+3. **FX3：App 相容回歸。** 重跑既有 `draft.test.ts`、`maintenance.test.ts`、`currencyRecovery.test.ts` 的長小數／極小匯率案例，確認預覽、確認、丟回應後原 UUID 恢復不改匯率或金額。先以回歸為範圍，發現 App 獨立問題才修改；目前不需改 v2 契約、資料模型、分攤演算法或 migration。
+
+本次驗證僅為 Chromium 原生 constraint validation 最小案例與原始碼追查，不是完整記帳流程驗收；本機缺少 Playwright WebKit 執行檔，Safari／iOS 尚未驗證。修復規模小，主要風險是為了縮短顯示而誤改計算值；完成條件為合法匯率不再被 UI 誤擋，且帳務精度與恢復行為保持原樣。
+
 ## 共同 UI／UX 設計
 
 ### 設計重點
