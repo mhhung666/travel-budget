@@ -73,7 +73,7 @@ export default function TripList({
       {groups.map((group) => (
         <section key={group.key}>
           <h3 className="mb-4 text-lg font-semibold text-foreground">{group.label}</h3>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {group.trips.map((trip) => (
               <TripCard
                 key={trip.id}
