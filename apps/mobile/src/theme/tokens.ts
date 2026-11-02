@@ -61,6 +61,20 @@ export type Tone = 'info' | 'success' | 'warning' | 'danger';
 
 export const spacing = { tiny: 4, small: 8, compact: 12, medium: 16, large: 24, section: 32 };
 export const radius = { card: 16, control: 12, badge: 999 };
+export const cardShadows = {
+  resting: {
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  active: {
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+};
 export const sizing = {
   border: 1,
   touch: 48,

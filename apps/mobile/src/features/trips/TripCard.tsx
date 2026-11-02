@@ -6,7 +6,7 @@ import type { Trip } from '@/api/contracts';
 import { Action, Badge, Icon, usePalette } from '@/components/ui';
 import { useDisplayFormat } from '@/i18n/useDisplayFormat';
 import { useMessages } from '@/i18n/useMessages';
-import { radius, sizing, spacing, typography } from '@/theme/tokens';
+import { cardShadows, radius, sizing, spacing, typography } from '@/theme/tokens';
 import { TripFinancialSummary, TripMetadata, tripDates } from './TripSummary';
 
 export function TripCard({
@@ -20,6 +20,8 @@ export function TripCard({
 }) {
   const p = usePalette();
   const [mainFocused, setMainFocused] = useState(false);
+  const [mainPressed, setMainPressed] = useState(false);
+  const [mainHovered, setMainHovered] = useState(false);
   const [moreFocused, setMoreFocused] = useState(false);
   const t = useMessages(baseCurrency(trip));
   const { money, locale } = useDisplayFormat(baseCurrency(trip));
@@ -30,9 +32,11 @@ export function TripCard({
       style={{
         marginBottom: spacing.medium,
         borderWidth: sizing.border,
-        borderColor: p.border,
+        borderColor: mainFocused ? p.focus : p.border,
         borderRadius: radius.card,
-        backgroundColor: p.surface,
+        backgroundColor: mainPressed ? p.selected : p.surface,
+        shadowColor: p.scrim,
+        ...(mainPressed || mainHovered || mainFocused ? cardShadows.active : cardShadows.resting),
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
@@ -41,19 +45,25 @@ export function TripCard({
           accessibilityRole="button"
           accessibilityLabel={`${trip.name}, ${state}${trip.archived ? `, ${t.archived}` : ''}, ${tripDates(trip, t, locale)}, ${trip.destination ?? ''}, ${t.memberCount}: ${trip.memberCount}, ${t.mySpent}: ${money(trip.mySpent)}, ${balance}: ${money(Math.abs(trip.myBalance))}, ${t.openTrip}`}
           onFocus={() => setMainFocused(true)}
-          onBlur={() => setMainFocused(false)}
+          onBlur={() => {
+            setMainFocused(false);
+            setMainPressed(false);
+          }}
+          onPressIn={() => setMainPressed(true)}
+          onPressOut={() => setMainPressed(false)}
+          onHoverIn={() => setMainHovered(true)}
+          onHoverOut={() => setMainHovered(false)}
           onPress={() => router.push({ pathname: '/trips/[id]', params: { id: trip.id } })}
-          style={({ pressed }) => ({
+          style={{
             flex: 1,
             minWidth: 0,
             minHeight: sizing.touch,
-            backgroundColor: pressed ? p.selected : p.surface,
             borderRadius: radius.card,
             borderWidth: 2,
-            borderColor: mainFocused ? p.focus : 'transparent',
+            borderColor: 'transparent',
             padding: spacing.medium - 2,
             gap: spacing.small,
-          })}
+          }}
         >
           <Text style={[typography.section, { color: p.text, fontWeight: '700' }]}>
             {trip.name}

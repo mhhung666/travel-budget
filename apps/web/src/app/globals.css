@@ -97,6 +97,27 @@
   }
 }
 
+@layer components {
+  /* 主區觸發整卡回饋；更多與快捷保留自己的焦點和點擊範圍。 */
+  .trip-card-main {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .trip-card[data-main-pressed='true'] {
+    @apply bg-muted/40 shadow-md;
+  }
+
+  .trip-card:has(.trip-card-main:focus-visible) {
+    @apply ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .trip-card:has(.trip-card-main:hover) {
+      @apply shadow-md;
+    }
+  }
+}
+
 @layer utilities {
   /* 品牌漸層:統計/結算摘要卡與 Wrapped 卡共用,不在元件內散裝漸層色 */
   .bg-brand-gradient {

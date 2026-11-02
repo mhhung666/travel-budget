@@ -311,18 +311,16 @@ it('uses measured container width, including card padding and the page cap', () 
 it('keeps long archived names and truthful accounting in the accessible card, in both palettes', () => {
   for (const dark of [false, true]) {
     h.dark = dark;
-    const tree = find(
-      TripCard({ trip: { ...trip, archived: true, myBalance: 0 } }),
-      'testID',
-      `trip-${trip.id}`
-    );
+    const card = TripCard({ trip: { ...trip, archived: true, myBalance: 0 } });
+    const tree = find(card, 'testID', `trip-${trip.id}`);
     expect(tree.props.accessibilityLabel).toContain(trip.name);
     expect(tree.props.accessibilityLabel).toContain(messages.en.archived);
     expect(tree.props.accessibilityLabel).toContain(messages.en.balanced);
     expect(nodes(tree).some((n) => n.props.numberOfLines !== undefined)).toBe(false);
-    expect(
-      (tree.props.style as (p: { pressed: boolean }) => object)({ pressed: false })
-    ).toMatchObject({ backgroundColor: colors[dark ? 'dark' : 'light'].surface });
+    expect(card.props.style).toMatchObject({
+      backgroundColor: colors[dark ? 'dark' : 'light'].surface,
+    });
+    expect(tree.props.style).not.toHaveProperty('backgroundColor');
     press(tree);
   }
   expect(h.push).toHaveBeenLastCalledWith({ pathname: '/trips/[id]', params: { id: 'a' } });

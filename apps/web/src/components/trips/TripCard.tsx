@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+
 import {
   Archive,
   ArchiveRestore,
@@ -41,6 +43,7 @@ export default function TripCard({
   onQuickExpense,
   disabled = false,
 }: TripCardProps) {
+  const [mainPressed, setMainPressed] = useState(false);
   const t = useTranslations('trips');
   const locale = useLocale();
   const isArchived = trip.archived_at != null;
@@ -73,12 +76,21 @@ export default function TripCard({
   return (
     <Card
       data-trip-card={trip.id}
-      className="flex h-full flex-col rounded-2xl border-border bg-card shadow-sm"
+      data-main-pressed={mainPressed}
+      className="trip-card flex h-full flex-col rounded-2xl border-border bg-card shadow-sm transition-[background-color,box-shadow] duration-150"
     >
       <div className="flex items-start gap-2">
         <Link
           href={ROUTES.TRIP_DETAIL(trip.hash_code)}
-          className="min-h-12 min-w-0 flex-1 space-y-3 rounded-2xl p-4 text-left transition-colors hover:bg-muted/40 active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          onPointerDown={(event) => {
+            if (event.isPrimary && event.button === 0) setMainPressed(true);
+          }}
+          onPointerUp={() => setMainPressed(false)}
+          onPointerCancel={() => setMainPressed(false)}
+          onPointerLeave={() => setMainPressed(false)}
+          onBlur={() => setMainPressed(false)}
+          onContextMenu={() => setMainPressed(false)}
+          className="trip-card-main min-h-12 min-w-0 flex-1 space-y-3 rounded-2xl p-4 text-left focus-visible:outline-none"
         >
           <h3 className="break-words text-xl font-semibold text-foreground">{trip.name}</h3>
           <div className="flex flex-wrap gap-2">

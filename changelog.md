@@ -4,6 +4,11 @@
 
 ## Unreleased
 
+### 2026-11-02
+
+- Web／Mobile：旅行列表主區按壓改由完整卡片顯示底色與陰影，移除局部圓角面板效果；Web 排除預設觸控高亮，保留更多、記一筆與結算的獨立操作及鍵盤焦點。
+- 工程：Web 23 項／Mobile 52 項相關測試、根 check、Expo 相容性及三平台匯出通過；Chromium 模擬資料檢查涵蓋 24 組寬度／語系／主題、觸控按下／放開／取消與捲動解除。共同設計同步；Safari／iOS／Android 實機視覺與操作仍待驗，未部署。
+
 ### 2026-10-22
 
 - Mobile：修正複驗發現的 Expo 相容性失敗，對齊 Expo／constants／linking／network／router 五項同 SDK patch 與根 lockfile；保留 React／React Native 版本，pnpm 新增的發布等待期例外限於確切套件版本。開發規範補充交付時重跑相容性檢查。
