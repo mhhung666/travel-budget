@@ -12,7 +12,7 @@
 | [本機驗收](LOCAL_ACCEPTANCE.md)                                        | 隔離後端、測試帳號、模擬器與真機操作表 |
 | [開發路線](ROADMAP.md)                                                 | 僅未完成、暫緩與尚未排入工作           |
 | [共同設計：我的旅行](../../../docs/design/MY_TRIPS.md)                 | Web／Mobile 列表設計、實作與待驗證項目 |
-| [新旅行：基準幣別選擇](../../../docs/design/BASE_CURRENCY_CREATION.md) | Web 完成後接 BC2 App 搜尋單選          |
+| [新旅行：基準幣別選擇](../../../docs/design/BASE_CURRENCY_CREATION.md) | Web／App 搜尋單選與已開放基準幣別      |
 | [已完成項目](archive/README.md)                                        | 已完成實作、舊設計／決策及證據入口     |
 | [整併決策](../../../docs/decisions/0001-monorepo.md)                   | 單一 repository、workspace 與發布邊界  |
 | [Agent 規則](../AGENTS.md)                                             | 自動化開發工具應遵守的規則             |

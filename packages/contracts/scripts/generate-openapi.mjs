@@ -37,6 +37,7 @@ import {
   tripListQuerySchema,
   tripListMetadataSchema,
   landingSchema,
+  itinerarySchema,
   expensesSchema,
   expenseDetailSchema,
   settlementSchema,
@@ -145,6 +146,7 @@ const schemas = Object.fromEntries(
     TripListQuery: tripListQuerySchema,
     TripListMetadata: tripListMetadataSchema,
     Landing: landingSchema,
+    Itinerary: itinerarySchema,
     Expenses: expensesSchema,
     ExpenseDetail: expenseDetailSchema,
     Settlement: settlementSchema,
@@ -787,6 +789,14 @@ paths['/v2/trips/{id}/budget'].get.description =
   'Signed-in member only: private total/category budget, opaque personal revision and all recorded trip expense shares using the Web calculator. No other member budgets, drafts or repayments.';
 paths['/v2/trips/{id}/budget'].post.description =
   'Full replacement of the actor budget in the immutable trip base currency. Zero/null removes a limit; unique categories and cent precision required. Same Web revision/transaction and original UUID budget.set receipt; conflict requires receipt lookup and fresh review.';
+paths['/v2/trips/{id}/itinerary'] = {
+  get: {
+    ...operation('tripItinerary', 'Itinerary'),
+    parameters: [tripIdParam],
+    description:
+      'Bearer member-only, no public fallback. Unknown/malformed trips and non-members return 404. Days ordered by dayNumber; activity start time ascending, untimed last, stable ties. Dates use UTC calendar-day arithmetic from trip start; gaps are preserved. No attachment metadata, storage keys, URLs, photos or collaborator identities. Private no-store response; no ledger amounts.',
+  },
+};
 paths['/v2/capabilities'] = { get: operation('ledgerCapabilitiesV2', 'V2Capabilities') };
 paths['/v2/trips/{id}/exchange-rates'] = {
   parameters: [tripIdParam],

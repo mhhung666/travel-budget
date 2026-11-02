@@ -18,6 +18,12 @@ flowchart LR
 
 Server Actions 與 HTTP API 是兩個呼叫入口，部署初期同在現有 Next.js。權限、分帳、交易、冪等與檔案驗證只維護一套服務。此專案不建立 API server、MongoDB connection 或 migrations。
 
+## App 行程閱讀
+
+`features/itinerary` 提供單一記憶體 Query、逐日選擇與活動 FlatList；薄路由為 `trips/[id]/itinerary`。`TripLayout` 在原三頁前增加行程，沿用安全區與大字級導覽選單；原概覽 URL／進旅行落點不變。日期與排序由後端提供，App 不另算日曆、拼接空白日或重新排序。選中日以穩定 ID 保留，日遭刪除時回第一個現有日；換日重建列表並回頂端。
+
+行程 Query 使用 requestAs、AbortSignal 與 catalog 撤權世代守衛，403／404 納入 catalog 既有持久拒絕；畫面在 session／catalog／HTTP 拒絕任一成立時卸載私人閱讀器，晚到結果不能解除隱藏。沒有新 provider、SQLite 表、背景同步或票券儲存；本文／備註以原生可選取 Text 顯示，全部文字可換行。
+
 ## B3：Mobile 帳本與舊資料恢復
 
 線上旅行／帳務讀取與新確認操作使用 v2，HTTP 必須驗證共用 v2 schema 的 ledger；缺單位、子資料單位不一致或服務未就緒都阻擋，不 fallback v1。B5c-1 起 `api.environment` 是原已驗證 v1 環境識別（設定 `/api/v2` 也正規化為同一字串），`transport()` 從同 origin 送出 v2；B5d-1 起所有請求（含 auth 與恢復）只走 v2，共用登入世代、refresh、beforeSend 與 SQLite／429 scope。`api/recovery.ts` 只判定 v1 舊紀錄已退役：仍解碼、不改標，但不再送出或補查。遠端 Query key 尾端加 v2，本機 key 不變。名冊觀察器與 catalog 保留原撤權世代規則。

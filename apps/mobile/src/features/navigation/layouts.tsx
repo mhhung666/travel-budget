@@ -200,8 +200,9 @@ function TripChrome({ children, state, navigation }: LayoutProps) {
   const { catalog } = useDraftCatalog();
   const query = useTrip(id);
   const options = useExpenseOptions(id);
-  const fit = useNavigationFit(`${t.overview}:${t.expenses}:${t.settlement}`);
+  const fit = useNavigationFit(`${t.itinerary}:${t.overview}:${t.expenses}:${t.settlement}`);
   const choices = [
+    { name: 'itinerary', label: t.itinerary, testID: 'trip-itinerary' },
     { name: 'index', label: t.overview, testID: 'trip-tab-index' },
     { name: 'expenses', label: t.expenses, testID: 'trip-expenses' },
     { name: 'settlement', label: t.settlement, testID: 'trip-settlement' },
@@ -345,6 +346,7 @@ export function TripLayout() {
       tabBar={() => null}
       layout={(props) => <TripChrome {...props} />}
     >
+      <Tabs.Screen name="itinerary" options={{ title: t.itinerary }} />
       <Tabs.Screen name="index" options={{ title: t.overview }} />
       <Tabs.Screen name="expenses" options={{ title: t.expenses }} />
       <Tabs.Screen name="settlement" options={{ title: t.settlement }} />

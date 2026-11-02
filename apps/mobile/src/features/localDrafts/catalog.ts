@@ -191,7 +191,9 @@ export class DraftCatalog {
         // A missing individual expense is not evidence of losing trip membership.
         if (
           typeof tripId === 'string' &&
-          ['trip', 'expense-options', 'expenses', 'settlement'].includes(String(resource)) &&
+          ['trip', 'expense-options', 'expenses', 'settlement', 'itinerary'].includes(
+            String(resource)
+          ) &&
           error instanceof ApiError &&
           error.source === 'request' &&
           [403, 404].includes(error.status)

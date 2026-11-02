@@ -4,6 +4,10 @@
 
 非 TWD 建立預設開啟，不需設定環境變數；B4 其餘跨端待驗見 [固定案例](../../mobile/docs/LOCAL_ACCEPTANCE.md#b4-固定帳務案例)。Web 已使用新版帳本 adapter，公開路徑與瀏覽器恢復見 [B2 架構](ARCHITECTURE.md#b2-web-帳本與恢復)。
 
+## App 行程閱讀
+
+新增成員限定 `GET /api/v2/trips/{id}/itinerary`，共用 `itinerarySchema`、`itineraryRead`、`itineraryActivities` 與日曆日期換算；`mobileOperation('trip.itinerary')` 先驗 bearer，再以 ObjectId 查成員及旅行日期。回應 no-store／Vary Authorization，沒有帳務 ledger；非成員與未知旅行同為 404，不 fallback 公開分享。輸出白名單包含每日與活動說明、位置、備註和成員可讀的訂位碼，不含票券附件 key／URL、相片或協作者資料。欄位與排序集中見 [App 契約](../../mobile/docs/BACKEND_CONTRACT.md#app-行程閱讀)。無寫入、schema migration 或新外部服務。
+
 ## B1 基準幣別契約
 
 - Trip 的 `baseCurrency` 在建立時固定；缺欄位的舊 Trip／Expense／Payment／私人預算才是 TWD，非法值或子帳務單位不符回 `503 LEDGER_DATA_INVALID`。新帳務與預算保存單位；不回填或換算舊金額。

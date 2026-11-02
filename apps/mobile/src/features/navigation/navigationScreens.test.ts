@@ -487,7 +487,7 @@ it('hides all trip tab content and invitation after denial, even when landing da
 });
 
 it.each(
-  ['index', 'expenses', 'settlement'].flatMap((entry) =>
+  ['itinerary', 'index', 'expenses', 'settlement'].flatMap((entry) =>
     ['507f1f77bcf86cd799439011', '507f1f77bcf86cd799439012'].flatMap((id) =>
       [1, 1.5, 3].map((fontScale) => ({ entry, id, fontScale }))
     )
@@ -496,7 +496,7 @@ it.each(
   h.fontScale = fontScale;
   h.tripId = id;
   const options = {
-    routeNames: ['index', 'expenses', 'settlement'],
+    routeNames: ['itinerary', 'index', 'expenses', 'settlement'],
     routeParamList: {},
     routeGetIdList: {},
   };
@@ -520,7 +520,7 @@ it.each(
       );
     },
   };
-  for (const name of ['expenses', 'settlement', 'index', 'settlement', 'expenses']) {
+  for (const name of ['itinerary', 'expenses', 'settlement', 'index', 'settlement', 'expenses']) {
     const tabs = TripLayout() as Element;
     const layout = (tabs.props.layout as (props: object) => Element)({
       state,

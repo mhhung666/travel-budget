@@ -4,7 +4,7 @@ import { apiResponse, ApiError } from './http';
 
 /**
  * How a v2 route attaches the ledger unit; each route names its schema and mode explicitly.
- * - `none`: identity/auth output without a trip ledger.
+ * - `none`: non-ledger output (identity/auth or the itinerary reader).
  * - `trip`: single-trip output; the current trip ledger is injected unless already present.
  * - `service`: per-row or receipt ledgers produced by the service are preserved as-is.
  */
@@ -22,8 +22,8 @@ export function apiLedgerResponse(output: V2Output, work: () => Promise<unknown>
       const value = await work();
       if (output.unit === 'none') {
         const result = output.schema.safeParse(value);
-        // Identity responses carry no ledger; a mismatch is a server bug, not ledger data.
-        if (!result.success) throw new Error('Invalid v2 identity response');
+        // Non-ledger responses still validate their declared contract; a mismatch is a server bug.
+        if (!result.success) throw new Error('Invalid v2 non-ledger response');
         return result.data;
       }
       if (!value || typeof value !== 'object') throw new ApiError(503, 'LEDGER_DATA_INVALID');

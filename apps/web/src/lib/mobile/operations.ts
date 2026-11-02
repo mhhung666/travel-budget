@@ -1,3 +1,4 @@
+import { mobileItinerary } from './itinerary';
 import { mobileReceipts, mobileReceiptWrite } from './receipts';
 import { mobileExpenseSearch } from './expenseSearch';
 import { mobileBudget, mobileSetBudget } from './budget';
@@ -66,6 +67,7 @@ const operations = {
   'trip.landing': op<'id'>((request, userId, p) =>
     mobileLanding(userId, p.id, viewerDate(new URL(request.url)))
   ),
+  'trip.itinerary': op<'id'>((_, userId, p) => mobileItinerary(userId, p.id)),
   'trip.invitation': op<'id'>((_, userId, p) => mobileInvitation(userId, p.id)),
   'trip.settings': op<'id'>((_, userId, p) => mobileTripSettings(userId, p.id)),
   'trip.update': op<'id'>((request, userId, p) =>

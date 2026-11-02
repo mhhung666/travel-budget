@@ -74,8 +74,8 @@ describe('explicit v2 response contracts', () => {
     const files = readdirSync(root, { recursive: true, encoding: 'utf8' }).filter((file) =>
       file.endsWith('route.ts')
     );
-    // 32 ledger routes plus 18 auth/me identity routes.
-    expect(files).toHaveLength(50);
+    // 32 ledger routes, 18 auth/me routes and one member itinerary reader.
+    expect(files).toHaveLength(51);
     for (const file of files) {
       const source = readFileSync(join(root, file), 'utf8');
       const methods = source.match(/export async function [A-Z]+/g) ?? [];

@@ -149,6 +149,63 @@ export const landingSchema = tripSchema.extend({
   todayGroupSpent: z.number(),
   budgetTotal: z.number().nullable(),
 });
+// Member-only itinerary reader. No attachment keys/URLs or public-share fallback.
+export const itineraryLocationSchema = z.object({
+  name: z.string(),
+  names: z.record(z.string(), z.string()).optional(),
+  display_name: z.string(),
+  lat: z.number().min(-90).max(90),
+  lon: z.number().min(-180).max(180),
+  country: z.string().optional(),
+  country_code: z.string().optional(),
+});
+export const itineraryActivitySchema = z.object({
+  id: idSchema,
+  title: z.string(),
+  type: z.enum([
+    'sightseeing',
+    'food',
+    'flight',
+    'ground_transport',
+    'transport',
+    'accommodation',
+    'shopping',
+    'activity',
+    'other',
+  ]),
+  time: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+    .nullable(),
+  endTime: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+    .nullable(),
+  location: itineraryLocationSchema.nullable(),
+  locationName: z.string(),
+  note: z.string(),
+  confirmationCode: z.string(),
+});
+export const itineraryDaySchema = z.object({
+  id: idSchema,
+  dayNumber: z.number().int().positive(),
+  date: dateSchema.nullable(),
+  outsideTripRange: z.boolean(),
+  title: z.string(),
+  content: z.string(),
+  location: itineraryLocationSchema.nullable(),
+  activities: z.array(itineraryActivitySchema),
+});
+export const itinerarySchema = z.object({
+  tripId: idSchema,
+  startDate: dateSchema.nullable(),
+  endDate: dateSchema.nullable(),
+  days: z.array(itineraryDaySchema),
+});
+export type Itinerary = z.infer<typeof itinerarySchema>;
+export type ItineraryDay = z.infer<typeof itineraryDaySchema>;
+export type ItineraryActivity = z.infer<typeof itineraryActivitySchema>;
+export type ItineraryLocation = z.infer<typeof itineraryLocationSchema>;
 export const tripsSchema = z.object({
   items: z.array(tripSchema),
   nextPage: z.number().int().positive().nullable(),

@@ -6,6 +6,14 @@ B3 Mobile 已使用 B1 v2 契約。線上回應必須帶合法 ledger；基準�
 
 手機沿用同一 repository 中 `apps/web` 的後端與資料庫。唯讀切片（登入、旅行、支出清單／明細、結算）與線上新增支出的後端端點（成員資料、均分預覽、冪等新增、結果查詢）已實作，手機的新增畫面與待確認紀錄已使用這些端點；尚未代表任何遠端環境已部署。
 
+## App 行程閱讀
+
+`GET /api/v2/trips/{id}/itinerary` 為 bearer 成員限定讀取，輸出使用共用 `itinerarySchema`；未知／非法 ObjectId、非成員及已撤權皆為 404，不接受分享碼或 fallback 公開資料。回應 no-store、Vary Authorization，不含帳務金額／ledger、Email、票券附件 key／URL、相片或協作者身分。
+
+回應 `{ tripId, startDate, endDate, days }`；日包含 `id, dayNumber, date, outsideTripRange, title, content, location, activities`。date 從開始日期加 dayNumber−1 以 UTC 日曆運算，開始日未知為 null；跳日不補、舊資料超出範圍仍保留。活動包含 `id, title, type, time, endTime, location, locationName, note, confirmationCode`；開始時間升序、無時間最後、相同時間穩定排序（含舊 transport 類型）。位置沿用 Web 名稱／在地化名稱／地址／經緯度形狀；不簽票券 URL。
+
+App Query key 包含環境／帳號／旅行／v2，以 requestAs 固定帳號、signal 取消及原 session 世代處理回應；送出前後檢查 catalog 撤權世代。行程 403／404 與其他整趟旅行拒絕一樣，立即且持久遮蔽；普通斷網不清合法舊資料，但不能解除先前拒絕。成功讀行程不寫入 SQLite 或自行解除 catalog 隱藏，重新授權仍經原 options 讀取守衛。相容後端需先部署，再發布使用本端點的 App。
+
 ## 已實作端點
 
 基底路徑 `/api/v2`（`/api/v1` 已於 B5d-2 刪除；App 設定只填網域，舊的 `/api/v1`／`/api/v2` 結尾仍接受並對應同一個環境身分，送出時一律用 v2）。手機與後端透過 `@travel-budget/contracts` 共用 schema，單一來源為 [packages/contracts/src/index.ts](../../../packages/contracts/src/index.ts)，OpenAPI 產物為 [packages/contracts/openapi.json](../../../packages/contracts/openapi.json)。從 repository 根目錄執行 `pnpm contracts:generate` 更新產物，`pnpm contracts:check` 檢查同步。手機沒有 Web source 或 DB 相依。

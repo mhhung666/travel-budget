@@ -66,7 +66,7 @@ it('persists names from validated trip lists without amounts, descriptions or pr
   expect(JSON.stringify(snapshot)).not.toContain('mySpent');
   expect(JSON.stringify(snapshot)).not.toContain('Private description');
 });
-it.each(['trip', 'expense-options', 'expenses', 'settlement'])(
+it.each(['trip', 'expense-options', 'expenses', 'settlement', 'itinerary'])(
   'hides %s denial immediately and across a reopened catalog',
   async (resource) => {
     const h = await setup();
