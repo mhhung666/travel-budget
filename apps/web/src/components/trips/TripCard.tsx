@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 
 import {
   Archive,
@@ -44,6 +44,7 @@ export default function TripCard({
   disabled = false,
 }: TripCardProps) {
   const [mainPressed, setMainPressed] = useState(false);
+  const contentId = useId();
   const t = useTranslations('trips');
   const locale = useLocale();
   const isArchived = trip.archived_at != null;
@@ -77,21 +78,23 @@ export default function TripCard({
     <Card
       data-trip-card={trip.id}
       data-main-pressed={mainPressed}
-      className="trip-card flex h-full flex-col rounded-2xl border-border bg-card shadow-sm transition-[background-color,box-shadow] duration-150"
+      className="trip-card relative isolate flex h-full flex-col rounded-2xl border-border bg-card shadow-sm transition-[background-color,box-shadow] duration-150"
     >
-      <div className="flex items-start gap-2">
-        <Link
-          href={ROUTES.TRIP_DETAIL(trip.hash_code)}
-          onPointerDown={(event) => {
-            if (event.isPrimary && event.button === 0) setMainPressed(true);
-          }}
-          onPointerUp={() => setMainPressed(false)}
-          onPointerCancel={() => setMainPressed(false)}
-          onPointerLeave={() => setMainPressed(false)}
-          onBlur={() => setMainPressed(false)}
-          onContextMenu={() => setMainPressed(false)}
-          className="trip-card-main min-h-12 min-w-0 flex-1 space-y-3 rounded-2xl p-4 text-left focus-visible:outline-none"
-        >
+      <Link
+        href={ROUTES.TRIP_DETAIL(trip.hash_code)}
+        onPointerDown={(event) => {
+          if (event.isPrimary && event.button === 0) setMainPressed(true);
+        }}
+        onPointerUp={() => setMainPressed(false)}
+        onPointerCancel={() => setMainPressed(false)}
+        onPointerLeave={() => setMainPressed(false)}
+        onBlur={() => setMainPressed(false)}
+        onContextMenu={() => setMainPressed(false)}
+        aria-labelledby={contentId}
+        className="trip-card-main absolute inset-0 z-0 rounded-2xl focus-visible:outline-none"
+      />
+      <div className="pointer-events-none flex items-start gap-2">
+        <div id={contentId} className="min-h-12 min-w-0 flex-1 space-y-3 p-4 text-left">
           <h3 className="break-words text-xl font-semibold text-foreground">{trip.name}</h3>
           <div className="flex flex-wrap gap-2">
             <Badge variant="secondary">{t(`card.phase.${phase}`)}</Badge>
@@ -132,8 +135,8 @@ export default function TripCard({
             {t('card.openTrip')}
             <ChevronRight className="h-4 w-4" aria-hidden="true" />
           </span>
-        </Link>
-        <div className="mr-2 mt-2 shrink-0">
+        </div>
+        <div className="pointer-events-auto relative z-10 mr-2 mt-2 shrink-0">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -172,9 +175,13 @@ export default function TripCard({
         </div>
       </div>
       {!isArchived && (settlement || onQuickExpense) && (
-        <div className="mt-auto flex justify-end border-t border-border p-2">
+        <div className="pointer-events-none relative z-10 mt-auto flex justify-end border-t border-border p-2">
           {settlement ? (
-            <Button variant="ghost" className="min-h-12 whitespace-normal text-primary" asChild>
+            <Button
+              variant="ghost"
+              className="pointer-events-auto min-h-12 whitespace-normal text-primary"
+              asChild
+            >
               <Link href={ROUTES.TRIP_SETTLEMENT(trip.hash_code)}>
                 <WalletCards className="h-4 w-4" />
                 {t('card.viewSettlement')}
@@ -183,7 +190,7 @@ export default function TripCard({
           ) : (
             <Button
               variant="ghost"
-              className="min-h-12 whitespace-normal text-primary"
+              className="pointer-events-auto min-h-12 whitespace-normal text-primary"
               onClick={() => onQuickExpense?.(trip)}
             >
               <ReceiptText className="h-4 w-4" />

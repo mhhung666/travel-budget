@@ -39,21 +39,34 @@ export function TripCard({
         ...(mainPressed || mainHovered || mainFocused ? cardShadows.active : cardShadows.resting),
       }}
     >
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-        <Pressable
-          testID={`trip-${trip.id}`}
-          accessibilityRole="button"
-          accessibilityLabel={`${trip.name}, ${state}${trip.archived ? `, ${t.archived}` : ''}, ${tripDates(trip, t, locale)}, ${trip.destination ?? ''}, ${t.memberCount}: ${trip.memberCount}, ${t.mySpent}: ${money(trip.mySpent)}, ${balance}: ${money(Math.abs(trip.myBalance))}, ${t.openTrip}`}
-          onFocus={() => setMainFocused(true)}
-          onBlur={() => {
-            setMainFocused(false);
-            setMainPressed(false);
-          }}
-          onPressIn={() => setMainPressed(true)}
-          onPressOut={() => setMainPressed(false)}
-          onHoverIn={() => setMainHovered(true)}
-          onHoverOut={() => setMainHovered(false)}
-          onPress={() => router.push({ pathname: '/trips/[id]', params: { id: trip.id } })}
+      <Pressable
+        testID={`trip-${trip.id}`}
+        accessibilityRole="button"
+        accessibilityLabel={`${trip.name}, ${state}${trip.archived ? `, ${t.archived}` : ''}, ${tripDates(trip, t, locale)}, ${trip.destination ?? ''}, ${t.memberCount}: ${trip.memberCount}, ${t.mySpent}: ${money(trip.mySpent)}, ${balance}: ${money(Math.abs(trip.myBalance))}, ${t.openTrip}`}
+        onFocus={() => setMainFocused(true)}
+        onBlur={() => {
+          setMainFocused(false);
+          setMainPressed(false);
+        }}
+        onPressIn={() => setMainPressed(true)}
+        onPressOut={() => setMainPressed(false)}
+        onHoverIn={() => setMainHovered(true)}
+        onHoverOut={() => setMainHovered(false)}
+        onPress={() => router.push({ pathname: '/trips/[id]', params: { id: trip.id } })}
+        style={{
+          position: 'absolute',
+          top: 0,
+          right: 0,
+          bottom: 0,
+          left: 0,
+          borderRadius: radius.card,
+        }}
+      />
+      <View pointerEvents="box-none" style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+        <View
+          pointerEvents="none"
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
           style={{
             flex: 1,
             minWidth: 0,
@@ -78,7 +91,7 @@ export function TripCard({
             <Text style={[typography.label, { color: p.primary }]}>{t.openTrip}</Text>
             <Icon name="chevron-right" color={p.primary} />
           </View>
-        </Pressable>
+        </View>
         {actions && onMore && (
           <Pressable
             testID={`trip-more-${trip.id}`}
@@ -106,9 +119,10 @@ export function TripCard({
       </View>
       {actions && !trip.archived && (
         <View
+          pointerEvents="box-none"
           style={{ borderTopWidth: sizing.border, borderColor: p.border, padding: spacing.small }}
         >
-          <View style={{ alignSelf: 'flex-end', maxWidth: '100%' }}>
+          <View pointerEvents="box-none" style={{ alignSelf: 'flex-end', maxWidth: '100%' }}>
             <Action
               testID={`trip-action-${trip.id}`}
               variant="ghost"

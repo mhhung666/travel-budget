@@ -45,12 +45,14 @@ it.each([
       </NextIntlClientProvider>
     );
     const main = screen.getByRole('link', { name: new RegExp(messages.trips.card.openTrip) });
-    expect(within(main).getByRole('heading', { name: trip.name })).toBeVisible();
-    expect(within(main).getByText(messages.trips.card.phase.past)).toBeVisible();
-    expect(within(main).getByText(messages.trips.card.myShare)).toBeVisible();
-    expect(within(main).getByText(messages.trips.card.pay)).toBeVisible();
-    expect(within(main).getByText(new RegExp(messages.trips.card.notSet))).toBeVisible();
-    expect(within(main).getAllByText(/JPY ·/)).toHaveLength(2);
+    const card = main.closest('[data-trip-card]') as HTMLElement;
+    expect(main).toHaveAccessibleName(new RegExp(trip.name));
+    expect(within(card).getByRole('heading', { name: trip.name })).toBeVisible();
+    expect(within(card).getByText(messages.trips.card.phase.past)).toBeVisible();
+    expect(within(card).getByText(messages.trips.card.myShare)).toBeVisible();
+    expect(within(card).getByText(messages.trips.card.pay)).toBeVisible();
+    expect(within(card).getByText(new RegExp(messages.trips.card.notSet))).toBeVisible();
+    expect(within(card).getAllByText(/JPY ·/)).toHaveLength(2);
     expect(screen.getByRole('button').getAttribute('aria-label')).toContain(trip.name);
     expect(screen.getByRole('link', { name: messages.trips.card.viewSettlement })).toHaveAttribute(
       'href',

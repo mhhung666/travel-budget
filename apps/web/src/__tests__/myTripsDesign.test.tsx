@@ -95,13 +95,14 @@ it('uses one header create and join, no FAB, complete names and independent link
   expect(screen.getByRole('heading', { name: 'title' })).toBeVisible();
   const heading = screen.getByRole('heading', { name: rows[0].name });
   expect(heading.className).not.toMatch(/truncate|line-clamp/);
-  const main = heading.closest('a')!;
+  const card = heading.closest('[data-trip-card]') as HTMLElement;
+  const main = within(card).getByRole('link', { name: /card.openTrip/ });
   expect(main).toHaveAttribute('href', '/trips/codea');
   expect(within(main).queryByRole('button')).toBeNull();
   expect(screen.queryByText(rows[0].description!)).toBeNull();
-  expect(within(main).getByText('card.myShare')).toBeVisible();
-  expect(within(main).getByText('card.noBalance')).toBeVisible();
-  expect(within(main).getAllByText(/JPY/)).toHaveLength(2);
+  expect(within(card).getByText('card.myShare')).toBeVisible();
+  expect(within(card).getByText('card.noBalance')).toBeVisible();
+  expect(within(card).getAllByText(/JPY/)).toHaveLength(2);
   await userEvent.setup().click(screen.getByRole('button', { name: 'card.quickExpense' }));
   expect(h.push).not.toHaveBeenCalled();
   expect(screen.getByText('expense-for-codea')).toBeVisible();

@@ -316,7 +316,7 @@ it('keeps long archived names and truthful accounting in the accessible card, in
     expect(tree.props.accessibilityLabel).toContain(trip.name);
     expect(tree.props.accessibilityLabel).toContain(messages.en.archived);
     expect(tree.props.accessibilityLabel).toContain(messages.en.balanced);
-    expect(nodes(tree).some((n) => n.props.numberOfLines !== undefined)).toBe(false);
+    expect(nodes(card).some((n) => n.props.numberOfLines !== undefined)).toBe(false);
     expect(card.props.style).toMatchObject({
       backgroundColor: colors[dark ? 'dark' : 'light'].surface,
     });
