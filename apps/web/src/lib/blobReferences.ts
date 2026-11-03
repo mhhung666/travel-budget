@@ -8,13 +8,14 @@ export class RetiredBlobError extends Error {
 export async function assertBlobsAvailable(
   db: mongo.Db,
   session: mongo.ClientSession,
-  keys: string[]
+  keys: string[],
+  options: () => mongo.FindOptions = () => ({ session })
 ) {
   if (!keys.length) return;
   if (
     await db
       .collection<{ _id: string }>('blobcleanupjobs')
-      .findOne({ _id: { $in: keys } }, { session, projection: { _id: 1 } })
+      .findOne({ _id: { $in: keys } }, { ...options(), projection: { _id: 1 } })
   ) {
     throw new RetiredBlobError('Attachment retired; upload a new object');
   }
@@ -27,7 +28,8 @@ export async function retireUnreferencedBlobs(
   db: mongo.Db,
   session: mongo.ClientSession,
   tripId: string,
-  keys: string[]
+  keys: string[],
+  options: () => mongo.FindOptions = () => ({ session })
 ) {
   const unique = [...new Set(keys)];
   if (!unique.length) return [];
@@ -44,7 +46,7 @@ export async function retireUnreferencedBlobs(
     candidates.forEach((key) => recognized.add(key));
     const docs = await db
       .collection(collection)
-      .find({ trip, [path]: { $in: candidates } }, { session, projection: { [path]: 1 } })
+      .find({ trip, [path]: { $in: candidates } }, { ...options(), projection: { [path]: 1 } })
       .toArray();
     for (const doc of docs) {
       const attachments: { key: string }[] =
@@ -62,7 +64,10 @@ export async function retireUnreferencedBlobs(
     const displayKey = (key: string) => key.replace(/_t\.webp$|_p\.jpg$/, '.jpg');
     const docs = await db
       .collection('photos')
-      .find({ trip, key: { $in: photos.map(displayKey) } }, { session, projection: { key: 1 } })
+      .find(
+        { trip, key: { $in: photos.map(displayKey) } },
+        { ...options(), projection: { key: 1 } }
+      )
       .toArray();
     const live = new Set(docs.map((doc) => doc.key));
     photos.filter((key) => live.has(displayKey(key))).forEach((key) => referenced.add(key));
@@ -79,7 +84,7 @@ export async function retireUnreferencedBlobs(
           upsert: true,
         },
       })),
-      { session }
+      options()
     );
   }
   return retired;

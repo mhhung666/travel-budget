@@ -38,6 +38,9 @@ import {
   tripListMetadataSchema,
   landingSchema,
   itinerarySchema,
+  itineraryEditContextSchema,
+  itineraryWriteInput,
+  itineraryWriteStateSchema,
   expensesSchema,
   expenseDetailSchema,
   settlementSchema,
@@ -147,6 +150,9 @@ const schemas = Object.fromEntries(
     TripListMetadata: tripListMetadataSchema,
     Landing: landingSchema,
     Itinerary: itinerarySchema,
+    ItineraryEditContext: itineraryEditContextSchema,
+    ItineraryWriteInput: itineraryWriteInput,
+    ItineraryWriteState: itineraryWriteStateSchema,
     Expenses: expensesSchema,
     ExpenseDetail: expenseDetailSchema,
     Settlement: settlementSchema,
@@ -795,6 +801,35 @@ paths['/v2/trips/{id}/itinerary'] = {
     parameters: [tripIdParam],
     description:
       'Bearer member-only, no public fallback. Unknown/malformed trips and non-members return 404. Days ordered by dayNumber; activity start time ascending, untimed last, stable ties. Dates use UTC calendar-day arithmetic from trip start; gaps are preserved. No attachment metadata, storage keys, URLs, photos or collaborator identities. Private no-store response; no ledger amounts.',
+  },
+};
+paths['/v2/trips/{id}/itinerary/edit-context'] = {
+  get: {
+    ...operation('itineraryEditContext', 'ItineraryEditContext'),
+    parameters: [tripIdParam],
+    description:
+      'Current admins only; same ordered reader plus day/activity revisions and deletion impact counts/revision. No tickets, storage keys or collaborator identities. Read-only snapshot, no fence writes.',
+  },
+};
+paths['/v2/trips/{id}/itinerary/requests'] = {
+  post: {
+    ...operation('itineraryWrite', 'ItineraryWriteState', 'ItineraryWriteInput', {
+      authenticated: true,
+    }),
+    parameters: [tripIdParam],
+    description:
+      'Admin-only confirmed online command; persist UUID/body/account/environment before sending. Strict six-operation body; no attachments, AI or bulk activity replacement. Atomic mutation and terminal receipt, replay returns original IDs/revisions even if deleted since. Conflicts/rejections return a terminal rejected state. Changed body/trip under same actor UUID: 409 IDEMPOTENCY_CONFLICT. Unknown transport/5xx: query original UUID; only not_found permits retry of exact frozen command. Not_found is not proof of failure. 256 KiB body cap.',
+  },
+};
+paths['/v2/trips/{id}/itinerary/requests/{uuid}'] = {
+  get: {
+    ...operation('itineraryRequest', 'ItineraryWriteState'),
+    parameters: [
+      tripIdParam,
+      { name: 'uuid', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+    ],
+    description:
+      'Current admins only; own actor/trip receipt, read-only, no TTL or fence write. No result inference from current resource. Revocation denies recovery; original receipt remains for reauthorized account. No ledger/private content in receipt.',
   },
 };
 paths['/v2/capabilities'] = { get: operation('ledgerCapabilitiesV2', 'V2Capabilities') };

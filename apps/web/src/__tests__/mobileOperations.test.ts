@@ -34,6 +34,9 @@ const mocks = vi.hoisted(() => {
     'mobileTrips',
     'mobileLanding',
     'mobileItinerary',
+    'mobileItineraryEditContext',
+    'mobileItineraryWrite',
+    'mobileItineraryRequest',
   ] as const;
   return {
     service: Object.fromEntries(names.map((name) => [name, vi.fn()])) as Record<
@@ -60,6 +63,7 @@ vi.mock('@/lib/mobile/receipts', () => mocks.service);
 vi.mock('@/lib/mobile/expenseSearch', () => mocks.service);
 vi.mock('@/lib/mobile/budget', () => mocks.service);
 vi.mock('@/lib/mobile/itinerary', () => mocks.service);
+vi.mock('@/lib/mobile/itineraryWrite', () => mocks.service);
 vi.mock('@/lib/mobile/trips', () => ({
   ...mocks.service,
   viewerDate: (url: URL) => url.searchParams.get('today'),
@@ -107,6 +111,9 @@ const table: [MobileOperation, keyof typeof mocks.service, unknown[]][] = [
   ['trip.join', 'mobileEnterTrip', [anyRequest, userId, 'trip.join']],
   ['mutation.request', 'mobileMutationRequest', [userId, uuid]],
   ['trip.landing', 'mobileLanding', [userId, id, '2026-10-08']],
+  ['itinerary.editContext', 'mobileItineraryEditContext', [userId, id]],
+  ['itinerary.write', 'mobileItineraryWrite', [anyRequest, userId, id]],
+  ['itinerary.request', 'mobileItineraryRequest', [userId, id, uuid]],
   ['trip.itinerary', 'mobileItinerary', [userId, id]],
   ['trip.invitation', 'mobileInvitation', [userId, id]],
   ['trip.settings', 'mobileTripSettings', [userId, id]],
@@ -208,6 +215,9 @@ const routes: Record<string, Partial<Record<(typeof methods)[number], MobileOper
   'trips/[id]/expenses/preview/route.ts': { POST: 'expense.preview' },
   'trips/[id]/expenses/route.ts': { GET: 'expense.list', POST: 'expense.create' },
   'trips/[id]/invitation/route.ts': { GET: 'trip.invitation' },
+  'trips/[id]/itinerary/edit-context/route.ts': { GET: 'itinerary.editContext' },
+  'trips/[id]/itinerary/requests/route.ts': { POST: 'itinerary.write' },
+  'trips/[id]/itinerary/requests/[uuid]/route.ts': { GET: 'itinerary.request' },
   'trips/[id]/itinerary/route.ts': { GET: 'trip.itinerary' },
   'trips/[id]/landing/route.ts': { GET: 'trip.landing' },
   'trips/[id]/members/[memberId]/claim-invitation/route.ts': { GET: 'member.claimInvitation' },
@@ -253,7 +263,9 @@ describe('v2 member routes', () => {
           params: Promise.resolve(ids),
         });
         // The stub is not a v2 DTO, so the declared schema must reject it.
-        expect(response.status).toBe(operation === 'trip.itinerary' ? 500 : 503);
+        expect(response.status).toBe(
+          operation === 'trip.itinerary' || operation.startsWith('itinerary.') ? 500 : 503
+        );
         expect(runs).toEqual([{ v2: true, service }]);
         expect(mocks.service[service].mock.calls[0]).toEqual(
           args.map((arg) => (arg === anyRequest ? expect.objectContaining({ method }) : arg))

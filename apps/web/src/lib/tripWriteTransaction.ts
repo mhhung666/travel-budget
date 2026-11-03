@@ -2,6 +2,8 @@ import mongoose, { mongo } from 'mongoose';
 import { dbConnect } from './mongodb';
 import { authorizeLedger, validateLedgerChildren } from './ledger';
 
+export type TripTransactionOptions = { session: mongo.ClientSession; timeoutMS?: number };
+
 export class TripWriteError extends Error {
   constructor(public readonly code: 'FORBIDDEN' | 'NOT_FOUND' | 'VALIDATION_ERROR' | 'CONFLICT') {
     super(code);
@@ -25,33 +27,52 @@ export async function withTripWriteInDatabase<T>(
   db: mongo.Db,
   tripId: string,
   actorId: string,
-  write: (session: mongo.ClientSession) => Promise<T>,
-  role?: 'admin'
+  write: (session: mongo.ClientSession, options: () => TripTransactionOptions) => Promise<T>,
+  role?: 'admin',
+  cursorReads = false
 ): Promise<T> {
+  // Full cursor services use public per-operation CSOT, avoiding driver 7.2 getMore leakage.
+  const deadline = performance.now() + 20_000;
+  const remaining = () => {
+    const ms = Math.ceil(deadline - performance.now());
+    if (ms <= 0) throw new mongo.MongoOperationTimeoutError('Trip write deadline exceeded');
+    return ms;
+  };
   return db.client.withSession((session) =>
     session.withTransaction(
       async () => {
-        const parent = await db.collection('trips').findOneAndUpdate(
-          {
-            _id: new mongo.ObjectId(tripId),
-            members: {
-              $elemMatch: { user: new mongo.ObjectId(actorId), ...(role ? { role } : {}) },
+        const options = () => ({ session, ...(cursorReads ? { timeoutMS: remaining() } : {}) });
+        try {
+          const parent = await db.collection('trips').findOneAndUpdate(
+            {
+              _id: new mongo.ObjectId(tripId),
+              members: {
+                $elemMatch: { user: new mongo.ObjectId(actorId), ...(role ? { role } : {}) },
+              },
+              expenseDeliveryDeleting: { $ne: true },
             },
-            expenseDeliveryDeleting: { $ne: true },
-          },
-          { $inc: { expenseDeliveryFence: 1 } },
-          { session }
-        );
-        if (!parent) throw new TripWriteError('FORBIDDEN');
-        authorizeLedger(parent);
-        await validateLedgerChildren(db, parent, session);
-        return write(session);
+            { $inc: { expenseDeliveryFence: 1 } },
+            options()
+          );
+          if (!parent) throw new TripWriteError('FORBIDDEN');
+          authorizeLedger(parent);
+          await validateLedgerChildren(db, parent, session, cursorReads ? options : undefined);
+          const result = await write(session, options);
+          if (cursorReads) await session.commitTransaction({ timeoutMS: remaining() });
+          return result;
+        } catch (error) {
+          if (cursorReads && error instanceof mongo.MongoError && session.inTransaction())
+            await session.abortTransaction({
+              timeoutMS: Math.max(1, Math.ceil(deadline - performance.now())),
+            });
+          throw error;
+        }
       },
       {
         readConcern: { level: 'snapshot' },
         writeConcern: { w: 'majority' },
         readPreference: 'primary',
-        timeoutMS: 20_000,
+        ...(cursorReads ? {} : { timeoutMS: 20_000 }),
       }
     )
   );
@@ -62,7 +83,7 @@ export async function withTripReadInDatabase<T>(
   db: mongo.Db,
   tripId: string,
   actorId: string,
-  read: (session: mongo.ClientSession, options: () => mongo.FindOptions) => Promise<T>,
+  read: (session: mongo.ClientSession, options: () => TripTransactionOptions) => Promise<T>,
   cursorReads = false
 ): Promise<T> {
   // Driver 7.2's transaction CSOT leaks maxTimeMS onto non-awaitData getMore.

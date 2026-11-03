@@ -1,3 +1,8 @@
+import {
+  mobileItineraryEditContext,
+  mobileItineraryWrite,
+  mobileItineraryRequest,
+} from './itineraryWrite';
 import { mobileItinerary } from './itinerary';
 import { mobileReceipts, mobileReceiptWrite } from './receipts';
 import { mobileExpenseSearch } from './expenseSearch';
@@ -67,6 +72,9 @@ const operations = {
   'trip.landing': op<'id'>((request, userId, p) =>
     mobileLanding(userId, p.id, viewerDate(new URL(request.url)))
   ),
+  'itinerary.editContext': op<'id'>((_, u, p) => mobileItineraryEditContext(u, p.id)),
+  'itinerary.write': op<'id'>((r, u, p) => mobileItineraryWrite(r, u, p.id)),
+  'itinerary.request': op<'id' | 'uuid'>((_, u, p) => mobileItineraryRequest(u, p.id, p.uuid)),
   'trip.itinerary': op<'id'>((_, userId, p) => mobileItinerary(userId, p.id)),
   'trip.invitation': op<'id'>((_, userId, p) => mobileInvitation(userId, p.id)),
   'trip.settings': op<'id'>((_, userId, p) => mobileTripSettings(userId, p.id)),

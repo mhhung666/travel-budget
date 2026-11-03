@@ -7,11 +7,12 @@ export async function rebindAutoPhotosInTransaction(
   session: mongo.ClientSession,
   trip: mongo.ObjectId,
   parent: { startDate?: Date | null; endDate?: Date | null },
-  now: Date
+  now: Date,
+  options: () => mongo.FindOptions = () => ({ session })
 ): Promise<void> {
   const remaining = await db
     .collection('itinerarydays')
-    .find({ trip }, { session, projection: { dayNumber: 1, location: 1 } })
+    .find({ trip }, { ...options(), projection: { dayNumber: 1, location: 1 } })
     .sort({ dayNumber: 1 })
     .toArray();
   const byDate = buildItineraryDayDateMap(
@@ -23,7 +24,7 @@ export async function rebindAutoPhotosInTransaction(
     .collection('photos')
     .find(
       { trip, itineraryDaySource: 'auto' },
-      { session, projection: { takenLocalDate: 1, location: 1 } }
+      { ...options(), projection: { takenLocalDate: 1, location: 1 } }
     )
     .toArray();
   const photoUpdates = photos.map((photo) => {
@@ -44,5 +45,5 @@ export async function rebindAutoPhotosInTransaction(
     };
   });
   if (photoUpdates.length)
-    await db.collection('photos').bulkWrite(photoUpdates, { session, ordered: true });
+    await db.collection('photos').bulkWrite(photoUpdates, { ...options(), ordered: true });
 }

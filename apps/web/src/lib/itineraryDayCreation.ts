@@ -1,3 +1,4 @@
+import type { ItineraryWriteContext } from './itineraryDayUpdate';
 import { assertBlobsAvailable } from './blobReferences';
 import { mongo } from 'mongoose';
 import { ItineraryDay } from '@/models';
@@ -28,7 +29,7 @@ export class ItineraryDayCreationError extends Error {
  * 依目標算出權威 dayNumber。前端預覽一律不採信：起訖以交易內讀到的旅程為準，
  * 與表單開啟時的 expected 值不同就中止，讓使用者重新確認日期。
  */
-function resolveDayNumber(
+export function resolveDayNumber(
   target: ItineraryDayTargetInput,
   trip: { startDate?: Date | string | null; endDate?: Date | string | null }
 ): number {
@@ -63,82 +64,94 @@ export async function createItineraryDayAtomically(
     activities: Record<string, unknown>[];
     /** 省略＝尚未更新的舊頁面，沿用接在最後一天（仍驗證旅程範圍）。 */
     target?: ItineraryDayTargetInput;
-  }
+  },
+  context?: ItineraryWriteContext
 ) {
   const trip = new mongo.ObjectId(tripId);
   const { target, ...dayInput } = input;
-  return db.client.withSession((session) =>
-    session.withTransaction(
-      async () => {
-        const parent = await db.collection('trips').findOneAndUpdate(
-          {
-            _id: trip,
-            members: { $elemMatch: { user: new mongo.ObjectId(actorId), role: 'admin' } },
-            expenseDeliveryDeleting: { $ne: true },
-          },
-          { $inc: { expenseDeliveryFence: 1 } },
-          { session }
-        );
-        if (!parent) throw new ItineraryDayCreationError('FORBIDDEN');
+  const write = async (session: mongo.ClientSession) => {
+    const parent =
+      context?.parent ??
+      (await db.collection('trips').findOneAndUpdate(
+        {
+          _id: trip,
+          members: { $elemMatch: { user: new mongo.ObjectId(actorId), role: 'admin' } },
+          expenseDeliveryDeleting: { $ne: true },
+        },
+        { $inc: { expenseDeliveryFence: 1 } },
+        { session }
+      ));
+    if (!parent) throw new ItineraryDayCreationError('FORBIDDEN');
 
-        let dayNumber: number;
-        if (target) {
-          dayNumber = resolveDayNumber(
-            target,
-            parent as { startDate?: Date | null; endDate?: Date | null }
-          );
-        } else {
-          const last = await db
-            .collection('itinerarydays')
-            .findOne({ trip }, { session, sort: { dayNumber: -1 }, projection: { dayNumber: 1 } });
-          dayNumber = (last?.dayNumber ?? 0) + 1;
-          const startDate = toDateOnly(parent.startDate);
-          const endDate = toDateOnly(parent.endDate);
-          // 舊輸入同樣受範圍限制，避免兩個入口的規則分歧。
-          if (startDate && endDate && dayNumberForDate(startDate, endDate) < dayNumber) {
-            throw new ItineraryDayCreationError('DATE_OUTSIDE_TRIP');
-          }
+    let dayNumber: number;
+    if (target) {
+      dayNumber = resolveDayNumber(
+        target,
+        parent as { startDate?: Date | null; endDate?: Date | null }
+      );
+    } else {
+      const last = await db.collection('itinerarydays').findOne(
+        { trip },
+        {
+          ...(context?.options() ?? { session }),
+          sort: { dayNumber: -1 },
+          projection: { dayNumber: 1 },
         }
-        if (!Number.isInteger(dayNumber) || dayNumber < 1 || dayNumber > MAX_ITINERARY_DAY_NUMBER) {
-          throw new ItineraryDayCreationError('VALIDATION_ERROR');
-        }
-
-        const taken = await db
-          .collection('itinerarydays')
-          .findOne({ trip, dayNumber }, { session, projection: { _id: 1 } });
-        if (taken) throw new ItineraryDayCreationError('DAY_ALREADY_EXISTS');
-
-        // Construct anew on retries; retain Mongoose casting, validation and subdocument defaults.
-        const created = new ItineraryDay({ ...dayInput, trip, dayNumber });
-        await assertBlobsAvailable(
-          db,
-          session,
-          created.activities.flatMap((a) => (a.attachments ?? []).map((at) => at.key))
-        );
-        try {
-          await created.save({ session });
-        } catch (error) {
-          // 兩位管理員同時新增同一天：唯一索引是最後防線，轉成可辨識的提示。
-          if ((error as { code?: number }).code === 11000) {
-            throw new ItineraryDayCreationError('DAY_ALREADY_EXISTS');
-          }
-          throw error;
-        }
-        await rebindAutoPhotosInTransaction(
-          db,
-          session,
-          trip,
-          { startDate: parent.startDate, endDate: parent.endDate },
-          new Date()
-        );
-        return created.toObject();
-      },
-      {
-        readConcern: { level: 'snapshot' },
-        writeConcern: { w: 'majority' },
-        readPreference: 'primary',
-        timeoutMS: 20_000,
+      );
+      dayNumber = (last?.dayNumber ?? 0) + 1;
+      const startDate = toDateOnly(parent.startDate);
+      const endDate = toDateOnly(parent.endDate);
+      // 舊輸入同樣受範圍限制，避免兩個入口的規則分歧。
+      if (startDate && endDate && dayNumberForDate(startDate, endDate) < dayNumber) {
+        throw new ItineraryDayCreationError('DATE_OUTSIDE_TRIP');
       }
-    )
+    }
+    if (!Number.isInteger(dayNumber) || dayNumber < 1 || dayNumber > MAX_ITINERARY_DAY_NUMBER) {
+      throw new ItineraryDayCreationError('VALIDATION_ERROR');
+    }
+
+    const taken = await db
+      .collection('itinerarydays')
+      .findOne(
+        { trip, dayNumber },
+        { ...(context?.options() ?? { session }), projection: { _id: 1 } }
+      );
+    if (taken) throw new ItineraryDayCreationError('DAY_ALREADY_EXISTS');
+
+    // Construct anew on retries; retain Mongoose casting, validation and subdocument defaults.
+    const created = new ItineraryDay({ ...dayInput, trip, dayNumber });
+    await assertBlobsAvailable(
+      db,
+      session,
+      created.activities.flatMap((a) => (a.attachments ?? []).map((at) => at.key)),
+      context?.options
+    );
+    try {
+      await created.save({ session, ...(context?.options() ?? {}) });
+    } catch (error) {
+      // 兩位管理員同時新增同一天：唯一索引是最後防線，轉成可辨識的提示。
+      if ((error as { code?: number }).code === 11000) {
+        throw new ItineraryDayCreationError('DAY_ALREADY_EXISTS');
+      }
+      throw error;
+    }
+    await rebindAutoPhotosInTransaction(
+      db,
+      session,
+      trip,
+      { startDate: parent.startDate, endDate: parent.endDate },
+      new Date(),
+      context?.options
+    );
+    return created.toObject();
+  };
+  if (context) return write(context.session);
+  return db.client.withSession((session) =>
+    session.withTransaction(write, {
+      readConcern: { level: 'snapshot' },
+      writeConcern: { w: 'majority' },
+      readPreference: 'primary',
+      timeoutMS: 20_000,
+    })
   );
 }

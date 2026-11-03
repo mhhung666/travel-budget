@@ -1,4 +1,12 @@
 import { mongo } from 'mongoose';
+import type { TripTransactionOptions } from './tripWriteTransaction';
+
+export type ItineraryWriteContext = {
+  session: mongo.ClientSession;
+  parent: { startDate?: Date; endDate?: Date };
+  cleanupKeys: string[];
+  options: () => TripTransactionOptions;
+};
 
 export class ItineraryDayUpdateError extends Error {
   constructor(
@@ -13,8 +21,13 @@ export async function withItineraryDayUpdateTransaction<T>(
   db: mongo.Db,
   tripId: string,
   actorId: string,
-  update: (session: mongo.ClientSession, parent: { startDate?: Date; endDate?: Date }) => Promise<T>
+  update: (
+    session: mongo.ClientSession,
+    parent: { startDate?: Date; endDate?: Date }
+  ) => Promise<T>,
+  context?: ItineraryWriteContext
 ): Promise<T> {
+  if (context) return update(context.session, context.parent);
   const trip = new mongo.ObjectId(tripId);
   return db.client.withSession((session) =>
     session.withTransaction(

@@ -22,6 +22,22 @@
 5. A 讀取時切 B／登出、晚到成功或錯誤、移除成員後刷新／切分頁；不可殘留名稱、內容、訂位碼。撤權後再斷網／5xx 不重新顯示快取；原 options 重新授權守衛保持不變。
 6. HTTP：無 bearer 401；非成員／未知或非法 id／分享碼 404；no-store、Vary Authorization，無票券 key／URL、相片、Email 或協作者資料。相容後端須先於 App 部署。
 
+## 2A 行程維護交接
+
+2A 交付共用後端／契約，App 編輯畫面及持久化 journal 尚待 2B／2C；本片不做裝置驗收、部署或遠端 migration。契約及錯誤／恢復規則只維護於 [2A API](BACKEND_CONTRACT.md#2a-行程維護服務與恢復契約)。`itineraryWrite.integration.test.ts` 以明確 `MONGODB_MEMBER_TEST_URI`＋`MONGODB_MEMBER_TEST_ALLOW_WRITES=1` 使用可丟棄 replica set，自建／自清隨機 DB，已納入 CI 的交易工作；另回歸既有 Web 行程、相片關聯與附件測試。
+
+2026-11-03 獨立程式審查與自動複驗通過；修正相片重綁批次寫入漏套剩餘期限，新增先失敗、修正後通過的回歸。隔離行程／交易 462 項、Web／Mobile 全套測試、根 check／build 及三平台匯出通過；故障與權限涵蓋範圍如下，尚不等同六種操作全部經真 HTTP 丟包或裝置驗收。
+
+持續驗證重點：
+
+1. 六種 command 各自丟回應、原 UUID 並行重送／重播、提交後再由 Web 刪除目標；確認只新增一次、回原終局、不復活資料。相同 UUID 換內容／旅行拒絕，不同帳號／旅行查不到他人 receipt。
+2. Web 與 Native 管理員交錯更新：整日 revision、同活動 revision 衝突；不同活動可各自更新；日期／起訖變動、重複日、Day 1–3650、15 活動上限、未設定日期與歷史超出範圍不改既有規則。
+3. receipt 保存故障：資料、版本、借用相片座標、關聯／清理工作一併回滾；資料庫仍無原 receipt。查詢結果未知不換 UUID，恢復後原 body 可安全重送。明確業務拒絕保存 rejected，不留永久 pending。
+4. 刪除確認後新增支出／相片關聯須拒絕並重讀影響；真正提交時清關聯、退役票券、重綁相片且不重新編號。活動文字更新保留票券，HTTP/context/receipt 不含 key／URL，R2 HEAD 不在 Native 重試交易內執行。
+5. 無 bearer、分享碼、非成員、普通成員、交易前後降權／撤權、換帳號；查詢保持唯讀、不增加 fence。130 筆以上相片／多批行程讀寫仍成功；no-store／Vary Authorization、嚴格 schema、256 KiB 上限。
+
+2B／2C 再補 iPhone／iPad 未保存提醒、確認後本機保存失敗、重啟／換帳號／429 等待、未知操作不可捨棄及四語／大字級／VoiceOver；Android 依既有決定延後。工程案例不代表以上人工複驗或實際畫面已通過。
+
 ## B 基準幣別驗收（B1／B2／B3 實作交接）
 
 精確帳務與故障條件見 [B4 固定案例](#b4-固定帳務案例)。B1 後端已實作，契約／開關見 [B1 API](../../web/docs/MOBILE_API.md#b1-基準幣別契約)；B2 Web 已實作，行為與恢復見 [B2 架構](../../web/docs/ARCHITECTURE.md#b2-web-帳本與恢復)；B3 Mobile／SQLite 已實作，見 [B3 架構](ARCHITECTURE.md#b3mobile-帳本與舊資料恢復)；B4 獨立操作仍待完成，非 TWD 新建程式預設已開啟、未部署。

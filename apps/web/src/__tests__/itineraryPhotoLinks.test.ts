@@ -151,7 +151,7 @@ describe('deleteItineraryDay transaction boundary', () => {
       return ['ticket'];
     });
     expect((await deleteItineraryDay(TRIP_ID, DAY_ID)).success).toBe(true);
-    expect(deleteDayAtomic).toHaveBeenCalledWith(undefined, TRIP_ID, ADMIN, DAY_ID);
+    expect(deleteDayAtomic).toHaveBeenCalledWith(undefined, TRIP_ID, ADMIN, DAY_ID, undefined);
     expect(deleteObjects).toHaveBeenCalledWith('receipts', ['ticket']);
   });
   it('does not clean tickets after rollback', async () => {

@@ -13,7 +13,11 @@ export class ApiError extends Error {
     super(code);
   }
 }
-export async function readBody<T>(request: Request, schema: z.ZodType<T>): Promise<T> {
+export async function readBody<T>(
+  request: Request,
+  schema: z.ZodType<T>,
+  maxBytes = 8192
+): Promise<T> {
   if (!request.headers.get('content-type')?.includes('application/json'))
     throw new ApiError(415, 'INVALID_CONTENT_TYPE');
   // Bound bytes even when Content-Length is absent (chunked requests).
@@ -26,7 +30,7 @@ export async function readBody<T>(request: Request, schema: z.ZodType<T>): Promi
       const chunk = await reader.read();
       if (chunk.done) break;
       size += chunk.value.byteLength;
-      if (size > 8192) {
+      if (size > maxBytes) {
         await reader.cancel();
         throw new ApiError(413, 'BODY_TOO_LARGE');
       }

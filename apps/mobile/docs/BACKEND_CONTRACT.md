@@ -14,6 +14,37 @@ B3 Mobile 已使用 B1 v2 契約。線上回應必須帶合法 ledger；基準�
 
 App Query key 包含環境／帳號／旅行／v2，以 requestAs 固定帳號、signal 取消及原 session 世代處理回應；送出前後檢查 catalog 撤權世代。行程 403／404 與其他整趟旅行拒絕一樣，立即且持久遮蔽；普通斷網不清合法舊資料，但不能解除先前拒絕。成功讀行程不寫入 SQLite 或自行解除 catalog 隱藏，重新授權仍經原 options 讀取守衛。相容後端需先部署，再發布使用本端點的 App。
 
+## 2A 行程維護服務與恢復契約
+
+本片只交付後端與純契約；App 行程日表單／確認後 SQLite journal／恢復畫面接 2B，活動表單接 2C，尚未開放 App 編輯。Web 既有 cookie actions 已抽薄，與 Native 共用 `lib/itineraryMaintenance.ts` 的日期、revision、容量、附件保留、關聯清理及交易效果；Web 原 RPC 輸入／畫面不變，不宣稱其舊入口已新增 UUID journal。
+
+三個新 bearer v2 端點（均 no-store、Vary Authorization、無 ledger 金額）：
+
+| 端點                                        | 輸入／結果                                                                                                                                                                                                     |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /trips/{id}/itinerary/edit-context`    | 僅目前管理員。沿用閱讀 DTO，另帶每一天及活動的整數 `revision`；每一天 `deleteImpact` 有 activityCount／attachmentCount／expenseCount／photoCount 與 opaque revision。不輸出票券 key／URL、支出內容或相片資料。 |
+| `POST /trips/{id}/itinerary/requests`       | 嚴格 `itineraryWriteInput`，每次確認固定 `client_request_id` UUID；回 `itineraryWriteStateSchema` 的 committed 或 rejected。上限 256 KiB，其他既有端點仍為 8 KiB。                                             |
+| `GET /trips/{id}/itinerary/requests/{uuid}` | 僅目前管理員查詢本人／此旅行的原 UUID；committed、rejected 或 not_found。讀取不增加 trip fence。                                                                                                               |
+
+嚴格輸入不接受 actor、附件、AI 欄位或整日 activities 覆寫：
+
+- `day.create`：title、content、location 及必填 target。
+- `day.update`：dayId、expected_revision、title、content、location；可選 target。未送 target 只改內容，舊超出旅程範圍的日仍可維護；送 target 時與新增共用交易內日期驗證。
+- `day.delete`：dayId、expected_revision、expected_impact_revision。確認後若日版本或關聯集合變動，分別拒絕 CONFLICT／DELETE_IMPACT_CHANGED，須重讀影響並再次確認。
+- `activity.create`：dayId、activity。
+- `activity.update`：dayId、activityId、expected_activity_revision、activity。
+- `activity.delete`：dayId、activityId、expected_activity_revision。
+
+activity 是全量文字欄位 `{ title, type, time, endTime, location, locationName, note, confirmationCode }`；HH:mm 或 null，保留 Web 的舊 transport 及跨日時間表達，不另設結束時間必須晚於開始時間的規則。更新只保留目標的票券原參照／metadata，不從 App 接收或清空附件；刪除仍依既有共用規則退役無人引用的票券。一天最多 15 項活動，同目標比對活動 revision；修改不同活動不因整日 revision 改變而互相覆蓋。日更新比對整日 revision，保留活動與 AI import keys。
+
+target 為嚴格互斥的 `{ date, expected_start_date, expected_end_date }` 或 `{ day_number, expected_start_date: null, expected_end_date }`；真實日曆日、Day 1–3650、UTC 計算、起訖變動、重複日與範圍均沿用 Web 交易內規則。刪除不重新編號；支出日關聯清除、相片關聯／借用座標清除與自動重綁、票券退役工作與 receipt 同交易提交。票券實體刪除僅在提交後 best effort 執行，當機後沿既有清理工作重試，無新 migration／遠端設定。
+
+`committed` 帶 `{ client_request_id, tripId, operation, result: { dayId, dayRevision, activityId, activityRevision, deleted } }`；不存在的活動資訊／已刪日 revision 為 null。`rejected` 帶原 UUID／旅行／operation 及 code，包含 CONFLICT、NOT_FOUND、VALIDATION_ERROR、ACTIVITY_LIMIT、TRIP_DATES_CHANGED、DAY_ALREADY_EXISTS、DATE_OUTSIDE_TRIP、TRIP_START_DATE_REQUIRED、DELETE_IMPACT_CHANGED。業務拒絕以成功 envelope 回終局 rejected，不當作傳輸故障。UUID／資料／trip 指紋不符回 HTTP 409 IDEMPOTENCY_CONFLICT；格式或內容未通過 schema 的 400／413／415 尚未執行，沒有 receipt。無 bearer 401；非法／未知旅行、分享碼或非成員 404；目前成員但非管理員／交易內被降權 403。撤權會阻擋查詢與重送，不能把查詢被拒當原操作失敗。
+
+恢復流程必須由 2B／2C 客戶端實作：確認後先持久保存環境／帳號／旅行／原 UUID／凍結 body，再送出；結果不明先查同 UUID，只有 not_found 可重送原 body，不能換 UUID、捨棄未知操作或從目前資料推論成功。not_found 不證明從未送出；查詢與尚在執行的提交可能交錯，但原 UUID 再送由交易 fence／receipt 唯一 `_id = actor:UUID` 保證一次。已提交／拒絕結果不 TTL 到期，重播先讀 receipt，再看活動是否仍存在；終局只保存結果 ID／revision，不保存私人成文內容。帳號／旅行不符不會取得他人的 receipt；換帳號／登出／429 仍須沿用既有隔離與等待守衛。
+
+編輯 context 與影響摘要採同一授權 snapshot，按三個 collection 批次讀取、無逐日 N+1；查詢與寫入的完整游標使用 per-operation CSOT 共用 20 秒期限（包括重試與 commit），避免 MongoDB driver 7.2 在非 awaitData getMore 帶 maxTimeMS 的相容性錯誤。新寫入仍共用 trip fence，和既有 Web 管理、相片／支出關聯寫入協調。
+
 ## 已實作端點
 
 基底路徑 `/api/v2`（`/api/v1` 已於 B5d-2 刪除；App 設定只填網域，舊的 `/api/v1`／`/api/v2` 結尾仍接受並對應同一個環境身分，送出時一律用 v2）。手機與後端透過 `@travel-budget/contracts` 共用 schema，單一來源為 [packages/contracts/src/index.ts](../../../packages/contracts/src/index.ts)，OpenAPI 產物為 [packages/contracts/openapi.json](../../../packages/contracts/openapi.json)。從 repository 根目錄執行 `pnpm contracts:generate` 更新產物，`pnpm contracts:check` 檢查同步。手機沒有 Web source 或 DB 相依。
@@ -34,7 +65,7 @@ App Query key 包含環境／帳號／旅行／v2，以 requestAs 固定帳號�
 | `POST /trips/:id/expenses`               | JSON（見下）→ 與明細相同的支出；`client_request_id` 冪等，重播得到相同結果        |
 | `GET /trips/:id/expense-requests/:uuid`  | Bearer → `{ status: 'committed', expense }` 或 `{ status: 'not_found' }`          |
 
-成功 envelope 是 `{ data }`；失敗是 `{ error: { code }, requestId }`。所有回應 `Cache-Control: no-store`，429 帶 `Retry-After`。僅接受 JSON body，大小上限 8 KiB。沒有跨來源瀏覽器 CORS；原生請求不使用 Web cookie。
+成功 envelope 是 `{ data }`；失敗是 `{ error: { code }, requestId }`。所有回應 `Cache-Control: no-store`，429 帶 `Retry-After`。僅接受 JSON body，預設大小上限 8 KiB；2A 行程 command 的明確例外為 256 KiB。沒有跨來源瀏覽器 CORS；原生請求不使用 Web cookie。
 
 Trip DTO 包含 `id/name/description/startDate/endDate/destination/archived/memberCount/mySpent/myBalance/phase`。Landing 加入 `role/expenseCount/todayGroupSpent/budgetTotal`。日期為 date-only，金額為 TWD、保留既有到分規則；`myBalance` 正數是應收，負數是應付。沒有成員私人預算陣列、分享碼、檔案 key 或收據。
 

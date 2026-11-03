@@ -183,3 +183,7 @@ replace 等待期限 24 小時，最後五分鐘不再簽發／完成，未完�
 ## M4b 好友
 
 GET／POST `/api/v2/me/friends` 及 POST `/api/v2/me/friends/{friendshipId}` 提供本人關係與邀請／接受／拒絕／收回／移除；兩端共用服務及唯一 pair 狀態機，公開身分投影、bearer／角色隔離及 no-store。未知操作先查目前關係，不自動重送，不授予旅行權限；詳細欄位及錯誤見 [M4b 契約](../../mobile/docs/BACKEND_CONTRACT.md#m4b-好友)。工程案例列於 `test:mobile-api` 的真 HTTP 與六項隔離 DB 回歸；iOS 與真通知仍待他人驗收。
+
+## 2A 行程維護
+
+`GET /v2/trips/:id/itinerary/edit-context`、`POST /v2/trips/:id/itinerary/requests` 及 `GET .../requests/:uuid` 已實作，僅目前管理員。Web actions 抽薄並共用 `itineraryMaintenance.ts`；Native command／receipt 在同一 trip fence 交易完成，讀取為授權 snapshot、不寫 fence。保留票券與刪除關聯／清理工作；App 表單與確認後持久化接 2B／2C，Web 舊 RPC 不新增 journal。欄位、日期／衝突／刪除影響、錯誤、256 KiB 例外及原 UUID 恢復詳見 [唯一契約](../../mobile/docs/BACKEND_CONTRACT.md#2a-行程維護服務與恢復契約)，待驗見 [交接](../../mobile/docs/LOCAL_ACCEPTANCE.md#2a-行程維護交接)。

@@ -206,6 +206,165 @@ export type Itinerary = z.infer<typeof itinerarySchema>;
 export type ItineraryDay = z.infer<typeof itineraryDaySchema>;
 export type ItineraryActivity = z.infer<typeof itineraryActivitySchema>;
 export type ItineraryLocation = z.infer<typeof itineraryLocationSchema>;
+// Online itinerary maintenance: freeze one confirmed command and UUID before sending.
+const itineraryRevisionSchema = z
+  .number()
+  .int()
+  .min(0)
+  .max(Number.MAX_SAFE_INTEGER - 1);
+const itineraryCalendarDate = dateSchema.refine((v) => {
+  const d = new Date(`${v}T00:00:00.000Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
+});
+export const itineraryDayTargetInput = z.union([
+  z
+    .object({
+      date: itineraryCalendarDate,
+      expected_start_date: itineraryCalendarDate,
+      expected_end_date: itineraryCalendarDate.nullable(),
+    })
+    .strict(),
+  z
+    .object({
+      day_number: z.number().int().min(1).max(3650),
+      expected_start_date: z.null(),
+      expected_end_date: itineraryCalendarDate.nullable(),
+    })
+    .strict(),
+]);
+const itineraryWriteLocation = itineraryLocationSchema.strict();
+export const itineraryActivityInput = z
+  .object({
+    title: z.string().trim().min(1).max(1000),
+    type: itineraryActivitySchema.shape.type,
+    time: itineraryActivitySchema.shape.time,
+    endTime: itineraryActivitySchema.shape.endTime,
+    location: itineraryWriteLocation.nullable(),
+    locationName: z.string().trim().max(300),
+    note: z.string().max(50000),
+    confirmationCode: z.string().max(1000),
+  })
+  .strict();
+const itineraryCommandBase = z.object({ client_request_id: z.string().uuid() });
+const itineraryDayFields = {
+  title: z.string().trim().min(1).max(1000),
+  content: z.string().max(50000),
+  location: itineraryWriteLocation.nullable(),
+};
+export const itineraryWriteInput = z.discriminatedUnion('operation', [
+  itineraryCommandBase
+    .extend({
+      operation: z.literal('day.create'),
+      ...itineraryDayFields,
+      target: itineraryDayTargetInput,
+    })
+    .strict(),
+  itineraryCommandBase
+    .extend({
+      operation: z.literal('day.update'),
+      dayId: idSchema,
+      expected_revision: itineraryRevisionSchema,
+      ...itineraryDayFields,
+      target: itineraryDayTargetInput.optional(),
+    })
+    .strict(),
+  itineraryCommandBase
+    .extend({
+      operation: z.literal('day.delete'),
+      dayId: idSchema,
+      expected_revision: itineraryRevisionSchema,
+      expected_impact_revision: z.string().regex(/^[a-f0-9]{64}$/),
+    })
+    .strict(),
+  itineraryCommandBase
+    .extend({
+      operation: z.literal('activity.create'),
+      dayId: idSchema,
+      activity: itineraryActivityInput,
+    })
+    .strict(),
+  itineraryCommandBase
+    .extend({
+      operation: z.literal('activity.update'),
+      dayId: idSchema,
+      activityId: idSchema,
+      expected_activity_revision: itineraryRevisionSchema,
+      activity: itineraryActivityInput,
+    })
+    .strict(),
+  itineraryCommandBase
+    .extend({
+      operation: z.literal('activity.delete'),
+      dayId: idSchema,
+      activityId: idSchema,
+      expected_activity_revision: itineraryRevisionSchema,
+    })
+    .strict(),
+]);
+export const itineraryWriteRejectionSchema = z.enum([
+  'CONFLICT',
+  'NOT_FOUND',
+  'FORBIDDEN',
+  'VALIDATION_ERROR',
+  'ACTIVITY_LIMIT',
+  'TRIP_DATES_CHANGED',
+  'DAY_ALREADY_EXISTS',
+  'DATE_OUTSIDE_TRIP',
+  'TRIP_START_DATE_REQUIRED',
+  'DELETE_IMPACT_CHANGED',
+]);
+const itineraryOperationSchema = z.enum([
+  'day.create',
+  'day.update',
+  'day.delete',
+  'activity.create',
+  'activity.update',
+  'activity.delete',
+]);
+const itineraryTerminalBase = z.object({
+  client_request_id: z.string().uuid(),
+  tripId: idSchema,
+  operation: itineraryOperationSchema,
+});
+export const itineraryWriteStateSchema = z.discriminatedUnion('status', [
+  z.object({ status: z.literal('not_found') }).strict(),
+  itineraryTerminalBase
+    .extend({
+      status: z.literal('committed'),
+      result: z
+        .object({
+          dayId: idSchema,
+          dayRevision: itineraryRevisionSchema.nullable(),
+          activityId: idSchema.nullable(),
+          activityRevision: itineraryRevisionSchema.nullable(),
+          deleted: z.boolean(),
+        })
+        .strict(),
+    })
+    .strict(),
+  itineraryTerminalBase
+    .extend({ status: z.literal('rejected'), code: itineraryWriteRejectionSchema })
+    .strict(),
+]);
+export const itineraryDeleteImpactSchema = z.object({
+  activityCount: z.number().int().nonnegative(),
+  attachmentCount: z.number().int().nonnegative(),
+  expenseCount: z.number().int().nonnegative(),
+  photoCount: z.number().int().nonnegative(),
+  revision: z.string().regex(/^[a-f0-9]{64}$/),
+});
+export const itineraryEditContextSchema = itinerarySchema.extend({
+  days: z.array(
+    itineraryDaySchema.extend({
+      revision: itineraryRevisionSchema,
+      deleteImpact: itineraryDeleteImpactSchema,
+      activities: z.array(itineraryActivitySchema.extend({ revision: itineraryRevisionSchema })),
+    })
+  ),
+});
+export type ItineraryWriteInput = z.infer<typeof itineraryWriteInput>;
+export type ItineraryWriteState = z.infer<typeof itineraryWriteStateSchema>;
+export type ItineraryEditContext = z.infer<typeof itineraryEditContextSchema>;
 export const tripsSchema = z.object({
   items: z.array(tripSchema),
   nextPage: z.number().int().positive().nullable(),
