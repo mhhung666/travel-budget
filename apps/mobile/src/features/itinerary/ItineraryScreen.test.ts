@@ -23,6 +23,10 @@ const h = vi.hoisted(() => ({
     refresh: vi.fn(),
   },
 }));
+vi.mock('./ActivityActions', () => ({ ActivityActions: 'ActivityActions' }));
+vi.mock('@/features/trips/queries', () => ({
+  useTrip: () => ({ data: { role: 'admin' }, isError: false }),
+}));
 vi.mock('./DayActions', () => ({ DayActions: 'DayActions' }));
 vi.mock('react', async (original) => ({
   ...(await original<typeof import('react')>()),

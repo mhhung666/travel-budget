@@ -23,6 +23,8 @@ import { useMessages, useAppLocale } from '@/i18n/useMessages';
 import { useDisplayFormat } from '@/i18n/useDisplayFormat';
 import { useOnline } from '@/providers/useOnline';
 import { spacing, typography } from '@/theme/tokens';
+import { useTrip } from '@/features/trips/queries';
+import { ActivityActions } from './ActivityActions';
 import { DayActions } from './DayActions';
 import { useItinerary } from './queries';
 import { activityTime, activityType, dayLabel, locationName } from './presentation';
@@ -69,6 +71,8 @@ function ItineraryReader({
   const f = useDisplayFormat();
   const locale = useAppLocale();
   const p = usePalette();
+  const trip = useTrip(tripId);
+  const canEdit = !trip.isError && trip.data?.role === 'admin';
   const days = query.data?.days ?? [];
   const index = Math.max(
     0,
@@ -95,7 +99,7 @@ function ItineraryReader({
           <View style={{ gap: spacing.medium }}>
             <ScrollChrome />
             <Title>{t.itinerary}</Title>
-            {query.data && <DayActions tripId={tripId} dayId={day?.id} />}
+            {query.data && <DayActions tripId={tripId} dayId={day?.id} canEdit={canEdit} />}
             {!online && <Notice tone="warning">{t.offline}</Notice>}
             {query.isPending && online && <ActivityIndicator accessibilityLabel={t.loading} />}
             {query.isError && (
@@ -154,12 +158,28 @@ function ItineraryReader({
                     <ReadableText>{day.content}</ReadableText>
                   </Section>
                 )}
+                <ActivityActions tripId={tripId} dayId={day.id} canEdit={canEdit} online={online} />
                 {day.activities.length === 0 && <Copy>{t.itineraryNoActivities}</Copy>}
               </>
             )}
           </View>
         }
-        renderItem={({ item }) => <ActivityCard activity={item} />}
+        renderItem={({ item }) => (
+          <ActivityCard
+            activity={item}
+            actions={
+              day ? (
+                <ActivityActions
+                  tripId={tripId}
+                  dayId={day.id}
+                  activityId={item.id}
+                  canEdit={canEdit}
+                  online={online}
+                />
+              ) : undefined
+            }
+          />
+        )}
         ListFooterComponent={
           query.data ? (
             <Action
@@ -196,7 +216,13 @@ function LocationDetails({ location, locale }: { location: ItineraryLocation; lo
     </View>
   );
 }
-export function ActivityCard({ activity }: { activity: ItineraryActivity }) {
+export function ActivityCard({
+  activity,
+  actions,
+}: {
+  activity: ItineraryActivity;
+  actions?: React.ReactNode;
+}) {
   const t = useMessages();
   const locale = useAppLocale();
   const place = locationName(activity.location, activity.locationName, locale);
@@ -223,6 +249,7 @@ export function ActivityCard({ activity }: { activity: ItineraryActivity }) {
         {!!activity.confirmationCode && (
           <DetailRow label={t.itineraryConfirmation} value={activity.confirmationCode} />
         )}
+        {actions}
       </Disclosure>
     </Card>
   );

@@ -735,3 +735,67 @@ describe('B5d-1 records saved by a release that sent v1', () => {
     expect(n.some((e) => e.props.testID === 'queue-discard-retired-0')).toBe(false);
   });
 });
+
+it.each(['activity.create', 'activity.update', 'activity.delete'] as const)(
+  'resumes rejected %s in the exact activity editor and blocks a stale action after revocation',
+  (nativeOperation) => {
+    const tripId = 'a'.repeat(24),
+      dayId = 'b'.repeat(24),
+      activityId = 'c'.repeat(24);
+    const activity = {
+      title: 'Private activity',
+      type: 'food' as const,
+      time: null,
+      endTime: null,
+      location: null,
+      locationName: '',
+      note: 'Private notes',
+      confirmationCode: '00120',
+    };
+    const body =
+      nativeOperation === 'activity.create'
+        ? { operation: nativeOperation, dayId, activity, client_request_id: 'uuid' }
+        : nativeOperation === 'activity.update'
+          ? {
+              operation: nativeOperation,
+              dayId,
+              activityId,
+              expected_activity_revision: 2,
+              activity,
+              client_request_id: 'uuid',
+            }
+          : {
+              operation: nativeOperation,
+              dayId,
+              activityId,
+              expected_activity_revision: 2,
+              client_request_id: 'uuid',
+            };
+    h.operations = [
+      {
+        ...operation('completed'),
+        tripId,
+        operation: 'itinerary.write',
+        payload: { operation: 'itinerary.write', tripId, body },
+        result: { status: 'rejected', operation: 'itinerary.write', code: 'ACTIVITY_LIMIT' },
+      },
+    ];
+    const n = render(OperationsScreen);
+    const resume = action(n, 'mutation-itinerary-resume-uuid');
+    resume.onPress();
+    expect(h.push).toHaveBeenCalledWith({
+      pathname: '/trips/[id]/itinerary/activity',
+      params: {
+        id: tripId,
+        dayId,
+        source: 'uuid',
+        ...(nativeOperation !== 'activity.create' ? { activityId } : {}),
+        ...(nativeOperation === 'activity.delete' ? { remove: 'true' } : {}),
+      },
+    });
+    h.push.mockClear();
+    h.visible = false;
+    resume.onPress();
+    expect(h.push).not.toHaveBeenCalled();
+  }
+);

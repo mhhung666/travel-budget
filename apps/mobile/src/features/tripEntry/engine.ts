@@ -295,7 +295,15 @@ export class TripEntry {
       result.operation !== record.payload.body.operation ||
       (result.status === 'committed' &&
         'dayId' in record.payload.body &&
-        result.result.dayId !== record.payload.body.dayId)
+        result.result.dayId !== record.payload.body.dayId) ||
+      (result.status === 'committed' &&
+        'activityId' in record.payload.body &&
+        result.result.activityId !== record.payload.body.activityId) ||
+      (result.status === 'committed' &&
+        record.payload.body.operation.startsWith('activity.') &&
+        !result.result.activityId) ||
+      (result.status === 'committed' &&
+        result.result.deleted !== record.payload.body.operation.endsWith('.delete'))
     )
       throw new ApiError('INVALID_RESPONSE');
     return this.finish(

@@ -1,3 +1,4 @@
+import { activityMessages, activityRejection } from '@/i18n/activityMessages';
 import { itineraryMessages, dayRejection } from '@/i18n/itineraryMessages';
 import { goBack } from '@/components/navigation';
 import { useRef, useState } from 'react';
@@ -25,7 +26,8 @@ export function OperationsScreen() {
 function ScopedOperationsScreen() {
   const { entry, scope, records } = useTripEntry();
   const t = useMessages();
-  const itineraryCopy = itineraryMessages[useAppLocale()];
+  const locale = useAppLocale();
+  const itineraryCopy = itineraryMessages[locale];
   const online = useOnline();
   const { manager, status } = useAuth();
   const { catalog } = useDraftCatalog();
@@ -230,7 +232,10 @@ function ScopedOperationsScreen() {
                 {record.result?.status === 'committed'
                   ? t.operationDone
                   : record.operation === 'itinerary.write' && record.result?.status === 'rejected'
-                    ? dayRejection(record.result.code, itineraryCopy)
+                    ? record.payload?.operation === 'itinerary.write' &&
+                      record.payload.body.operation.startsWith('activity.')
+                      ? activityRejection(record.result.code, activityMessages[locale])
+                      : dayRejection(record.result.code, itineraryCopy)
                     : record.operation === 'budget.set'
                       ? t.budgetChanged
                       : record.operation === 'trip.currency'
@@ -274,21 +279,24 @@ function ScopedOperationsScreen() {
                 )}
               {record.result?.status === 'rejected' &&
                 record.payload?.operation === 'itinerary.write' &&
-                record.tripId &&
-                record.payload.body.operation.startsWith('day.') && (
+                record.tripId && (
                   <Action
+                    testID={`mutation-itinerary-resume-${record.clientRequestId}`}
                     label={itineraryCopy.reload}
                     onPress={() => {
                       if (!visible(record) || record.payload?.operation !== 'itinerary.write')
                         return;
                       const command = record.payload.body;
                       router.push({
-                        pathname: '/trips/[id]/itinerary/day',
+                        pathname: command.operation.startsWith('activity.')
+                          ? '/trips/[id]/itinerary/activity'
+                          : '/trips/[id]/itinerary/day',
                         params: {
                           id: record.tripId!,
                           source: record.clientRequestId,
                           ...('dayId' in command ? { dayId: command.dayId } : {}),
-                          ...(command.operation === 'day.delete' ? { remove: 'true' } : {}),
+                          ...('activityId' in command ? { activityId: command.activityId } : {}),
+                          ...(command.operation.endsWith('.delete') ? { remove: 'true' } : {}),
                         },
                       });
                     }}

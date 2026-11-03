@@ -1,15 +1,21 @@
 import { router } from 'expo-router';
 import { Action } from '@/components/ui';
-import { useTrip } from '@/features/trips/queries';
 import { useAppLocale } from '@/i18n/useMessages';
 import { itineraryMessages } from '@/i18n/itineraryMessages';
 import { useOnline } from '@/providers/useOnline';
 
-export function DayActions({ tripId, dayId }: { tripId: string; dayId?: string }) {
-  const query = useTrip(tripId);
+export function DayActions({
+  tripId,
+  dayId,
+  canEdit,
+}: {
+  tripId: string;
+  dayId?: string;
+  canEdit: boolean;
+}) {
   const online = useOnline();
   const copy = itineraryMessages[useAppLocale()];
-  if (query.isError || query.data?.role !== 'admin') return null;
+  if (!canEdit) return null;
   const open = (mode: 'add' | 'edit' | 'remove') => {
     if (!online) return;
     router.push({

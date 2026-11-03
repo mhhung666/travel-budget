@@ -26,11 +26,12 @@ Server Actions 與 HTTP API 是兩個呼叫入口，部署初期同在現有 Nex
 
 ## App 行程日維護與恢復
 
-`features/itinerary/DayEditorScreen` 與薄路由 `trips/[id]/itinerary/day` 只維護日資料，按環境／帳號／登入世代／旅行／模式重建。未確認欄位與已檢視 command 留在頁面記憶體；重讀 context 不因 refocus 自動覆蓋輸入。`dayForm` 只做表單驗證、UTC date-only 轉換及 command 組合，授權、版本、日期／刪除影響及最終關聯效果仍由 2A 後端決定。
+`features/itinerary/ItineraryEditorScreen` 共用 2B／2C 的確認、未保存提醒、登入／catalog 守衛與提交狀態；`DayEditorScreen`／`ActivityEditorScreen` 提供各自欄位、快照與確認摘要，薄路由為 `trips/[id]/itinerary/day`／`activity`。按環境／帳號／登入世代／旅行／日／活動／模式重建；未確認輸入與已檢視 command 僅頁面記憶體，不因 refocus 重置。`dayForm`／`activityForm` 用共用 schema 驗證並組 command，最終授權、日期／版本／容量與關聯效果仍由 2A 後端決定。活動只比對目標 revision；其他活動修改不觸發整日衝突，所屬日標題／日期變動仍要求重新確認。
 
-2B 擴充既有 `pending_mutation` 的 `itinerary.write` JSON envelope，沿用 schema 11，沒有新增 provider、資料庫、表或帳務幣別。body／HTTP receipt 都直接驗證共用 itinerary schema；本機結果包裝僅為 E 操作畫面提供一致的 tripId／狀態，不改 wire 契約或虛構 ledger。原 UUID、body、同旅行 C／E 互斥與帳號 429 由既有 TripEntry 協調；查詢使用旅行內原 requests endpoint，終局核對 UUID／旅行／operation，committed 清除 body，rejected 保留以供明確續改。
+閱讀器只在上層觀察一次現有旅行摘要的管理員角色，將權限／連線傳入日及活動操作；列不掛額外遠端查詢。活動表單保存未改地點的翻譯／國家 metadata，票券由既有後端保留，App 不讀取或送出票券 key。
+2B 擴充既有 `pending_mutation` 的 `itinerary.write` JSON envelope，沿用 schema 11，沒有新增 provider、資料庫、表或帳務幣別。body／HTTP receipt 都直接驗證共用 itinerary schema；本機結果包裝僅為 E 操作畫面提供一致的 tripId／狀態，不改 wire 契約或虛構 ledger。原 UUID、body、同旅行 C／E 互斥與帳號 429 由既有 TripEntry 協調；查詢使用旅行內原 requests endpoint，終局核對 UUID／旅行／operation／已知日及活動 ID／刪除狀態，committed 清除 body，rejected 保留以供明確續改。
 
-編輯資訊讀取同樣套用持久等待、登入／catalog 世代及每次 fetch 守衛；403 FORBIDDEN 表示降權、不寫整趟旅行 tombstone，404 NOT_FOUND 才走既有撤權保存。E 已知 429 即使落盤失敗也保留本次記憶體絕對期限，下一次操作先修復保存，不延長原期限；只有成功落盤才保證重啟保存該期限。行程提交成功使同旅行讀取失效；原 E 啟動／前景／重連恢復只查詢，POST 重試必須明確操作。規則與待驗集中 [契約](BACKEND_CONTRACT.md#2a-行程維護服務與恢復契約) 與 [交接](LOCAL_ACCEPTANCE.md#2b-app-行程日維護交接)。
+編輯資訊讀取同樣套用持久等待、登入／catalog 世代及每次 fetch 守衛；403 FORBIDDEN 表示降權、不寫整趟旅行 tombstone，404 NOT_FOUND 才走既有撤權保存。E 已知 429 即使落盤失敗也保留本次記憶體絕對期限，下一次操作先修復保存，不延長原期限；只有成功落盤才保證重啟保存該期限。行程提交成功使同旅行讀取失效；原 E 啟動／前景／重連恢復只查詢，POST 重試必須明確操作。規則與待驗集中 [契約](BACKEND_CONTRACT.md#2a-行程維護服務與恢復契約) 與 [2B](LOCAL_ACCEPTANCE.md#2b-app-行程日維護交接)／[2C 交接](LOCAL_ACCEPTANCE.md#2c-app-活動維護交接)。
 
 ## B3：Mobile 帳本與舊資料恢復
 

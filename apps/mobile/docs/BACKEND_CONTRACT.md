@@ -16,7 +16,7 @@ App Query key 包含環境／帳號／旅行／v2，以 requestAs 固定帳號�
 
 ## 2A 行程維護服務與恢復契約
 
-2A 交付後端與純契約；2B 已接 App 行程日表單、確認後 SQLite journal 與待處理恢復，活動表單接 2C。Web 既有 cookie actions 已抽薄，與 Native 共用 `lib/itineraryMaintenance.ts` 的日期、revision、容量、附件保留、關聯清理及交易效果；Web 原 RPC 輸入／畫面不變，不宣稱其舊入口已新增 UUID journal。
+2A 交付後端與純契約；2B／2C 已接 App 行程日及活動表單、確認後 SQLite journal 與待處理恢復。Web 既有 cookie actions 已抽薄，與 Native 共用 `lib/itineraryMaintenance.ts` 的日期、revision、容量、附件保留、關聯清理及交易效果；Web 原 RPC 輸入／畫面不變，不宣稱其舊入口已新增 UUID journal。
 
 三個新 bearer v2 端點（均 no-store、Vary Authorization、無 ledger 金額）：
 
@@ -41,7 +41,7 @@ target 為嚴格互斥的 `{ date, expected_start_date, expected_end_date }` 或
 
 `committed` 帶 `{ client_request_id, tripId, operation, result: { dayId, dayRevision, activityId, activityRevision, deleted } }`；不存在的活動資訊／已刪日 revision 為 null。`rejected` 帶原 UUID／旅行／operation 及 code，包含 CONFLICT、NOT_FOUND、VALIDATION_ERROR、ACTIVITY_LIMIT、TRIP_DATES_CHANGED、DAY_ALREADY_EXISTS、DATE_OUTSIDE_TRIP、TRIP_START_DATE_REQUIRED、DELETE_IMPACT_CHANGED。業務拒絕以成功 envelope 回終局 rejected，不當作傳輸故障。UUID／資料／trip 指紋不符回 HTTP 409 IDEMPOTENCY_CONFLICT；格式或內容未通過 schema 的 400／413／415 尚未執行，沒有 receipt。無 bearer 401；非法／未知旅行、分享碼或非成員 404；目前成員但非管理員／交易內被降權 403。撤權會阻擋查詢與重送，不能把查詢被拒當原操作失敗。
 
-2B 已透過既有 TripEntry／pending_mutation 接入行程日恢復，2C 將沿用：確認後先持久保存環境／帳號／旅行／原 UUID／凍結 body，再送出；結果不明先查同 UUID，只有 not_found 可重送原 body，不能換 UUID、捨棄未知操作或從目前資料推論成功。not_found 不證明從未送出；查詢與尚在執行的提交可能交錯，但原 UUID 再送由交易 fence／receipt 唯一 `_id = actor:UUID` 保證一次。已提交／拒絕結果不 TTL 到期，重播先讀 receipt，再看活動是否仍存在；終局只保存結果 ID／revision，不保存私人成文內容。帳號／旅行不符不會取得他人的 receipt；換帳號／登出／429 仍須沿用既有隔離與等待守衛。
+2B／2C 已透過既有 TripEntry／pending_mutation 接入日及活動恢復：確認後先持久保存環境／帳號／旅行／原 UUID／凍結 body，再送出；結果不明先查同 UUID，只有 not_found 可重送原 body，不能換 UUID、捨棄未知操作或從目前資料推論成功。not_found 不證明從未送出；查詢與尚在執行的提交可能交錯，但原 UUID 再送由交易 fence／receipt 唯一 `_id = actor:UUID` 保證一次。已提交／拒絕結果不 TTL 到期，重播先讀 receipt，再看活動是否仍存在；終局只保存結果 ID／revision，不保存私人成文內容。帳號／旅行不符不會取得他人的 receipt；換帳號／登出／429 仍須沿用既有隔離與等待守衛。
 
 編輯 context 與影響摘要採同一授權 snapshot，按三個 collection 批次讀取、無逐日 N+1；查詢與寫入的完整游標使用 per-operation CSOT 共用 20 秒期限（包括重試與 commit），避免 MongoDB driver 7.2 在非 awaitData getMore 帶 maxTimeMS 的相容性錯誤。新寫入仍共用 trip fence，和既有 Web 管理、相片／支出關聯寫入協調。
 

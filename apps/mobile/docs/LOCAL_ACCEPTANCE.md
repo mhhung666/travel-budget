@@ -24,7 +24,7 @@
 
 ## 2A 行程維護交接
 
-2A 交付共用後端／契約；App 行程日表單與持久化恢復已接入 2B，活動表單接 2C；本片不做裝置驗收、部署或遠端 migration。契約及錯誤／恢復規則只維護於 [2A API](BACKEND_CONTRACT.md#2a-行程維護服務與恢復契約)。`itineraryWrite.integration.test.ts` 以明確 `MONGODB_MEMBER_TEST_URI`＋`MONGODB_MEMBER_TEST_ALLOW_WRITES=1` 使用可丟棄 replica set，自建／自清隨機 DB，已納入 CI 的交易工作；另回歸既有 Web 行程、相片關聯與附件測試。
+2A 交付共用後端／契約；App 行程日表單與持久化恢復已接入 2B，活動表單已接 2C；本片不做裝置驗收、部署或遠端 migration。契約及錯誤／恢復規則只維護於 [2A API](BACKEND_CONTRACT.md#2a-行程維護服務與恢復契約)。`itineraryWrite.integration.test.ts` 以明確 `MONGODB_MEMBER_TEST_URI`＋`MONGODB_MEMBER_TEST_ALLOW_WRITES=1` 使用可丟棄 replica set，自建／自清隨機 DB，已納入 CI 的交易工作；另回歸既有 Web 行程、相片關聯與附件測試。
 
 2026-11-03 獨立程式審查與自動複驗通過；修正相片重綁批次寫入漏套剩餘期限，新增先失敗、修正後通過的回歸。隔離行程／交易 462 項、Web／Mobile 全套測試、根 check／build 及三平台匯出通過；故障與權限涵蓋範圍如下，尚不等同六種操作全部經真 HTTP 丟包或裝置驗收。
 
@@ -36,7 +36,7 @@
 4. 刪除確認後新增支出／相片關聯須拒絕並重讀影響；真正提交時清關聯、退役票券、重綁相片且不重新編號。活動文字更新保留票券，HTTP/context/receipt 不含 key／URL，R2 HEAD 不在 Native 重試交易內執行。
 5. 無 bearer、分享碼、非成員、普通成員、交易前後降權／撤權、換帳號；查詢保持唯讀、不增加 fence。130 筆以上相片／多批行程讀寫仍成功；no-store／Vary Authorization、嚴格 schema、256 KiB 上限。
 
-2B 的 iPhone／iPad 清單見下節，2C 活動操作另補；Android 依既有決定延後。工程案例不代表以上人工複驗或實際畫面已通過。
+2B 的 iPhone／iPad 清單見下節，2C 活動操作見下節；Android 依既有決定延後。工程案例不代表以上人工複驗或實際畫面已通過。
 
 ## 2B App 行程日維護交接
 
@@ -52,6 +52,21 @@
 8. 四語、深淺色、最大字級、鍵盤與側滑、安全區、iPhone＋iPad、VoiceOver；Android 延後。活動編輯、票券附件編輯、AI 匯入、離線編輯及活動記帳關聯均不在 2B。
 
 工程重跑：`pnpm --filter travel-budget-mobile exec vitest run src/features/itinerary src/features/tripEntry`；完整 Mobile 測試、check、contracts、Expo 相容性及三平台匯出均須通過。實際裝置／Web／DB 證據由驗收者補入本節，不以 mock 測試外推。
+
+## 2C App 活動維護交接
+
+2026-11-03 獨立程式審查與自動複驗通過，未發現阻擋問題；iPhone／iPad／VoiceOver 操作待驗，未部署。沿用 2A API 與 2B journal，未改後端、共用契約或 SQLite schema。工程案例使用 mock React 控制項／transport 與真 SQLite 檔案重開，不是實際 App／Web／DB 單次副作用驗收。本輪新增 60 項回歸，Mobile 1,947 項＋工具 48 項、check、契約、Expo 相容性及三平台匯出通過。
+
+1. 管理員由選定日新增，從活動詳情編輯／刪除；普通成員隱藏寫入、深連結被拒；離線不可提交。新增後 Web／App 同日順序及內容一致，活動不誤入另一日；空日仍可新增。
+2. 九種既有類型（含舊 transport）、空／僅結束時間、當地 HH:mm、跨夜、無座標地點說明、手動座標、長備註、前導零訂位碼；座標／時間／長度錯誤提示，最多 15 活動由後端裁決。更新不得清除原票券、地點翻譯／國家 metadata，清除地點與地點說明分開。
+3. 未保存返回／側滑提醒；檢視不直接送出。Web 改同活動，App 保留輸入並顯示最新時間／類型／地點／備註／訂位碼，明確重新檢視才新確認；不同活動修改不造成整日版本誤判。日標題／日期變動需再核對，原日或活動刪除不得自動新建。
+4. 刪除明確確認活動與票券影響，保留原日、其他活動、支出與照片。核對 DB 活動筆數、receipt、票券退役工作與未改附件；沒有活動級附件數，不以全日數字當成該活動數量。
+5. 三種活動操作各測雙擊、本機落盤失敗、回應遺失／重啟、完成保存失敗：首次 POST 前已有固定 UUID／原 body，重啟只查詢；只有明確 not_found 才原 UUID 重試；查詢拒絕或衝突不換 UUID。提交後再由 Web 刪活動，仍查回原終局、不復活。
+6. 終局拒絕保留原輸入，待處理操作回正確日／活動／模式並讀新版本；ACTIVITY_LIMIT／CONFLICT／NOT_FOUND 有四語提示。未知提交凍結，拒絕後才允許修改或移除終局提示；活動 ID 或刪除狀態不符的回應不能結案。
+7. 沿用 2B 的同旅行 C／E 互斥、帳號共用 429 原期限及保存失敗保護；前景／重連不自動 POST。換帳號／環境、登出、背景、降權／撤權與晚到回應，不洩露備註／訂位碼，不以讀取拒絕推論原操作失敗。
+8. iPhone＋iPad、四語、深淺色、大字級、鍵盤、安全區、類型選單與 VoiceOver；Android 延後。票券附件編輯、AI 匯入、離線編輯及活動記帳關聯維持後續範圍。
+
+重跑沿用 2B 指令，恢復畫面另含 `src/features/recovery`；實際裝置／Web／DB 證據由驗收者補入本節。
 
 ## B 基準幣別驗收（B1／B2／B3 實作交接）
 
