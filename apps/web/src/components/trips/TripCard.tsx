@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useState } from 'react';
+import { useState } from 'react';
 
 import {
   Archive,
@@ -15,9 +15,6 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import type { TripWithMembers } from '@/types';
 import { ROUTES } from '@/constants/routes';
-import { formatCurrency } from '@/constants/currencies';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -26,7 +23,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { dateFromLocalDateKey, getTripListPhase } from '@/lib/tripStatus';
-import TripDestination from './TripDestination';
+import { pickLocalizedName } from '@/lib/utils';
+import { TripCardFrame, TripCardLayout, TripCardSummary } from './TripCardLayout';
+import { cardDates, cardNumber } from './tripCardFormat';
 
 export interface TripCardProps {
   trip: TripWithMembers;
@@ -44,15 +43,24 @@ export default function TripCard({
   disabled = false,
 }: TripCardProps) {
   const [mainPressed, setMainPressed] = useState(false);
-  const contentId = useId();
   const t = useTranslations('trips');
   const locale = useLocale();
   const isArchived = trip.archived_at != null;
   const phase = getTripListPhase(trip);
   const settlement = phase === 'past' && Math.abs(trip.my_balance) >= 0.01;
   const currency = trip.ledger?.baseCurrency ?? 'TWD';
-  const money = (amount: number) =>
-    `${currency} · ${formatCurrency(Math.abs(amount), currency, locale)}`;
+  const money = (amount: number) => `${cardNumber(amount, locale)} ${currency}`;
+  const status = isArchived
+    ? `${t('tabArchived')}${phase === 'past' ? '' : ` · ${t(`card.phase.${phase}`)}`}`
+    : t(`card.phase.${phase}`);
+  const destination = trip.destination_location
+    ? pickLocalizedName(trip.destination_location.names, locale, trip.destination_location.name)
+    : '';
+  const balance =
+    trip.my_balance === 0
+      ? t('card.noBalance')
+      : `${t(trip.my_balance > 0 ? 'card.receive' : 'card.pay')}: ${money(trip.my_balance)}`;
+
   const date = (value: string | null) => {
     const parsed = value && dateFromLocalDateKey(value.slice(0, 10));
     return parsed
@@ -71,15 +79,11 @@ export default function TripCard({
     !trip.start_date && !trip.end_date
       ? t('noDateGroup')
       : trip.start_date && trip.end_date
-        ? `${date(trip.start_date)} — ${date(trip.end_date)}`
+        ? cardDates(trip.start_date, trip.end_date, locale)!
         : t('card.partialDates', { start: date(trip.start_date), end: date(trip.end_date) });
 
   return (
-    <Card
-      data-trip-card={trip.id}
-      data-main-pressed={mainPressed}
-      className="trip-card relative isolate flex h-full flex-col rounded-2xl border-border bg-card shadow-sm transition-[background-color,box-shadow] duration-150"
-    >
+    <TripCardFrame data-trip-card={trip.id} data-main-pressed={mainPressed}>
       <Link
         href={ROUTES.TRIP_DETAIL(trip.hash_code)}
         onPointerDown={(event) => {
@@ -90,53 +94,71 @@ export default function TripCard({
         onPointerLeave={() => setMainPressed(false)}
         onBlur={() => setMainPressed(false)}
         onContextMenu={() => setMainPressed(false)}
-        aria-labelledby={contentId}
-        className="trip-card-main absolute inset-0 z-0 rounded-2xl focus-visible:outline-none"
+        aria-label={`${trip.name}, ${status}, ${dates}, ${destination ? `${destination} · ` : ''}${trip.member_count} ${t('members')}, ${t('card.myShare')}: ${money(trip.my_spent)}, ${balance}, ${t('card.openTrip')}`}
+        className="trip-card-main absolute inset-0 z-0 rounded-[14px] focus-visible:outline-none"
       />
-      <div className="pointer-events-none flex items-start gap-2">
-        <div id={contentId} className="min-h-12 min-w-0 flex-1 space-y-3 p-4 text-left">
-          <h3 className="break-words text-xl font-semibold text-foreground">{trip.name}</h3>
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="secondary">{t(`card.phase.${phase}`)}</Badge>
-            {isArchived && <Badge variant="outline">{t('tabArchived')}</Badge>}
-          </div>
-          <p className="text-sm text-muted-foreground">{dates}</p>
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
-            <TripDestination destination={trip.destination_location} />
-            <span>
-              {trip.member_count} {t('members')}
-            </span>
-          </div>
-          <dl className="space-y-2 text-base">
-            <div className="flex flex-wrap justify-between gap-x-3 gap-y-1">
-              <dt className="text-muted-foreground">{t('card.myShare')}</dt>
-              <dd className="break-words font-semibold tabular-nums">{money(trip.my_spent)}</dd>
-            </div>
-            {trip.budget?.total != null && (
-              <div className="text-sm text-muted-foreground">
-                <dt className="sr-only">{t('card.budgetLabel')}</dt>
-                <dd>{t('card.budget', { amount: money(trip.budget.total) })}</dd>
-              </div>
-            )}
-            <div className="flex flex-wrap justify-between gap-x-3 gap-y-1">
-              <dt className="text-muted-foreground">
-                {t(
-                  trip.my_balance === 0
-                    ? 'card.noBalance'
-                    : trip.my_balance > 0
-                      ? 'card.receive'
-                      : 'card.pay'
-                )}
-              </dt>
-              <dd className="break-words font-semibold tabular-nums">{money(trip.my_balance)}</dd>
-            </div>
-          </dl>
-          <span className="flex items-center gap-2 text-sm text-primary">
-            {t('card.openTrip')}
-            <ChevronRight className="h-4 w-4" aria-hidden="true" />
+      <TripCardLayout
+        title={<h3 className="break-words text-lg font-semibold text-foreground">{trip.name}</h3>}
+        status={
+          <span
+            className={
+              !isArchived && (phase === 'ongoing' || phase === 'upcoming')
+                ? 'text-primary'
+                : undefined
+            }
+          >
+            {status}
           </span>
-        </div>
-        <div className="pointer-events-auto relative z-10 mr-2 mt-2 shrink-0">
+        }
+        dates={dates}
+        members={
+          <span className="break-words">
+            {destination && `${destination} · `}
+            {trip.member_count} {t('members')}
+          </span>
+        }
+        summary={
+          <TripCardSummary
+            characters={Math.max(
+              cardNumber(trip.my_spent, locale).length,
+              cardNumber(trip.my_balance, locale).length * 0.8
+            )}
+            left={
+              <>
+                <dt className="text-sm text-muted-foreground">{t('card.myShare')}</dt>
+                <dd className="break-words font-semibold text-foreground">
+                  {money(trip.my_spent)}
+                </dd>
+              </>
+            }
+            right={
+              <>
+                {trip.my_balance === 0 ? (
+                  <>
+                    <dt className="sr-only">{t('card.balanceLabel')}</dt>
+                    <dd className="text-sm text-muted-foreground">{t('card.noBalance')}</dd>
+                  </>
+                ) : (
+                  <>
+                    <dt className="text-sm text-muted-foreground">
+                      {t(trip.my_balance > 0 ? 'card.receive' : 'card.pay')}
+                    </dt>
+                    <dd className="break-words text-base text-foreground">
+                      {money(trip.my_balance)}
+                    </dd>
+                  </>
+                )}
+              </>
+            }
+          />
+        }
+        open={
+          <>
+            {t('card.openTrip')}
+            <ChevronRight className="h-4 w-4 shrink-0" aria-hidden="true" />
+          </>
+        }
+        more={
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -172,33 +194,33 @@ export default function TripCard({
               )}
             </DropdownMenuContent>
           </DropdownMenu>
-        </div>
-      </div>
-      {!isArchived && (settlement || onQuickExpense) && (
-        <div className="pointer-events-none relative z-10 mt-auto flex justify-end border-t border-border p-2">
-          {settlement ? (
-            <Button
-              variant="ghost"
-              className="pointer-events-auto min-h-12 whitespace-normal text-primary"
-              asChild
-            >
-              <Link href={ROUTES.TRIP_SETTLEMENT(trip.hash_code)}>
-                <WalletCards className="h-4 w-4" />
-                {t('card.viewSettlement')}
-              </Link>
-            </Button>
-          ) : (
-            <Button
-              variant="ghost"
-              className="pointer-events-auto min-h-12 whitespace-normal text-primary"
-              onClick={() => onQuickExpense?.(trip)}
-            >
-              <ReceiptText className="h-4 w-4" />
-              {t('card.quickExpense')}
-            </Button>
-          )}
-        </div>
-      )}
-    </Card>
+        }
+        shortcut={
+          !isArchived && (settlement || onQuickExpense) ? (
+            settlement ? (
+              <Button
+                variant="outline"
+                className="min-h-12 h-auto max-w-full rounded-xl whitespace-normal text-primary"
+                asChild
+              >
+                <Link href={ROUTES.TRIP_SETTLEMENT(trip.hash_code)}>
+                  <WalletCards className="h-4 w-4" />
+                  {t('card.viewSettlement')}
+                </Link>
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                className="min-h-12 h-auto max-w-full rounded-xl whitespace-normal text-primary"
+                onClick={() => onQuickExpense?.(trip)}
+              >
+                <ReceiptText className="h-4 w-4" />
+                {t('card.quickExpense')}
+              </Button>
+            )
+          ) : undefined
+        }
+      />
+    </TripCardFrame>
   );
 }

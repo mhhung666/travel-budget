@@ -75,7 +75,7 @@ it('pins ongoing then soonest upcoming trips and shows each card status', async 
   expect(screen.getByText('card.phase.ongoing')).toBeInTheDocument();
   expect(screen.getAllByText('card.phase.upcoming')).toHaveLength(2);
   expect(screen.getByText('card.phase.past')).toBeInTheDocument();
-  expect(screen.getByText('card.budget')).toBeInTheDocument();
+  expect(screen.queryByText('card.budget')).toBeNull();
   expect(screen.getByText('card.pay')).toBeInTheDocument();
 
   // 待結算的卡片把「記一筆」換成「查看結算」

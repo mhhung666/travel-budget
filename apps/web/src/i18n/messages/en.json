@@ -319,6 +319,8 @@
     "ongoingBadge": "On trip · Day {day}",
     "currentGroup": "On trip & upcoming",
     "card": {
+      "balanceLabel": "Outstanding balance",
+      "loading": "Loading trips",
       "upcoming": "{days, plural, one {Upcoming · tomorrow} other {Upcoming · in # days}}",
       "pendingSettlement": "To settle",
       "settled": "All settled",

@@ -99,6 +99,18 @@
 
 @layer components {
   /* 主區觸發整卡回饋；更多與快捷保留自己的焦點和點擊範圍。 */
+  .trip-card-summary[data-stacked='false'] > :last-child {
+    padding-left: 12px;
+  }
+
+  .trip-card-summary[data-stacked='false'] > :last-child::before {
+    content: '';
+    position: absolute;
+    inset-block: 0;
+    left: 0;
+    border-left: 1px solid hsl(var(--border));
+  }
+
   .trip-card-main {
     -webkit-tap-highlight-color: transparent;
     /* iOS 的長按連結浮層不使用自訂 box-shadow，必須另外停用。 */

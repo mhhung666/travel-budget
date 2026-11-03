@@ -102,7 +102,7 @@ it('uses one header create and join, no FAB, complete names and independent link
   expect(screen.queryByText(rows[0].description!)).toBeNull();
   expect(within(card).getByText('card.myShare')).toBeVisible();
   expect(within(card).getByText('card.noBalance')).toBeVisible();
-  expect(within(card).getAllByText(/JPY/)).toHaveLength(2);
+  expect(within(card).getAllByText(/JPY/)).toHaveLength(1);
   await userEvent.setup().click(screen.getByRole('button', { name: 'card.quickExpense' }));
   expect(h.push).not.toHaveBeenCalled();
   expect(screen.getByText('expense-for-codea')).toBeVisible();

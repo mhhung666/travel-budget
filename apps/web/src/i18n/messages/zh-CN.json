@@ -319,6 +319,8 @@
     "ongoingBadge": "旅行中 · Day {day}",
     "currentGroup": "旅行中与即将出发",
     "card": {
+      "balanceLabel": "待收付",
+      "loading": "正在加载旅行",
       "upcoming": "即将出发 · {days} 天后",
       "pendingSettlement": "待结算",
       "settled": "已结清",

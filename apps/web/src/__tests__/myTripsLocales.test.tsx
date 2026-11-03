@@ -52,7 +52,7 @@ it.each([
     expect(within(card).getByText(messages.trips.card.myShare)).toBeVisible();
     expect(within(card).getByText(messages.trips.card.pay)).toBeVisible();
     expect(within(card).getByText(new RegExp(messages.trips.card.notSet))).toBeVisible();
-    expect(within(card).getAllByText(/JPY ·/)).toHaveLength(2);
+    expect(within(card).getAllByText(/JPY/)).toHaveLength(2);
     expect(screen.getByRole('button').getAttribute('aria-label')).toContain(trip.name);
     expect(screen.getByRole('link', { name: messages.trips.card.viewSettlement })).toHaveAttribute(
       'href',

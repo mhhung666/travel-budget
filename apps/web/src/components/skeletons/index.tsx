@@ -1,3 +1,5 @@
+import { useTranslations } from 'next-intl';
+import { TripCardSkeleton } from '@/components/trips/TripCardLayout';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 
@@ -27,38 +29,31 @@ function ExpenseRowSkeleton() {
   );
 }
 
-export function TripsPageSkeleton() {
+export function TripsPageSkeleton({ archived = false }: { archived?: boolean }) {
+  const t = useTranslations('trips');
   return (
-    <div className="container mx-auto px-4 py-6 max-w-6xl">
-      <Card className="border-none shadow-none bg-transparent sm:bg-card sm:border sm:shadow-sm">
-        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-0 sm:px-6">
-          <Skeleton className="h-8 w-40" />
-          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <Skeleton className="h-10 w-full sm:w-28" />
-            <Skeleton className="h-10 w-full sm:w-28" />
-          </div>
-        </CardHeader>
-        <CardContent className="px-0 sm:px-6">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Card key={i}>
-                <CardHeader className="space-y-2">
-                  <Skeleton className="h-5 w-3/4" />
-                  <Skeleton className="h-4 w-1/2" />
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-2/3" />
-                  <div className="flex gap-2 pt-2">
-                    <Skeleton className="h-6 w-16 rounded-full" />
-                    <Skeleton className="h-6 w-16 rounded-full" />
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+    <div
+      className="container mx-auto max-w-6xl px-4 py-6"
+      role="status"
+      aria-label={t('card.loading')}
+    >
+      <div aria-hidden="true">
+        <div className="mb-6 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-3 md:grid-cols-[minmax(0,1fr)_auto_auto]">
+          <h1 className="text-2xl font-bold">{t('title')}</h1>
+          <Skeleton className="col-start-2 row-start-1 h-12 w-28 max-w-full animate-none md:col-start-3" />
+          <Skeleton className="col-span-2 h-12 w-28 animate-none md:col-span-1 md:col-start-2 md:row-start-1" />
+        </div>
+        <div className="mb-6 flex min-h-12 gap-2 border-b border-border">
+          <Skeleton className="h-12 w-28 animate-none" />
+          <Skeleton className="h-12 w-28 animate-none" />
+        </div>
+        <Skeleton className="mb-4 h-7 w-28 animate-none" />
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }, (_, i) => (
+            <TripCardSkeleton key={i} archived={archived} />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

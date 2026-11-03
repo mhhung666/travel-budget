@@ -3,11 +3,17 @@ import { baseCurrency } from '@/api/ledger';
 import { Pressable, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import type { Trip } from '@/api/contracts';
-import { Action, Badge, Icon, usePalette } from '@/components/ui';
+import { Action, Icon, usePalette } from '@/components/ui';
 import { useDisplayFormat } from '@/i18n/useDisplayFormat';
 import { useMessages } from '@/i18n/useMessages';
 import { cardShadows, radius, sizing, spacing, typography } from '@/theme/tokens';
-import { TripFinancialSummary, TripMetadata, tripDates } from './TripSummary';
+import {
+  TripCardLayout,
+  TripCardSummary,
+  tripCardRadius,
+  tripCardFrameStyle,
+} from './TripCardLayout';
+import { cardDates, cardMoney, cardNumber, cardPhase } from './tripCardFormat';
 
 export function TripCard({
   trip,
@@ -24,25 +30,23 @@ export function TripCard({
   const [mainHovered, setMainHovered] = useState(false);
   const [moreFocused, setMoreFocused] = useState(false);
   const t = useMessages(baseCurrency(trip));
-  const { money, locale } = useDisplayFormat(baseCurrency(trip));
-  const state = trip.phase === 'unscheduled' ? t.unscheduledPhase : t[trip.phase];
+  const { locale } = useDisplayFormat(baseCurrency(trip));
+  const money = (value: number) => cardMoney(value, baseCurrency(trip), locale);
+  const state = cardPhase(trip, t);
   const balance = trip.myBalance === 0 ? t.balanced : trip.myBalance > 0 ? t.receivable : t.payable;
   return (
     <View
       style={{
-        marginBottom: spacing.medium,
-        borderWidth: sizing.border,
+        ...tripCardFrameStyle(p),
         borderColor: mainFocused ? p.focus : p.border,
-        borderRadius: radius.card,
         backgroundColor: mainPressed ? p.selected : p.surface,
-        shadowColor: p.scrim,
         ...(mainPressed || mainHovered || mainFocused ? cardShadows.active : cardShadows.resting),
       }}
     >
       <Pressable
         testID={`trip-${trip.id}`}
         accessibilityRole="button"
-        accessibilityLabel={`${trip.name}, ${state}${trip.archived ? `, ${t.archived}` : ''}, ${tripDates(trip, t, locale)}, ${trip.destination ?? ''}, ${t.memberCount}: ${trip.memberCount}, ${t.mySpent}: ${money(trip.mySpent)}, ${balance}: ${money(Math.abs(trip.myBalance))}, ${t.openTrip}`}
+        accessibilityLabel={`${trip.name}, ${state}, ${cardDates(trip, t, locale)}, ${trip.destination ?? ''}, ${t.memberCount}: ${trip.memberCount}, ${t.mySpent}: ${money(trip.mySpent)}, ${balance}${trip.myBalance === 0 ? '' : `: ${money(Math.abs(trip.myBalance))}`}, ${t.openTrip}`}
         onFocus={() => setMainFocused(true)}
         onBlur={() => {
           setMainFocused(false);
@@ -59,73 +63,105 @@ export function TripCard({
           right: 0,
           bottom: 0,
           left: 0,
-          borderRadius: radius.card,
+          borderRadius: tripCardRadius,
         }}
       />
-      <View pointerEvents="box-none" style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-        <View
-          pointerEvents="none"
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          style={{
-            flex: 1,
-            minWidth: 0,
-            minHeight: sizing.touch,
-            borderRadius: radius.card,
-            borderWidth: 2,
-            borderColor: 'transparent',
-            padding: spacing.medium - 2,
-            gap: spacing.small,
-          }}
-        >
-          <Text style={[typography.section, { color: p.text, fontWeight: '700' }]}>
+      <TripCardLayout
+        title={
+          <Text style={{ fontSize: 18, lineHeight: 26, fontWeight: '600', color: p.text }}>
             {trip.name}
           </Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small }}>
-            <Badge label={state} />
-            {trip.archived && <Badge label={t.archived} />}
-          </View>
-          <TripMetadata trip={trip} destination />
-          <TripFinancialSummary trip={trip} compact />
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.small }}>
-            <Text style={[typography.label, { color: p.primary }]}>{t.openTrip}</Text>
-            <Icon name="chevron-right" color={p.primary} />
-          </View>
-        </View>
-        {actions && onMore && (
-          <Pressable
-            testID={`trip-more-${trip.id}`}
-            accessibilityRole="button"
-            accessibilityLabel={`${trip.name}, ${t.tripMore}`}
-            onPress={onMore}
-            onFocus={() => setMoreFocused(true)}
-            onBlur={() => setMoreFocused(false)}
-            style={({ pressed }) => ({
-              minWidth: sizing.touch,
-              minHeight: sizing.touch,
-              margin: spacing.small,
-              marginLeft: 0,
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: radius.control,
-              borderWidth: 2,
-              borderColor: moreFocused ? p.focus : 'transparent',
-              backgroundColor: pressed ? p.selected : 'transparent',
-            })}
+        }
+        status={
+          <Text
+            style={[
+              typography.label,
+              {
+                color:
+                  !trip.archived && (trip.phase === 'ongoing' || trip.phase === 'upcoming')
+                    ? p.primary
+                    : p.muted,
+              },
+            ]}
           >
-            <Text style={[typography.section, { color: p.primary }]}>⋯</Text>
-          </Pressable>
-        )}
-      </View>
-      {actions && !trip.archived && (
-        <View
-          pointerEvents="box-none"
-          style={{ borderTopWidth: sizing.border, borderColor: p.border, padding: spacing.small }}
-        >
-          <View pointerEvents="box-none" style={{ alignSelf: 'flex-end', maxWidth: '100%' }}>
+            {state}
+          </Text>
+        }
+        dates={
+          <Text style={[typography.label, { color: p.muted }]}>{cardDates(trip, t, locale)}</Text>
+        }
+        members={
+          <Text style={[typography.label, { color: p.muted }]}>
+            {trip.destination ? `${trip.destination} · ` : ''}
+            {t.memberCount}: {trip.memberCount}
+          </Text>
+        }
+        summary={
+          <TripCardSummary
+            digits={Math.max(
+              cardNumber(trip.mySpent, locale).length,
+              cardNumber(trip.myBalance, locale).length * 0.8
+            )}
+            left={
+              <>
+                <Text style={[typography.label, { color: p.muted }]}>{t.mySpent}</Text>
+                <Text
+                  style={[
+                    typography.section,
+                    { color: p.text, fontWeight: '600', fontVariant: ['tabular-nums'] },
+                  ]}
+                >
+                  {money(trip.mySpent)}
+                </Text>
+              </>
+            }
+            right={
+              <>
+                <Text style={[typography.label, { color: p.muted }]}>{balance}</Text>
+                {trip.myBalance !== 0 && (
+                  <Text style={[typography.body, { color: p.text, fontVariant: ['tabular-nums'] }]}>
+                    {money(trip.myBalance)}
+                  </Text>
+                )}
+              </>
+            }
+          />
+        }
+        open={
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.small }}>
+            <Text style={[typography.label, { color: p.muted, flexShrink: 1 }]}>{t.openTrip}</Text>
+            <Icon name="chevron-right" color={p.muted} />
+          </View>
+        }
+        more={
+          actions && onMore ? (
+            <Pressable
+              testID={`trip-more-${trip.id}`}
+              accessibilityRole="button"
+              accessibilityLabel={`${trip.name}, ${t.tripMore}`}
+              onPress={onMore}
+              onFocus={() => setMoreFocused(true)}
+              onBlur={() => setMoreFocused(false)}
+              style={({ pressed }) => ({
+                minWidth: sizing.touch,
+                minHeight: sizing.touch,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: radius.control,
+                borderWidth: 2,
+                borderColor: moreFocused ? p.focus : 'transparent',
+                backgroundColor: pressed ? p.selected : 'transparent',
+              })}
+            >
+              <Text style={[typography.section, { color: p.primary }]}>⋯</Text>
+            </Pressable>
+          ) : undefined
+        }
+        shortcut={
+          actions && !trip.archived ? (
             <Action
               testID={`trip-action-${trip.id}`}
-              variant="ghost"
+              variant="secondary"
               label={
                 trip.phase === 'past' && Math.abs(trip.myBalance) >= 0.01
                   ? t.viewSettlement
@@ -141,9 +177,9 @@ export function TripCard({
                 })
               }
             />
-          </View>
-        </View>
-      )}
+          ) : undefined
+        }
+      />
     </View>
   );
 }

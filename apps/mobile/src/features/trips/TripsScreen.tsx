@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AccessibilityInfo,
-  ActivityIndicator,
   FlatList,
   Modal,
   Pressable,
@@ -23,6 +22,7 @@ import { useAuth } from '@/features/auth/AuthProvider';
 import { useDraftCatalog } from '@/features/localDrafts/provider';
 import type { Trip } from '@/api/contracts';
 import { TripCard } from './TripCard';
+import { TripCardsLoading } from './TripCardLayout';
 import { PersonalArchive } from './PersonalArchive';
 import { LocalWorkLink } from './LocalWorkLink';
 import { useOnline } from '@/providers/useOnline';
@@ -250,7 +250,7 @@ export function TripsScreen() {
         ListEmptyComponent={
           query.isPending ? (
             online ? (
-              <ActivityIndicator accessibilityLabel={t.loading} color={p.primary} />
+              <TripCardsLoading archived={archive === 'archived'} />
             ) : null
           ) : !query.isError ? (
             <View style={{ gap: spacing.compact }}>
@@ -333,14 +333,17 @@ export function TripsScreen() {
         }}
         ListFooterComponent={
           query.hasNextPage && !denied && !serviceUnavailable ? (
-            <Action
-              testID="trips-load-more"
-              variant="secondary"
-              label={query.isFetchingNextPage ? t.loading : t.loadMore}
-              busy={query.isFetchingNextPage}
-              disabled={!online}
-              onPress={() => void query.fetchNextPage()}
-            />
+            query.isFetchingNextPage ? (
+              <TripCardsLoading archived={archive === 'archived'} count={1} />
+            ) : (
+              <Action
+                testID="trips-load-more"
+                variant="secondary"
+                label={t.loadMore}
+                disabled={!online}
+                onPress={() => void query.fetchNextPage()}
+              />
+            )
           ) : null
         }
       />

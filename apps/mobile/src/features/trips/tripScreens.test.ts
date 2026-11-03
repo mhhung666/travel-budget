@@ -8,6 +8,12 @@ import type { Trip } from '@/api/contracts';
 import { TripsScreen } from './TripsScreen';
 import { TripScreen, TripSupplement } from './TripScreen';
 import { TripCard } from './TripCard';
+import {
+  TripCardLayout,
+  TripCardSummary,
+  TripCardsLoading,
+  TripCardSkeleton,
+} from './TripCardLayout';
 import { TripFinancialSummary, tripDates } from './TripSummary';
 import { LocalWorkLink } from './LocalWorkLink';
 import { EntryGroup } from '@/components/EntryGroup';
@@ -19,6 +25,9 @@ const h = vi.hoisted(() => ({
   fontScale: 1,
   width: 390,
   measuredWidth: 0,
+  platform: 'ios',
+  effects: [] as (() => void)[],
+  announce: vi.fn(),
   expanded: false,
   resultOwner: '',
   archiveSelection: { owner: 'https://test/api/v1:account:1', value: 'unarchived' },
@@ -68,7 +77,9 @@ const h = vi.hoisted(() => ({
 }));
 vi.mock('react', async (original) => ({
   ...(await original<typeof import('react')>()),
-  useEffect: () => undefined,
+  useEffect: (effect: () => void) => {
+    h.effects.push(effect);
+  },
   useRef: (current: unknown) => ({ current }),
   useCallback: (fn: unknown) => fn,
   useState: (initial: unknown) =>
@@ -121,6 +132,12 @@ vi.mock('react-native', () => ({
     ].map((name) => [name, name])
   ),
   useWindowDimensions: () => ({ width: h.width, fontScale: h.fontScale }),
+  Platform: {
+    get OS() {
+      return h.platform;
+    },
+  },
+  AccessibilityInfo: { announceForAccessibilityWithOptions: h.announce },
 }));
 vi.mock('expo-router', () => ({
   router: {
@@ -194,6 +211,11 @@ function nodes(node: ReactNode): Element[] {
   if (Array.isArray(node)) return node.flatMap(nodes);
   if (!isValidElement(node)) return [];
   const element = node as Element;
+  if (element.type === TripCardLayout)
+    return [
+      element,
+      ...nodes(TripCardLayout(element.props as Parameters<typeof TripCardLayout>[0])),
+    ];
   if (element.type === EntryGroup)
     return [element, ...nodes(EntryGroup(element.props as Parameters<typeof EntryGroup>[0]))];
   return [element, ...nodes(element.props.children as ReactNode)];
@@ -238,6 +260,8 @@ beforeEach(() => {
     fontScale: 1,
     width: 390,
     measuredWidth: 0,
+    platform: 'ios',
+    effects: [],
     expanded: false,
     resultOwner: '',
     online: true,
@@ -686,7 +710,7 @@ it('UX-T compact finances always stack despite iPad width, and the card has no n
   expect(
     (more.props.style as (p: { pressed: boolean }) => object)({ pressed: false })
   ).toMatchObject({ minWidth: 48, minHeight: 48 });
-  expect(find(tree, 'testID', `trip-action-${trip.id}`).props.variant).toBe('ghost');
+  expect(find(tree, 'testID', `trip-action-${trip.id}`).props.variant).toBe('secondary');
 });
 it('UX-T more uses a scrollable bottom sheet and clears private content after revocation', () => {
   h.selected = { trip, owner: 'https://test/api/v1:account:1' };
@@ -698,4 +722,90 @@ it('UX-T more uses a scrollable bottom sheet and clears private content after re
   const denied = nodes(TripsScreen()).find((n) => n.type === 'Modal')!;
   expect(denied.props.visible).toBe(false);
   expect(content(denied)).not.toContain(trip.name);
+});
+
+it.each(['zh', 'zh-CN', 'en', 'jp'] as const)(
+  'simplified card removes symbols and duplicate zero in visible and accessible content (%s)',
+  (locale) => {
+    h.locale = locale;
+    const card = TripCard({
+      trip: { ...trip, mySpent: 27897.92, myBalance: 0, archived: true, phase: 'past' },
+      actions: true,
+    });
+    const main = find(card, 'testID', `trip-${trip.id}`);
+    expect(main.props.accessibilityLabel).toContain('27,897.92 TWD');
+    expect(main.props.accessibilityLabel).toContain(messages[locale].balanced);
+    expect(main.props.accessibilityLabel).not.toContain('0 TWD');
+    expect(main.props.accessibilityLabel).not.toContain(messages[locale].past);
+    expect(main.props.accessibilityLabel).not.toContain('NT$');
+    const layout = nodes(card).find((node) => node.type === TripCardLayout)!;
+    const summary = layout.props.summary as Element;
+    expect(content(summary.props.left as ReactNode)).toContain('27,897.92 TWD');
+    expect(content(summary.props.right as ReactNode)).toBe(messages[locale].balanced);
+    expect(card.props.style).toMatchObject({ borderRadius: 14 });
+  }
+);
+it('card summaries reflow by their measured width and font scale, with no divider after stacking', () => {
+  h.width = 1200;
+  h.measuredWidth = 250;
+  let summary = TripCardSummary({ left: 'share', right: 'balance' });
+  expect(summary.props.style.flexDirection).toBe('column');
+  expect(nodes(summary)[2].props.style as object).not.toHaveProperty('borderLeftWidth');
+  (summary.props.onLayout as (e: unknown) => void)({ nativeEvent: { layout: { width: 320 } } });
+  summary = TripCardSummary({ left: 'share', right: 'balance' });
+  expect(summary.props.style.flexDirection).toBe('row');
+  expect(nodes(summary)[2].props.style as object).toMatchObject({
+    borderLeftWidth: 1,
+    paddingLeft: 12,
+  });
+  h.fontScale = 2;
+  expect(TripCardSummary({ left: 'share', right: 'balance' }).props.style.flexDirection).toBe(
+    'column'
+  );
+});
+it('initial and next-page loading use passive card slots while background refresh preserves cards', () => {
+  h.list.isPending = true;
+  h.list.data = undefined;
+  const empty = list().props.ListEmptyComponent as Element;
+  expect(empty.type).toBe(TripCardsLoading);
+  expect(empty.props.archived).toBe(false);
+  h.online = false;
+  expect(list().props.ListEmptyComponent).toBeNull();
+  h.online = true;
+  h.list.isPending = false;
+  h.list.data = { pages: [{ items: [trip], metadata: listMetadata }] };
+  h.list.isFetching = true;
+  expect(list().props.data).toEqual([trip]);
+  h.list.hasNextPage = true;
+  h.list.isFetchingNextPage = true;
+  const footer = list().props.ListFooterComponent as Element;
+  expect(footer.type).toBe(TripCardsLoading);
+  expect(footer.props.count).toBe(1);
+  const skeleton = TripCardSkeleton({ archived: true });
+  expect(skeleton.props).toMatchObject({
+    pointerEvents: 'none',
+    accessible: false,
+    accessibilityElementsHidden: true,
+    importantForAccessibility: 'no-hide-descendants',
+  });
+  const layout = skeleton.props.children as Element;
+  expect(layout.type).toBe(TripCardLayout);
+  expect(layout.props.shortcut).toBe(false);
+  expect(nodes(skeleton).some((node) => node.props.onPress)).toBe(false);
+});
+
+it.each(['ios', 'android', 'web'])('loading announces once per list on %s', (platform) => {
+  h.platform = platform;
+  const loading = TripCardsLoading({ count: 3 });
+  h.effects.forEach((effect) => effect());
+  if (platform === 'ios') {
+    expect(h.announce).toHaveBeenCalledExactlyOnceWith(messages.en.tripCardsLoading, {
+      queue: true,
+    });
+  } else {
+    expect(h.announce).not.toHaveBeenCalled();
+  }
+  expect(
+    nodes(loading).filter((node) => node.props.accessibilityLiveRegion === 'polite')
+  ).toHaveLength(1);
 });

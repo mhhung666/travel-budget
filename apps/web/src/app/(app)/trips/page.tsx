@@ -135,7 +135,7 @@ export default function TripsPage() {
   };
 
   if (loading && tripsQuery.data === undefined) {
-    return <TripsPageSkeleton />;
+    return <TripsPageSkeleton archived={tab === 'archived'} />;
   }
 
   const feedback = (

@@ -319,6 +319,8 @@
     "ongoingBadge": "旅行中 · {day}日目",
     "currentGroup": "旅行中・出発予定",
     "card": {
+      "balanceLabel": "未精算額",
+      "loading": "旅行を読み込み中",
       "upcoming": "まもなく出発 · あと {days} 日",
       "pendingSettlement": "未精算",
       "settled": "精算済み",
