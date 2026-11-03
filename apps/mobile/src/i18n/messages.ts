@@ -1,6 +1,6 @@
 const zh = {
   itinerary: '行程',
-  itineraryEmpty: '還沒有行程。可先在 Web 安排，再回來重新整理。',
+  itineraryEmpty: '還沒有行程。',
   itineraryNoDates: '旅行尚未設定開始日期，以下依 Day 顯示。',
   itineraryOutside: '這一天超出目前旅行日期範圍。',
   itineraryDay: '第 %d 天',
@@ -699,7 +699,7 @@ export const messages = {
   zh,
   'zh-CN': {
     itinerary: '行程',
-    itineraryEmpty: '还没有行程。可先在 Web 安排，再回来刷新。',
+    itineraryEmpty: '还没有行程。',
     itineraryNoDates: '旅行尚未设置开始日期，以下按 Day 显示。',
     itineraryOutside: '这一天超出当前旅行日期范围。',
     itineraryDay: '第 %d 天',
@@ -1393,7 +1393,7 @@ export const messages = {
   },
   en: {
     itinerary: 'Itinerary',
-    itineraryEmpty: 'No itinerary yet. Plan on the Web, then refresh here.',
+    itineraryEmpty: 'No itinerary yet.',
     itineraryNoDates: 'No trip start date is set. Days are shown by number.',
     itineraryOutside: 'This day is outside the current trip dates.',
     itineraryDay: 'Day %d',
@@ -2197,7 +2197,7 @@ export const messages = {
   },
   jp: {
     itinerary: '旅程',
-    itineraryEmpty: '旅程はまだありません。Web で予定を作成してから更新してください。',
+    itineraryEmpty: '旅程はまだありません。',
     itineraryNoDates: '旅行の開始日が未設定のため、日数で表示します。',
     itineraryOutside: 'この日は現在の旅行期間外です。',
     itineraryDay: '%d日目',

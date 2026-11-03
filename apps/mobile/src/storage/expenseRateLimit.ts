@@ -1,7 +1,8 @@
 import type { PendingScope, SqlDatabase } from './pendingExpenses';
 
 // A synchronous mirror for the final fetch guard. SQLite remains authoritative on restart.
-// Stores sharing the database connection also share deadlines; rolled-back writes never publish.
+// Stores sharing the connection share deadlines. A known server wait may be mirrored before its
+// SQLite save succeeds; transaction-derived deadlines are published only after commit.
 const deadlines = new WeakMap<SqlDatabase, Map<string, number>>();
 const keyOf = (scope: PendingScope) => JSON.stringify([scope.environment, scope.accountId]);
 export function currentExpenseRateLimit(db: SqlDatabase, scope: PendingScope): number {

@@ -23,6 +23,7 @@ const h = vi.hoisted(() => ({
     refresh: vi.fn(),
   },
 }));
+vi.mock('./DayActions', () => ({ DayActions: 'DayActions' }));
 vi.mock('react', async (original) => ({
   ...(await original<typeof import('react')>()),
   useState: () => [

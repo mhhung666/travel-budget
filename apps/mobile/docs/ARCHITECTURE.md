@@ -24,6 +24,14 @@ Server Actions 與 HTTP API 是兩個呼叫入口，部署初期同在現有 Nex
 
 行程 Query 使用 requestAs、AbortSignal 與 catalog 撤權世代守衛，403／404 納入 catalog 既有持久拒絕；畫面在 session／catalog／HTTP 拒絕任一成立時卸載私人閱讀器，晚到結果不能解除隱藏。沒有新 provider、SQLite 表、背景同步或票券儲存；本文／備註以原生可選取 Text 顯示，全部文字可換行。
 
+## App 行程日維護與恢復
+
+`features/itinerary/DayEditorScreen` 與薄路由 `trips/[id]/itinerary/day` 只維護日資料，按環境／帳號／登入世代／旅行／模式重建。未確認欄位與已檢視 command 留在頁面記憶體；重讀 context 不因 refocus 自動覆蓋輸入。`dayForm` 只做表單驗證、UTC date-only 轉換及 command 組合，授權、版本、日期／刪除影響及最終關聯效果仍由 2A 後端決定。
+
+2B 擴充既有 `pending_mutation` 的 `itinerary.write` JSON envelope，沿用 schema 11，沒有新增 provider、資料庫、表或帳務幣別。body／HTTP receipt 都直接驗證共用 itinerary schema；本機結果包裝僅為 E 操作畫面提供一致的 tripId／狀態，不改 wire 契約或虛構 ledger。原 UUID、body、同旅行 C／E 互斥與帳號 429 由既有 TripEntry 協調；查詢使用旅行內原 requests endpoint，終局核對 UUID／旅行／operation，committed 清除 body，rejected 保留以供明確續改。
+
+編輯資訊讀取同樣套用持久等待、登入／catalog 世代及每次 fetch 守衛；403 FORBIDDEN 表示降權、不寫整趟旅行 tombstone，404 NOT_FOUND 才走既有撤權保存。E 已知 429 即使落盤失敗也保留本次記憶體絕對期限，下一次操作先修復保存，不延長原期限；只有成功落盤才保證重啟保存該期限。行程提交成功使同旅行讀取失效；原 E 啟動／前景／重連恢復只查詢，POST 重試必須明確操作。規則與待驗集中 [契約](BACKEND_CONTRACT.md#2a-行程維護服務與恢復契約) 與 [交接](LOCAL_ACCEPTANCE.md#2b-app-行程日維護交接)。
+
 ## B3：Mobile 帳本與舊資料恢復
 
 線上旅行／帳務讀取與新確認操作使用 v2，HTTP 必須驗證共用 v2 schema 的 ledger；缺單位、子資料單位不一致或服務未就緒都阻擋，不 fallback v1。B5c-1 起 `api.environment` 是原已驗證 v1 環境識別（設定 `/api/v2` 也正規化為同一字串），`transport()` 從同 origin 送出 v2；B5d-1 起所有請求（含 auth 與恢復）只走 v2，共用登入世代、refresh、beforeSend 與 SQLite／429 scope。`api/recovery.ts` 只判定 v1 舊紀錄已退役：仍解碼、不改標，但不再送出或補查。遠端 Query key 尾端加 v2，本機 key 不變。名冊觀察器與 catalog 保留原撤權世代規則。

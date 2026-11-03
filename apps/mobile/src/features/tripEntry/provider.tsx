@@ -48,7 +48,7 @@ export function TripEntryProvider({ children }: PropsWithChildren) {
             return await manager.requestAs(userId, path, schema, options);
           } catch (error) {
             const match =
-              /^\/trips\/([^/]+)(?:\/(?:expenses|payments|archive|members|access)(?:\/|$)|$)/.exec(
+              /^\/trips\/([^/]+)(?:\/(?:expenses|payments|archive|members|access|itinerary)(?:\/|$)|$)/.exec(
                 path
               );
             if (
@@ -59,7 +59,8 @@ export function TripEntryProvider({ children }: PropsWithChildren) {
                 !(
                   (path === `/trips/${match[1]}` ||
                     path === `/trips/${match[1]}/access` ||
-                    path.startsWith(`/trips/${match[1]}/members`)) &&
+                    path.startsWith(`/trips/${match[1]}/members`) ||
+                    path.startsWith(`/trips/${match[1]}/itinerary`)) &&
                   error.code === 'FORBIDDEN'
                 )) ||
                 (error.status === 404 && error.code === 'NOT_FOUND'))
@@ -85,6 +86,15 @@ export function TripEntryProvider({ children }: PropsWithChildren) {
           void client.invalidateQueries({ queryKey: keyOf(scope) });
         },
         committed: async (scope, tripId, result) => {
+          if (result.status === 'committed' && result.operation === 'itinerary.write') {
+            await client.invalidateQueries({
+              predicate: (q) =>
+                q.queryKey[0] === scope.environment &&
+                q.queryKey[1] === scope.accountId &&
+                q.queryKey.includes(tripId),
+            });
+            return;
+          }
           if (result.status === 'committed' && result.operation === 'trip.archive')
             catalog.archiveSaved(scope, tripId);
           if (

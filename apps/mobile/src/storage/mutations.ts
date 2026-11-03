@@ -1,5 +1,10 @@
 import { z } from 'zod';
 import {
+  itineraryWriteInput,
+  itineraryWriteStateSchema,
+  itineraryWriteRejectionSchema,
+} from '@travel-budget/contracts';
+import {
   budgetV2Input,
   mutationRequestV2Schema,
   tripCreateV2Input,
@@ -31,7 +36,36 @@ import {
 } from './expenseRateLimit';
 import type { PendingScope, SqlDatabase } from './pendingExpenses';
 
+// Local envelope only: native itinerary receipts keep their shared wire schema intact.
+export const itineraryMutationResult = z.union([
+  z
+    .object({
+      status: z.literal('committed'),
+      operation: z.literal('itinerary.write'),
+      resourceId: idSchema,
+      result: z.object({ tripId: idSchema, receipt: itineraryWriteStateSchema.options[1] }),
+    })
+    .refine(
+      (v) =>
+        v.resourceId === v.result.receipt.result.dayId &&
+        v.result.tripId === v.result.receipt.tripId
+    ),
+  z.object({
+    status: z.literal('rejected'),
+    operation: z.literal('itinerary.write'),
+    code: itineraryWriteRejectionSchema,
+  }),
+]);
+export type StoredMutationResult =
+  z.infer<typeof mutationRequestSchema> | z.infer<typeof itineraryMutationResult>;
+const storedResult = z.union([mutationRequestV2Schema, itineraryMutationResult]);
+
 export const mutationPayload = z.discriminatedUnion('operation', [
+  z.object({
+    operation: z.literal('itinerary.write'),
+    tripId: idSchema,
+    body: itineraryWriteInput,
+  }),
   z.object({ operation: z.literal('budget.set'), tripId: idSchema, body: budgetV2Input }),
   z.object({
     operation: z.literal('trip.currency'),
@@ -89,7 +123,7 @@ export interface PendingMutation extends PendingScope {
   moneyScale?: 2;
   operation: MutationPayload['operation'];
   payload: MutationPayload | null;
-  result: z.infer<typeof mutationRequestSchema> | null;
+  result: StoredMutationResult | null;
   status: 'pending' | 'completed';
   conflict: boolean;
   createdAt: number;
@@ -100,11 +134,7 @@ export interface MutationStore {
   get(scope: PendingScope, key: string): Promise<PendingMutation | null>;
   insert(record: PendingMutation): Promise<boolean>;
   conflict(scope: PendingScope, key: string): Promise<void>;
-  complete(
-    scope: PendingScope,
-    key: string,
-    result: z.infer<typeof mutationRequestSchema>
-  ): Promise<void>;
+  complete(scope: PendingScope, key: string, result: StoredMutationResult): Promise<void>;
   dismiss(scope: PendingScope, key: string): Promise<void>;
   /** Deletes a pending v1 operation (saved before B5d-1) that the user chose to discard. */
   abandon(scope: PendingScope, key: string): Promise<void>;
@@ -155,9 +185,7 @@ function decode(row: Row): PendingMutation {
     operation: row.operation,
     payload,
     result: row.result
-      ? (row.api_version === 2 ? mutationRequestV2Schema : mutationRequestSchema).parse(
-          JSON.parse(row.result)
-        )
+      ? (row.api_version === 2 ? storedResult : mutationRequestSchema).parse(JSON.parse(row.result))
       : null,
     status: row.status,
     conflict: !!row.conflict,
@@ -243,9 +271,9 @@ export async function createMutationStore(db: SqlDatabase): Promise<MutationStor
             ...scopeArgs(scope),
             key
           );
-          const parsed = (
-            row?.api_version === 2 ? mutationRequestV2Schema : mutationRequestSchema
-          ).parse(result);
+          const parsed = (row?.api_version === 2 ? storedResult : mutationRequestSchema).parse(
+            result
+          );
           if (
             parsed.status === 'committed' &&
             parsed.operation === 'trip.access' &&
@@ -278,7 +306,7 @@ export async function createMutationStore(db: SqlDatabase): Promise<MutationStor
             );
           }
           await db.runAsync(
-            "UPDATE pending_mutation SET status = 'completed', payload = CASE WHEN ? = 1 AND (operation LIKE 'expense.%' OR operation LIKE 'payment.%' OR operation LIKE 'member.%' OR operation IN ('trip.update', 'trip.archive', 'trip.access', 'trip.currency', 'budget.set')) THEN payload ELSE NULL END, result = ? WHERE environment = ? AND account_id = ? AND client_request_id = ?",
+            "UPDATE pending_mutation SET status = 'completed', payload = CASE WHEN ? = 1 AND (operation LIKE 'expense.%' OR operation LIKE 'payment.%' OR operation LIKE 'member.%' OR operation IN ('itinerary.write', 'trip.update', 'trip.archive', 'trip.access', 'trip.currency', 'budget.set')) THEN payload ELSE NULL END, result = ? WHERE environment = ? AND account_id = ? AND client_request_id = ?",
             result.status === 'rejected' ? 1 : 0,
             JSON.stringify(parsed),
             ...scopeArgs(scope),
@@ -302,12 +330,21 @@ export async function createMutationStore(db: SqlDatabase): Promise<MutationStor
           key
         );
       }),
-    retryAt: (scope) => serial(() => readExpenseRateLimit(db, scope)),
-    rateLimitUntil: (scope) => currentExpenseRateLimit(db, scope),
-    pause: (scope, until) =>
+    retryAt: (scope) =>
       serial(async () => {
-        await transaction(db, () => extendExpenseRateLimit(db, scope, until));
-        rememberExpenseRateLimit(db, scope, until);
+        const saved = await readExpenseRateLimit(db, scope);
+        const until = currentExpenseRateLimit(db, scope);
+        // Retry a failed deadline save without moving the absolute server deadline.
+        if (until > saved) await transaction(db, () => extendExpenseRateLimit(db, scope, until));
+        return until;
       }),
+    rateLimitUntil: (scope) => currentExpenseRateLimit(db, scope),
+    pause: (scope, until) => {
+      // A received server wait is authoritative even if its SQLite save fails.
+      rememberExpenseRateLimit(db, scope, until);
+      return serial(async () => {
+        await transaction(db, () => extendExpenseRateLimit(db, scope, until));
+      });
+    },
   };
 }

@@ -1,8 +1,9 @@
+import { itineraryMessages, dayRejection } from '@/i18n/itineraryMessages';
 import { goBack } from '@/components/navigation';
 import { useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { Action, Copy, DetailRow, Notice, Page } from '@/components/ui';
-import { useMessages } from '@/i18n/useMessages';
+import { useAppLocale, useMessages } from '@/i18n/useMessages';
 import { useOnline } from '@/providers/useOnline';
 import { errorMessage } from '@/features/auth/errorMessage';
 import { useTripEntry } from './provider';
@@ -24,6 +25,7 @@ export function OperationsScreen() {
 function ScopedOperationsScreen() {
   const { entry, scope, records } = useTripEntry();
   const t = useMessages();
+  const itineraryCopy = itineraryMessages[useAppLocale()];
   const online = useOnline();
   const { manager, status } = useAuth();
   const { catalog } = useDraftCatalog();
@@ -141,31 +143,33 @@ function ScopedOperationsScreen() {
                 : t.recoveryRejected
           }
           title={
-            record.operation === 'budget.set'
-              ? t.personalBudget
-              : record.operation === 'trip.currency'
-                ? t.currencySettings
-                : record.operation === 'trip.access'
-                  ? accessTitle(record)
-                  : record.operation === 'member.create'
-                    ? t.addVirtualMember
-                    : record.operation === 'member.rename'
-                      ? t.renameVirtualMember
-                      : record.operation === 'trip.create'
-                        ? t.createTrip
-                        : record.operation === 'trip.update'
-                          ? t.tripSettings
-                          : record.operation === 'trip.archive'
-                            ? t.personalArchive
-                            : record.operation === 'trip.join'
-                              ? t.joinTrip
-                              : record.operation === 'expense.update'
-                                ? t.editExpense
-                                : record.operation === 'expense.delete'
-                                  ? t.deleteExpense
-                                  : record.operation === 'payment.create'
-                                    ? t.recordPayment
-                                    : t.revokePayment
+            record.operation === 'itinerary.write'
+              ? itineraryCopy.pendingTitle
+              : record.operation === 'budget.set'
+                ? t.personalBudget
+                : record.operation === 'trip.currency'
+                  ? t.currencySettings
+                  : record.operation === 'trip.access'
+                    ? accessTitle(record)
+                    : record.operation === 'member.create'
+                      ? t.addVirtualMember
+                      : record.operation === 'member.rename'
+                        ? t.renameVirtualMember
+                        : record.operation === 'trip.create'
+                          ? t.createTrip
+                          : record.operation === 'trip.update'
+                            ? t.tripSettings
+                            : record.operation === 'trip.archive'
+                              ? t.personalArchive
+                              : record.operation === 'trip.join'
+                                ? t.joinTrip
+                                : record.operation === 'expense.update'
+                                  ? t.editExpense
+                                  : record.operation === 'expense.delete'
+                                    ? t.deleteExpense
+                                    : record.operation === 'payment.create'
+                                      ? t.recordPayment
+                                      : t.revokePayment
           }
         >
           <DetailRow label={t.requestId} value={record.clientRequestId} />
@@ -225,24 +229,26 @@ function ScopedOperationsScreen() {
               >
                 {record.result?.status === 'committed'
                   ? t.operationDone
-                  : record.operation === 'budget.set'
-                    ? t.budgetChanged
-                    : record.operation === 'trip.currency'
-                      ? t.currencyChanged
-                      : record.operation === 'trip.access'
-                        ? t.membersChanged
-                        : record.operation.startsWith('member.')
+                  : record.operation === 'itinerary.write' && record.result?.status === 'rejected'
+                    ? dayRejection(record.result.code, itineraryCopy)
+                    : record.operation === 'budget.set'
+                      ? t.budgetChanged
+                      : record.operation === 'trip.currency'
+                        ? t.currencyChanged
+                        : record.operation === 'trip.access'
                           ? t.membersChanged
-                          : record.operation === 'trip.update' ||
-                              record.operation === 'trip.archive'
-                            ? t.tripSettingsChanged
-                            : record.operation.startsWith('payment.')
-                              ? t.paymentChanged
-                              : record.operation.startsWith('expense.')
-                                ? t.expenseChanged
-                                : record.operation === 'trip.join'
-                                  ? t.operationRejected
-                                  : t.recoveryRejected}
+                          : record.operation.startsWith('member.')
+                            ? t.membersChanged
+                            : record.operation === 'trip.update' ||
+                                record.operation === 'trip.archive'
+                              ? t.tripSettingsChanged
+                              : record.operation.startsWith('payment.')
+                                ? t.paymentChanged
+                                : record.operation.startsWith('expense.')
+                                  ? t.expenseChanged
+                                  : record.operation === 'trip.join'
+                                    ? t.operationRejected
+                                    : t.recoveryRejected}
               </Notice>
               {record.result?.status === 'committed' &&
                 !('exited' in record.result.result && record.result.result.exited) && (
@@ -252,12 +258,37 @@ function ScopedOperationsScreen() {
                     onPress={() => {
                       if (!visible(record)) return;
                       router.push({
-                        pathname: '/trips/[id]',
+                        pathname:
+                          record.operation === 'itinerary.write'
+                            ? '/trips/[id]/itinerary'
+                            : '/trips/[id]',
                         params: {
                           id:
                             record.result!.status === 'committed'
                               ? record.result!.result.tripId
                               : '',
+                        },
+                      });
+                    }}
+                  />
+                )}
+              {record.result?.status === 'rejected' &&
+                record.payload?.operation === 'itinerary.write' &&
+                record.tripId &&
+                record.payload.body.operation.startsWith('day.') && (
+                  <Action
+                    label={itineraryCopy.reload}
+                    onPress={() => {
+                      if (!visible(record) || record.payload?.operation !== 'itinerary.write')
+                        return;
+                      const command = record.payload.body;
+                      router.push({
+                        pathname: '/trips/[id]/itinerary/day',
+                        params: {
+                          id: record.tripId!,
+                          source: record.clientRequestId,
+                          ...('dayId' in command ? { dayId: command.dayId } : {}),
+                          ...(command.operation === 'day.delete' ? { remove: 'true' } : {}),
                         },
                       });
                     }}

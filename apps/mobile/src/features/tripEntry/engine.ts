@@ -1,3 +1,4 @@
+import { itineraryWriteStateSchema, type ItineraryWriteState } from '@travel-budget/contracts';
 import { retiredOperation } from '@/api/recovery';
 import {
   budgetV2Input,
@@ -14,7 +15,6 @@ import {
   expenseMutationResultSchema,
   paymentMutationResultSchema,
   type PaymentMutationResult,
-  type MutationRequest,
   type TripMutationResult,
   type ExpenseMutationResult,
 } from '@/api/contracts';
@@ -35,10 +35,12 @@ import {
   type MutationPayload,
   type MutationStore,
   type PendingMutation,
+  type StoredMutationResult,
 } from '@/storage/mutations';
+type WithoutRequestId<T> = T extends unknown ? Omit<T, 'client_request_id'> : never;
 export type MutationOutcome =
-  | { kind: 'completed'; result: MutationRequest; refreshed?: boolean }
-  | { kind: 'pending'; error?: unknown }
+  | { kind: 'completed'; result: StoredMutationResult; refreshed?: boolean }
+  | { kind: 'pending'; error?: unknown; clientRequestId?: string }
   | { kind: 'not-sent'; error?: unknown }
   | { kind: 'blocked' }
   /** Saved by a release that sent v1: never sent or looked up again, only discarded. */
@@ -54,7 +56,7 @@ interface Deps {
   changed?: (scope: PendingScope) => void;
   exited?: (scope: PendingScope, tripId: string) => void | Promise<void>;
   beforeArchiveCompletion?: (scope: PendingScope, tripId: string) => void | Promise<void>;
-  committed?: (scope: PendingScope, tripId: string, result: MutationRequest) => unknown;
+  committed?: (scope: PendingScope, tripId: string, result: StoredMutationResult) => unknown;
 }
 export class TripEntry {
   private flights = new Map<string, Promise<MutationOutcome>>();
@@ -91,7 +93,9 @@ export class TripEntry {
     payload: MutationPayload extends infer P
       ? P extends MutationPayload
         ? Omit<P, 'body'> & {
-            body: Omit<P['body'], 'client_request_id'> & { base_currency?: string };
+            body: (P extends { operation: 'itinerary.write' }
+              ? WithoutRequestId<P['body']>
+              : Omit<P['body'], 'client_request_id'>) & { base_currency?: string };
           }
         : never
       : never
@@ -135,7 +139,10 @@ export class TripEntry {
       } catch (error) {
         return { kind: 'not-sent', error };
       }
-      return this.send(store, record, guard);
+      const outcome = await this.send(store, record, guard);
+      return outcome.kind === 'pending'
+        ? { ...outcome, clientRequestId: record.clientRequestId }
+        : outcome;
     });
   }
   lookup(scope: PendingScope, key: string) {
@@ -229,11 +236,12 @@ export class TripEntry {
   private async finish(
     store: MutationStore,
     record: PendingMutation,
-    result: MutationRequest
+    result: StoredMutationResult
   ): Promise<MutationOutcome> {
     if (result.status === 'not_found') return { kind: 'pending' };
     if (
       result.status === 'committed' &&
+      result.operation !== 'itinerary.write' &&
       (!('ledger' in result) ||
         (record.baseCurrency && baseCurrency(result) !== record.baseCurrency))
     )
@@ -273,6 +281,36 @@ export class TripEntry {
     }
     return { kind: 'completed', result, refreshed };
   }
+  private async finishItinerary(
+    store: MutationStore,
+    record: PendingMutation,
+    raw: ItineraryWriteState
+  ) {
+    const result = itineraryWriteStateSchema.parse(raw);
+    if (result.status === 'not_found') return { kind: 'pending' } as const;
+    if (
+      record.payload?.operation !== 'itinerary.write' ||
+      result.client_request_id !== record.clientRequestId ||
+      result.tripId !== record.tripId ||
+      result.operation !== record.payload.body.operation ||
+      (result.status === 'committed' &&
+        'dayId' in record.payload.body &&
+        result.result.dayId !== record.payload.body.dayId)
+    )
+      throw new ApiError('INVALID_RESPONSE');
+    return this.finish(
+      store,
+      record,
+      result.status === 'rejected'
+        ? { status: 'rejected', operation: 'itinerary.write', code: result.code }
+        : {
+            status: 'committed',
+            operation: 'itinerary.write',
+            resourceId: result.result.dayId,
+            result: { tripId: result.tripId, receipt: result },
+          }
+    );
+  }
   private async query(
     store: MutationStore,
     record: PendingMutation,
@@ -287,6 +325,16 @@ export class TripEntry {
       : record;
     try {
       await this.ready(store, receiptScope, guard);
+      if (record.operation === 'itinerary.write') {
+        const result = await this.deps.request(
+          record.accountId,
+          `/trips/${record.tripId}/itinerary/requests/${record.clientRequestId}`,
+          itineraryWriteStateSchema,
+          { beforeSend: this.beforeSend(store, record, guard) }
+        );
+        guard(record.tripId);
+        return await this.finishItinerary(store, record, result);
+      }
       const result = await this.deps.request(
         record.accountId,
         `/mutation-requests/${record.clientRequestId}`,
@@ -307,6 +355,20 @@ export class TripEntry {
   ): Promise<MutationOutcome> {
     try {
       await this.ready(store, record, guard);
+      if (record.operation === 'itinerary.write') {
+        const result = await this.deps.request(
+          record.accountId,
+          `/trips/${record.tripId}/itinerary/requests`,
+          itineraryWriteStateSchema,
+          {
+            method: 'POST',
+            body: record.payload!.body,
+            beforeSend: this.beforeSend(store, record, guard),
+          }
+        );
+        guard(record.tripId);
+        return await this.finishItinerary(store, record, result);
+      }
       const result = await this.deps.request<
         | BudgetMutationResult
         | TripMutationResult

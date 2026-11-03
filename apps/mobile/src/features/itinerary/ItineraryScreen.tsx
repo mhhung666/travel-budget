@@ -23,6 +23,7 @@ import { useMessages, useAppLocale } from '@/i18n/useMessages';
 import { useDisplayFormat } from '@/i18n/useDisplayFormat';
 import { useOnline } from '@/providers/useOnline';
 import { spacing, typography } from '@/theme/tokens';
+import { DayActions } from './DayActions';
 import { useItinerary } from './queries';
 import { activityTime, activityType, dayLabel, locationName } from './presentation';
 
@@ -47,6 +48,7 @@ export function ItineraryScreen({ tripId }: { tripId: string }) {
   return (
     <ItineraryReader
       key={`${manager.api.environment}:${user?.id}:${manager.getSignInVersion()}:${tripId}`}
+      tripId={tripId}
       query={query}
       online={online}
     />
@@ -56,9 +58,11 @@ export function ItineraryScreen({ tripId }: { tripId: string }) {
 function ItineraryReader({
   query,
   online,
+  tripId,
 }: {
   query: ReturnType<typeof useItinerary>;
   online: boolean;
+  tripId: string;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const t = useMessages();
@@ -91,6 +95,7 @@ function ItineraryReader({
           <View style={{ gap: spacing.medium }}>
             <ScrollChrome />
             <Title>{t.itinerary}</Title>
+            {query.data && <DayActions tripId={tripId} dayId={day?.id} />}
             {!online && <Notice tone="warning">{t.offline}</Notice>}
             {query.isPending && online && <ActivityIndicator accessibilityLabel={t.loading} />}
             {query.isError && (
