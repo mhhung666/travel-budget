@@ -41,6 +41,10 @@ import {
   itineraryEditContextSchema,
   itineraryWriteInput,
   itineraryWriteStateSchema,
+  activityDeletionInput,
+  activityDeletionPreviewInput,
+  activityDeletionPreviewSchema,
+  activityDeletionStateSchema,
   expensesSchema,
   expenseDetailSchema,
   settlementSchema,
@@ -153,6 +157,10 @@ const schemas = Object.fromEntries(
     ItineraryEditContext: itineraryEditContextSchema,
     ItineraryWriteInput: itineraryWriteInput,
     ItineraryWriteState: itineraryWriteStateSchema,
+    ActivityDeletionInput: activityDeletionInput,
+    ActivityDeletionPreviewInput: activityDeletionPreviewInput,
+    ActivityDeletionPreview: activityDeletionPreviewSchema,
+    ActivityDeletionState: activityDeletionStateSchema,
     Expenses: expensesSchema,
     ExpenseDetail: expenseDetailSchema,
     Settlement: settlementSchema,
@@ -830,6 +838,37 @@ paths['/v2/trips/{id}/itinerary/requests/{uuid}'] = {
     ],
     description:
       'Current admins only; own actor/trip receipt, read-only, no TTL or fence write. No result inference from current resource. Revocation denies recovery; original receipt remains for reauthorized account. No ledger/private content in receipt.',
+  },
+};
+paths['/v2/trips/{id}/itinerary/activity-deletions/preview'] = {
+  post: {
+    ...operation(
+      'activityDeletionPreview',
+      'ActivityDeletionPreview',
+      'ActivityDeletionPreviewInput'
+    ),
+    parameters: [tripIdParam],
+    description:
+      'Admin read-only snapshot for 1–15 distinct same-day activities. Missing/changed targets are explicit. Opaque confirmation revision covers day date/title and selected activity/ticket references, not siblings. No storage keys in reply.',
+  },
+};
+paths['/v2/trips/{id}/itinerary/activity-deletions'] = {
+  post: {
+    ...operation('activityDeletionWrite', 'ActivityDeletionState', 'ActivityDeletionInput'),
+    parameters: [tripIdParam],
+    description:
+      'Admin-only atomic batch and terminal receipt, shared actor/UUID namespace with single itinerary commands. All targets must match original revisions and confirmation context. Keeps day, expenses, photos and achievements; retires only unreferenced tickets. Persist frozen intent before sending; unknown results require original UUID lookup. not_found permits only explicit exact retry. Target order is canonicalized. No private text/keys in receipt.',
+  },
+};
+paths['/v2/trips/{id}/itinerary/activity-deletions/{uuid}'] = {
+  get: {
+    ...operation('activityDeletionLookup', 'ActivityDeletionState'),
+    parameters: [
+      tripIdParam,
+      { name: 'uuid', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+    ],
+    description:
+      'Current admin authorization, own actor/trip receipt. Read-only, no TTL or fence write; resource disappearance does not change committed result. Query denial is not proof of rejection.',
   },
 };
 paths['/v2/capabilities'] = { get: operation('ledgerCapabilitiesV2', 'V2Capabilities') };

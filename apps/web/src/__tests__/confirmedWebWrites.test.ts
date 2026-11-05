@@ -23,6 +23,8 @@ vi.mock('idb-keyval', () => ({
 }));
 vi.mock('@/actions', () => ({
   getLedgerMutation: h.lookup,
+  lookupWebActivityDeletion: h.lookup,
+  writeWebActivityDeletion: h.write,
   writeWebPayment: h.write,
   createLedgerTrip: h.write,
   joinLedgerTrip: h.write,
@@ -316,4 +318,125 @@ it('keeps an explicit refusal pending if saving its terminal fails, then recover
   expect((await readConfirmedWebWrites(client()))[r.body.client_request_id].status).toBe(
     'rejected'
   );
+});
+
+describe('BD1 confirmed activity batch journal', () => {
+  const batch = (): Extract<ConfirmedWebWrite, { operation: 'activities.delete' }> => ({
+    operation: 'activities.delete',
+    tripId,
+    body: {
+      client_request_id: crypto.randomUUID(),
+      dayId: 'b'.repeat(24),
+      targets: [{ activityId: 'c'.repeat(24), expectedRevision: 1 }],
+      expectedContextRevision: 'd'.repeat(64),
+    },
+  });
+  const terminal = (r: ReturnType<typeof batch>) => ({
+    status: 'committed',
+    operation: 'activities.delete',
+    client_request_id: r.body.client_request_id,
+    tripId,
+    result: {
+      dayId: r.body.dayId,
+      activityIds: r.body.targets.map((t) => t.activityId),
+      count: r.body.targets.length,
+    },
+  });
+  it('saves a frozen batch before any request, refuses a failed save and deduplicates double confirmation', async () => {
+    const c = client(),
+      r = batch();
+    h.save.mockRejectedValueOnce(new Error('quota'));
+    await expect(confirmWebWrite(c, r)).rejects.toThrow('quota');
+    expect(h.write).not.toHaveBeenCalled();
+    expect(h.lookup).not.toHaveBeenCalled();
+    h.write.mockImplementation(async (_trip, body) => {
+      expect(Object.values(await readConfirmedWebWrites(c))[0].request).toEqual(r);
+      return { success: true, data: terminal({ ...r, body }) };
+    });
+    await confirmWebWrite(c, r);
+    await confirmWebWrite(c, r);
+    expect(h.write).toHaveBeenCalledOnce();
+  });
+  it('recovers committed lost-response batches after restart without another write', async () => {
+    const r = batch(),
+      c = client();
+    h.write.mockRejectedValueOnce(new TypeError('response lost'));
+    await expect(confirmWebWrite(c, r)).rejects.toThrow('response lost');
+    const restarted = client(),
+      entry = Object.values(await readConfirmedWebWrites(restarted))[0];
+    h.lookup.mockResolvedValueOnce({ success: true, data: terminal(r) });
+    expect(await resumeConfirmedWebWrite(restarted, entry)).toEqual(terminal(r));
+    expect(h.write).toHaveBeenCalledOnce();
+    expect(h.lookup).toHaveBeenLastCalledWith(tripId, r.body.client_request_id);
+  });
+  it('keeps not_found pending and resends only after explicit original-UUID retry', async () => {
+    const r = batch(),
+      c = client();
+    h.write.mockRejectedValueOnce(new Error('offline'));
+    await expect(confirmWebWrite(c, r)).rejects.toThrow('offline');
+    const entry = Object.values(await readConfirmedWebWrites(c))[0];
+    await expect(resumeConfirmedWebWrite(c, entry)).rejects.toThrow('ledger.retryOriginal');
+    expect(h.write).toHaveBeenCalledOnce();
+    await expect(confirmWebWrite(c, batch())).rejects.toThrow('ledger.pendingWrite');
+    h.write.mockResolvedValueOnce({ success: true, data: terminal(r) });
+    await resumeConfirmedWebWrite(c, entry, { retryNotFound: true });
+    expect(h.write).toHaveBeenLastCalledWith(tripId, r.body);
+  });
+  it('retains an unknown operation after lookup denial and isolates login generations', async () => {
+    const r = batch(),
+      c = client();
+    h.write.mockRejectedValueOnce(new Error('lost'));
+    await expect(confirmWebWrite(c, r)).rejects.toThrow();
+    const entry = Object.values(await readConfirmedWebWrites(c))[0];
+    h.lookup.mockResolvedValueOnce({ success: false, error: 'FORBIDDEN', code: 'FORBIDDEN' });
+    await expect(resumeConfirmedWebWrite(c, entry)).rejects.toThrow('FORBIDDEN');
+    expect(Object.values(await readConfirmedWebWrites(c))[0].status).toBe('pending');
+    expect(await readConfirmedWebWrites(client('other:account'))).toEqual({});
+    h.lookup.mockImplementationOnce(async () => {
+      stopConfirmedWebWrites(c);
+      return { success: true, data: { status: 'not_found' } };
+    });
+    await expect(resumeConfirmedWebWrite(c, entry, { retryNotFound: true })).rejects.toThrow(
+      'UNAUTHORIZED'
+    );
+    expect(h.write).toHaveBeenCalledOnce();
+  });
+  it('keeps the original account cooldown across restart and blocks queries as well as sends', async () => {
+    const r = batch(),
+      c = client();
+    h.write.mockResolvedValueOnce({ success: false, error: 'BUSY', code: 'BUSY', retryAfter: 120 });
+    await expect(confirmWebWrite(c, r)).rejects.toThrow('BUSY');
+    const restarted = client(),
+      entry = Object.values(await readConfirmedWebWrites(restarted))[0];
+    await expect(resumeConfirmedWebWrite(restarted, entry)).rejects.toThrow('ledger.wait');
+    expect(h.lookup).toHaveBeenCalledOnce();
+    expect(h.write).toHaveBeenCalledOnce();
+  });
+  it('only releases the reservation after rejected/committed results are durable', async () => {
+    const c = client(),
+      r = batch();
+    h.write.mockImplementationOnce(async () => {
+      h.save.mockRejectedValueOnce(new Error('finish save failed'));
+      return { success: true, data: terminal(r) };
+    });
+    await expect(confirmWebWrite(c, r)).rejects.toThrow('finish save failed');
+    const entry = Object.values(await readConfirmedWebWrites(c))[0];
+    expect(entry.status).toBe('pending');
+    await expect(confirmWebWrite(c, batch())).rejects.toThrow('ledger.pendingWrite');
+    h.lookup.mockResolvedValueOnce({
+      success: true,
+      data: {
+        status: 'rejected',
+        operation: 'activities.delete',
+        client_request_id: r.body.client_request_id,
+        tripId,
+        code: 'CONFLICT',
+      },
+    });
+    await expect(resumeConfirmedWebWrite(c, entry)).rejects.toThrow('CONFLICT');
+    expect(Object.values(await readConfirmedWebWrites(c))[0].status).toBe('rejected');
+    const next = batch();
+    h.write.mockResolvedValueOnce({ success: true, data: terminal(next) });
+    await confirmWebWrite(c, next);
+  });
 });

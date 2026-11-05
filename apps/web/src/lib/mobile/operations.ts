@@ -1,3 +1,4 @@
+import { mobileActivityDeletion } from './itineraryBatchDelete';
 import {
   mobileItineraryEditContext,
   mobileItineraryWrite,
@@ -71,6 +72,11 @@ const operations = {
   'mutation.request': op<'uuid'>((_, userId, p) => mobileMutationRequest(userId, p.uuid)),
   'trip.landing': op<'id'>((request, userId, p) =>
     mobileLanding(userId, p.id, viewerDate(new URL(request.url)))
+  ),
+  'itinerary.deletionPreview': op<'id'>((r, u, p) => mobileActivityDeletion(r, u, p.id, 'preview')),
+  'itinerary.deletionWrite': op<'id'>((r, u, p) => mobileActivityDeletion(r, u, p.id, 'write')),
+  'itinerary.deletionLookup': op<'id' | 'uuid'>((r, u, p) =>
+    mobileActivityDeletion(r, u, p.id, 'lookup', p.uuid)
   ),
   'itinerary.editContext': op<'id'>((_, u, p) => mobileItineraryEditContext(u, p.id)),
   'itinerary.write': op<'id'>((r, u, p) => mobileItineraryWrite(r, u, p.id)),

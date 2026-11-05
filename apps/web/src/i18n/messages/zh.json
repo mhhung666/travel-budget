@@ -1463,6 +1463,36 @@
         "startRequired": "旅程尚未設定開始日期，無法依日期定位行程日。"
       },
       "discardDraftConfirm": "離開會放棄尚未儲存的內容，確定要前往嗎？"
+    },
+    "batch": {
+      "start": "選取活動",
+      "onlineOnly": "請連線後選取及刪除活動。",
+      "toolbar": "活動選取操作",
+      "selected": "已選取 {count} 項",
+      "selectAll": "全選本日",
+      "unselectAll": "取消全選",
+      "cancel": "取消",
+      "delete": "刪除 {count} 項",
+      "confirmTitle": "檢視刪除 {count} 項活動",
+      "impact": "將移除這些活動及其票券附件；行程日、其他活動、支出和照片仍保留。此操作無法復原。",
+      "back": "返回選取",
+      "confirm": "確認刪除 {count} 項",
+      "success": "已刪除 {count} 項活動",
+      "undated": "未設定日期",
+      "untimed": "未設定時間",
+      "conflict": "所選活動或日期／標題已有變更。請核對最新內容後重新檢視並確認。",
+      "previous": "原內容",
+      "latest": "最新內容",
+      "detailsChanged": "內容或票券可能已更新",
+      "missing": "活動已不存在",
+      "removeMissing": "移除失效選取",
+      "acceptChanges": "採用最新內容並返回選取",
+      "reviewAgain": "已更新選取，請再次檢視刪除內容。",
+      "unknown": "正在確認刪除結果，請使用恢復入口查詢。",
+      "readFailed": "無法讀取刪除內容，請連線後重試。",
+      "saveFailed": "無法保存確認操作，尚未送出。請確認瀏覽器儲存空間後再試。",
+      "limit": "單批最多 {max} 項；本日超過上限，請分批選取。",
+      "leave": "離開並清除選取？"
     }
   },
   "export": {
@@ -1993,8 +2023,11 @@
       "payment_create": "登記還款",
       "payment_delete": "撤銷還款",
       "budget_set": "設定預算",
-      "currency_set": "設定記帳幣別"
-    }
+      "currency_set": "設定記帳幣別",
+      "activities_delete": "批次刪除活動"
+    },
+    "retryOriginal": "查無此請求的結果。不代表未提交；可明確重試原 UUID／原內容。",
+    "retryOriginalAction": "重試原刪除請求"
   },
   "currencyPicker": {
     "title": "選擇幣別",

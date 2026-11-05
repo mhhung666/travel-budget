@@ -50,6 +50,7 @@ import {
   verifyLedgerStage,
   verifyLedgerAcceptanceHttp,
 } from './ledger-acceptance.mjs';
+import { verifyItineraryBatchDelete } from './verify-itinerary-batch-delete.mjs';
 import { createLocalMailbox } from './local-mailbox.mjs';
 
 const args = new Set(process.argv.slice(2));
@@ -3829,6 +3830,12 @@ try {
   pass('E1 real transaction rollback, competing terminal results and post-commit effect failures');
   const eCreator = await login('mobile-empty');
   const eJoiner = await login('mobile-b');
+  await verifyItineraryBatchDelete({ db, request, owner: eCreator, member: eJoiner });
+  const batchTransactions = await exec('pnpm', ['exec', 'vitest', 'run', 'src/__tests__/itineraryBatchDelete.integration.test.ts'], {
+    env: { ...process.env, MONGODB_MEMBER_TEST_URI: uri, MONGODB_MEMBER_TEST_ALLOW_WRITES: '1' }, maxBuffer: 1024 * 1024,
+  });
+  assert(batchTransactions.stdout.includes('passed'), 'BD1 transaction cases did not run');
+  pass('BD1 isolated atomic batch/conflict, namespace, rollback, shared-ticket and permission cases');
   const eCreate = {
     base_currency: 'TWD',
     client_request_id: randomUUID(),

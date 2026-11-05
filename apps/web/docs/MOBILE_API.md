@@ -187,3 +187,7 @@ GET／POST `/api/v2/me/friends` 及 POST `/api/v2/me/friends/{friendshipId}` 提
 ## 2A 行程維護
 
 `GET /v2/trips/:id/itinerary/edit-context`、`POST /v2/trips/:id/itinerary/requests` 及 `GET .../requests/:uuid` 已實作，僅目前管理員。Web actions 抽薄並共用 `itineraryMaintenance.ts`；Native command／receipt 在同一 trip fence 交易完成，讀取為授權 snapshot、不寫 fence。保留票券與刪除關聯／清理工作；App 表單與確認後持久化接 2B／2C，Web 舊 RPC 不新增 journal。欄位、日期／衝突／刪除影響、錯誤、256 KiB 例外及原 UUID 恢復詳見 [唯一契約](../../mobile/docs/BACKEND_CONTRACT.md#2a-行程維護服務與恢復契約)，待驗見 [交接](../../mobile/docs/LOCAL_ACCEPTANCE.md#2a-行程維護交接)。
+
+## BD1 同日活動批次刪除
+
+管理員 `POST /api/v2/trips/:id/itinerary/activity-deletions/preview`、`POST .../activity-deletions` 及 `GET .../activity-deletions/:uuid` 已提供獨立嚴格契約，與 Web cookie actions 共用原子服務；目前 App 尚未接入。最多 15 個不同活動、所選 revision／日上下文核對、無副作用預覽／查詢與 actor／UUID 終局、資料最小化及未知結果恢復見 [共同設計](../../../docs/design/ITINERARY_BATCH_DELETE.md#bd1-實作與交接) 與 contracts OpenAPI。沿用 no-store／Vary Authorization，公開分享不增加端點或私人票券資料；單筆維護端點及既有 receipt 保持相容，無 migration。`test:mobile-api` 已加入可丟棄本機 replica-set 與真 HTTP 恢復案例，不取代 Web／iOS 實際操作。

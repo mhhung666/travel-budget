@@ -1463,6 +1463,36 @@
         "startRequired": "旅程尚未设置开始日期，无法按日期定位行程日。"
       },
       "discardDraftConfirm": "离开会放弃尚未保存的内容，确定要前往吗？"
+    },
+    "batch": {
+      "start": "选择活动",
+      "onlineOnly": "请联网后选择及删除活动。",
+      "toolbar": "活动选择操作",
+      "selected": "已选择 {count} 项",
+      "selectAll": "全选本日",
+      "unselectAll": "取消全选",
+      "cancel": "取消",
+      "delete": "删除 {count} 项",
+      "confirmTitle": "查看删除 {count} 项活动",
+      "impact": "将移除这些活动及其票券附件；行程日、其他活动、支出和照片仍保留。此操作无法撤销。",
+      "back": "返回选择",
+      "confirm": "确认删除 {count} 项",
+      "success": "已删除 {count} 项活动",
+      "undated": "未设置日期",
+      "untimed": "未设置时间",
+      "conflict": "所选活动或日期／标题已有变更。请核对最新内容后重新查看并确认。",
+      "previous": "原内容",
+      "latest": "最新内容",
+      "detailsChanged": "内容或票券可能已更新",
+      "missing": "活动已不存在",
+      "removeMissing": "移除失效选择",
+      "acceptChanges": "采用最新内容并返回选择",
+      "reviewAgain": "已更新选择，请再次查看删除内容。",
+      "unknown": "正在确认删除结果，请使用恢复入口查询。",
+      "readFailed": "无法读取删除内容，请联网后重试。",
+      "saveFailed": "无法保存确认操作，尚未发送。请确认浏览器存储空间后再试。",
+      "limit": "单批最多 {max} 项；本日超过上限，请分批选择。",
+      "leave": "离开并清除选择？"
     }
   },
   "export": {
@@ -1993,8 +2023,11 @@
       "payment_create": "登记还款",
       "payment_delete": "撤销还款",
       "budget_set": "设置预算",
-      "currency_set": "设置记账币种"
-    }
+      "currency_set": "设置记账币种",
+      "activities_delete": "批量删除活动"
+    },
+    "retryOriginal": "未查到此请求的结果。不代表未提交；可明确重试原 UUID／原内容。",
+    "retryOriginalAction": "重试原删除请求"
   },
   "currencyPicker": {
     "title": "选择币别",

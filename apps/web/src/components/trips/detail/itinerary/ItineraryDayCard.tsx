@@ -1,5 +1,6 @@
 'use client';
 
+import { ActivityBatchBar, useActivityBatchSelection } from './ActivityBatchDeletion';
 import { Edit2, Trash2, MapPin, Ticket, CalendarPlus, Medal, MoreHorizontal } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
 import type { Activity, ItineraryDay, TripPhoto } from '@/types';
@@ -69,6 +70,9 @@ export default function ItineraryDayCard({
   const tItinerary = useTranslations('itinerary');
   const tAct = useTranslations('itinerary.activities');
   const locale = useLocale();
+  const tBatch = useTranslations('itinerary.batch');
+  const batch = useActivityBatchSelection();
+  const selecting = batch?.dayId === day.id;
 
   const activities = sortActivities(day.activities);
 
@@ -81,7 +85,11 @@ export default function ItineraryDayCard({
               Day {day.day_number}
             </Badge>
             <div className="min-w-0">
-              <h3 className="truncate text-lg font-semibold leading-none tracking-tight">
+              <h3
+                id={`batch-day-${day.id}`}
+                tabIndex={-1}
+                className="break-words text-lg font-semibold leading-none tracking-tight outline-none"
+              >
                 {day.title}
               </h3>
               <ItineraryDayDate
@@ -100,7 +108,7 @@ export default function ItineraryDayCard({
               )}
             </div>
           </div>
-          {isAdmin && (
+          {isAdmin && !selecting && (
             <div className="flex shrink-0 gap-1">
               <Button
                 variant="ghost"
@@ -153,9 +161,62 @@ export default function ItineraryDayCard({
           )}
         </div>
 
+        {isAdmin && activities.length > 0 && batch && !selecting && (
+          <div className="mt-3">
+            <Button
+              variant="ghost"
+              className="min-h-11 h-auto whitespace-normal"
+              disabled={!batch.online || batch.busy || batch.pending}
+              onClick={() => batch.start(day)}
+            >
+              {tBatch('start')}
+            </Button>
+            {!batch.online && (
+              <p className="text-sm text-muted-foreground">{tBatch('onlineOnly')}</p>
+            )}
+          </div>
+        )}
         {activities.length > 0 && (
           <div className="mt-4 flex flex-col gap-2.5 border-t pt-4">
             {activities.map((activity) => {
+              if (selecting && batch)
+                return (
+                  <label
+                    key={activity.id}
+                    className={`flex min-h-11 cursor-pointer items-start gap-3 rounded-lg p-3 ${batch.selected.has(activity.id) ? 'bg-primary/10' : 'hover:bg-muted'}`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="mt-1 h-5 w-5 shrink-0 accent-primary"
+                      checked={batch.selected.has(activity.id)}
+                      disabled={
+                        batch.busy ||
+                        batch.pending ||
+                        (!batch.selected.has(activity.id) && batch.selected.size >= 15)
+                      }
+                      onChange={() => batch.toggle(activity)}
+                      aria-label={`Day ${day.day_number} · ${date ?? tBatch('undated')} · ${activity.time ?? tBatch('untimed')}${activity.end_time ? `–${activity.end_time}` : ''} · ${activity.title}`}
+                    />
+                    <span className="min-w-0 break-words">
+                      <span className="mr-2 tabular-nums text-muted-foreground">
+                        {activity.time ?? tBatch('untimed')}
+                        {activity.end_time ? `–${activity.end_time}` : ''}
+                      </span>
+                      <span className="font-medium">{activity.title}</span>
+                      {(activity.location || activity.location_name) && (
+                        <span className="mt-1 block text-sm text-muted-foreground">
+                          {activity.location
+                            ? pickLocalizedName(
+                                activity.location.names,
+                                locale,
+                                activity.location.name
+                              )
+                            : activity.location_name}
+                        </span>
+                      )}
+                    </span>
+                  </label>
+                );
               const Icon = ACTIVITY_TYPE_ICON[activity.type] ?? MapPin;
               // 帶入旅行成就是個人紀錄，任何成員都能用；已帶入的只顯示獎章。
               const canImport =
@@ -260,6 +321,7 @@ export default function ItineraryDayCard({
           </div>
         )}
 
+        <ActivityBatchBar day={day} />
         {/* 當天相片（相簿裡關聯到這天的相片；沒有就整段不顯示） */}
         <DayPhotoStrip photos={photos} onSelect={onSelectPhoto} />
       </CardContent>

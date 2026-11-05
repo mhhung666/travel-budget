@@ -37,6 +37,7 @@ const mocks = vi.hoisted(() => {
     'mobileItineraryEditContext',
     'mobileItineraryWrite',
     'mobileItineraryRequest',
+    'mobileActivityDeletion',
   ] as const;
   return {
     service: Object.fromEntries(names.map((name) => [name, vi.fn()])) as Record<
@@ -64,6 +65,7 @@ vi.mock('@/lib/mobile/expenseSearch', () => mocks.service);
 vi.mock('@/lib/mobile/budget', () => mocks.service);
 vi.mock('@/lib/mobile/itinerary', () => mocks.service);
 vi.mock('@/lib/mobile/itineraryWrite', () => mocks.service);
+vi.mock('@/lib/mobile/itineraryBatchDelete', () => mocks.service);
 vi.mock('@/lib/mobile/trips', () => ({
   ...mocks.service,
   viewerDate: (url: URL) => url.searchParams.get('today'),
@@ -111,6 +113,9 @@ const table: [MobileOperation, keyof typeof mocks.service, unknown[]][] = [
   ['trip.join', 'mobileEnterTrip', [anyRequest, userId, 'trip.join']],
   ['mutation.request', 'mobileMutationRequest', [userId, uuid]],
   ['trip.landing', 'mobileLanding', [userId, id, '2026-10-08']],
+  ['itinerary.deletionPreview', 'mobileActivityDeletion', [anyRequest, userId, id, 'preview']],
+  ['itinerary.deletionWrite', 'mobileActivityDeletion', [anyRequest, userId, id, 'write']],
+  ['itinerary.deletionLookup', 'mobileActivityDeletion', [anyRequest, userId, id, 'lookup', uuid]],
   ['itinerary.editContext', 'mobileItineraryEditContext', [userId, id]],
   ['itinerary.write', 'mobileItineraryWrite', [anyRequest, userId, id]],
   ['itinerary.request', 'mobileItineraryRequest', [userId, id, uuid]],
@@ -215,6 +220,9 @@ const routes: Record<string, Partial<Record<(typeof methods)[number], MobileOper
   'trips/[id]/expenses/preview/route.ts': { POST: 'expense.preview' },
   'trips/[id]/expenses/route.ts': { GET: 'expense.list', POST: 'expense.create' },
   'trips/[id]/invitation/route.ts': { GET: 'trip.invitation' },
+  'trips/[id]/itinerary/activity-deletions/preview/route.ts': { POST: 'itinerary.deletionPreview' },
+  'trips/[id]/itinerary/activity-deletions/route.ts': { POST: 'itinerary.deletionWrite' },
+  'trips/[id]/itinerary/activity-deletions/[uuid]/route.ts': { GET: 'itinerary.deletionLookup' },
   'trips/[id]/itinerary/edit-context/route.ts': { GET: 'itinerary.editContext' },
   'trips/[id]/itinerary/requests/route.ts': { POST: 'itinerary.write' },
   'trips/[id]/itinerary/requests/[uuid]/route.ts': { GET: 'itinerary.request' },

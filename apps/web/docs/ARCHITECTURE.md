@@ -151,3 +151,5 @@ Web TripList 與 Native list 模式共用 tripListOrder 的日曆日／封存置
 ## 行程共用寫入（2A）
 
 Web `itinerary.actions.ts` 保留 cookie 身分／RPC，資料維護抽至 `lib/itineraryMaintenance.ts`；Native `lib/itineraryWrite.ts` 把共用效果與 actor:UUID receipt 包進同一管理員 trip fence 交易。create／update／delete helper 可明確接收已授權 transaction context，不開巢狀交易；附件 storage 僅在提交後清理，工作先同交易保存。既有 Web 舊輸入及附件／AI 路徑不變。Native edit-context／receipt 是 readonly snapshot，日／活動版本與刪除關聯摘要用於重新確認；契約／限制集中於 [2A](../../mobile/docs/BACKEND_CONTRACT.md#2a-行程維護服務與恢復契約)。
+
+BD1 `itineraryBatchDelete.ts` 在既有 parent fence 內一次驗證所選版本／確認上下文、移除活動、退役無引用票券並寫入 `itinerarymutationrequests` 終局，與單筆 command 共用 actor／UUID namespace。cookie `itineraryBatch.actions.ts` 與 bearer `mobile/itineraryBatchDelete.ts` 分別授權後共用服務；preview／lookup 走管理員唯讀 snapshot。Web `ActivityBatchDeletionProvider` 管理單日選取，`confirmedWebWrites` 新增 `activities.delete` 並沿用隔離／限速／旅行保留；未知結果只查原 UUID，終局落盤才解鎖。契約與待驗見 [共同設計](../../../docs/design/ITINERARY_BATCH_DELETE.md#bd1-實作與交接)，App 多選留待 BD2。

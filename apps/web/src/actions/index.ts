@@ -199,3 +199,9 @@ export {
 export { setLocale } from './locale.actions';
 
 export * from './ledger.actions';
+
+export {
+  previewWebActivityDeletion,
+  writeWebActivityDeletion,
+  lookupWebActivityDeletion,
+} from './itineraryBatch.actions';

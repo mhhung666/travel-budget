@@ -1,5 +1,6 @@
 'use client';
 import dynamic from 'next/dynamic';
+import { ActivityBatchDeletionProvider } from '@/components/trips/detail/itinerary/ActivityBatchDeletion';
 import { ClientQueryBoundary } from '@/components/common/ClientQueryBoundary';
 import { QueryStatus } from '@/components/common/QueryStatus';
 
@@ -426,272 +427,280 @@ function ItineraryPageContent() {
   if (itineraryQuery.data === undefined) return <QueryStatus query={itineraryQuery} />;
 
   return (
-    <div className="container mx-auto max-w-4xl py-4 px-4 sm:px-6">
-      <QueryStatus query={tripQuery} />
-      {phase === 'preTrip' && <QueryStatus query={checklistQuery} />}
-      {phase === 'postTrip' && <QueryStatus query={settlementQuery} />}
-      <QueryStatus query={itineraryQuery} />
-      {isMember && hasImportable && <QueryStatus query={linksQuery} />}
-      {isMember && (
-        <QueryFeedback
-          hasData={photosQuery.data !== undefined}
-          isError={photosQuery.isError}
-          isFetching={photosQuery.isFetching}
-          isPaused={photosQuery.isPaused}
-          onRetry={() => void photosQuery.refetch()}
-        />
-      )}
-      {trip && (
-        <TripContextOverview
-          trip={trip}
-          days={days}
-          todaySpent={shell?.today_spent ?? 0}
-          checklists={checklists}
-          settlement={settlement}
-          isMember={isMember}
-          isAdmin={isAdmin}
-          onEdit={editTripDialog.openDialog}
-          onAddExpense={() => openAddExpense()}
-        />
-      )}
-
-      {/* 頁首由行程空間殼提供（分頁列已標示所在位置），此列只放動作 */}
-      <div className="mb-2 flex items-center justify-end gap-2">
-        <ExportMenu
-          onExportPdf={() => setPdfOpen(true)}
-          build={buildExport}
-          fileBaseName={`${trip?.name ?? 'trip'}-${tExport('itinerary.heading')}`}
-          disabled={days.length === 0}
-        />
-        {isAdmin && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setAiImportOpen(true)}
-            className="gap-2"
-          >
-            <Sparkles className="h-4 w-4" />
-            {tItinerary('aiImport.action')}
-          </Button>
+    <ActivityBatchDeletionProvider
+      key={shell?.id ?? tripId}
+      tripId={shell?.id ?? tripId}
+      days={days}
+      dates={datesByDayId}
+      isAdmin={isAdmin}
+    >
+      <div className="container mx-auto max-w-4xl py-4 px-4 sm:px-6">
+        <QueryStatus query={tripQuery} />
+        {phase === 'preTrip' && <QueryStatus query={checklistQuery} />}
+        {phase === 'postTrip' && <QueryStatus query={settlementQuery} />}
+        <QueryStatus query={itineraryQuery} />
+        {isMember && hasImportable && <QueryStatus query={linksQuery} />}
+        {isMember && (
+          <QueryFeedback
+            hasData={photosQuery.data !== undefined}
+            isError={photosQuery.isError}
+            isFetching={photosQuery.isFetching}
+            isPaused={photosQuery.isPaused}
+            onRetry={() => void photosQuery.refetch()}
+          />
         )}
-        {/* 旅程內的日期都建立後就沒有可新增的目標，入口改成導向既有卡片。 */}
-        {isAdmin &&
-          days.length > 0 &&
-          (allDatesCreated ? (
+        {trip && (
+          <TripContextOverview
+            trip={trip}
+            days={days}
+            todaySpent={shell?.today_spent ?? 0}
+            checklists={checklists}
+            settlement={settlement}
+            isMember={isMember}
+            isAdmin={isAdmin}
+            onEdit={editTripDialog.openDialog}
+            onAddExpense={() => openAddExpense()}
+          />
+        )}
+
+        {/* 頁首由行程空間殼提供（分頁列已標示所在位置），此列只放動作 */}
+        <div className="mb-2 flex items-center justify-end gap-2">
+          <ExportMenu
+            onExportPdf={() => setPdfOpen(true)}
+            build={buildExport}
+            fileBaseName={`${trip?.name ?? 'trip'}-${tExport('itinerary.heading')}`}
+            disabled={days.length === 0}
+          />
+          {isAdmin && (
             <Button
               variant="outline"
               size="sm"
+              onClick={() => setAiImportOpen(true)}
               className="gap-2"
-              onClick={() => focusDayCard(days[0].day_number)}
             >
-              <CalendarDays className="h-4 w-4" />
-              {tItinerary('dayTarget.viewDates')}
+              <Sparkles className="h-4 w-4" />
+              {tItinerary('aiImport.action')}
             </Button>
-          ) : (
-            <Button size="sm" onClick={handleAddDay} className="gap-2">
-              <Plus className="h-4 w-4" />
-              {tItinerary('addDay')}
-            </Button>
-          ))}
-      </div>
-      {isAdmin && days.length > 0 && allDatesCreated && (
-        <p className="mb-2 text-right text-xs text-muted-foreground">
-          {tItinerary('dayTarget.allDatesCreated')}
-        </p>
-      )}
-
-      {pdfOpen && (
-        <ItineraryPdfExportDialog
-          key={`${tripId}-${isMember}`}
-          startDate={trip?.start_date}
-          tripId={tripId}
-          days={days}
-          isMember={isMember}
-          onClose={() => setPdfOpen(false)}
-        />
-      )}
-
-      {/* Day cards */}
-      {days.length === 0 ? (
-        /* 沒有新增權限時別叫使用者去按不存在的按鈕（docs/archive/history/UX_IMPROVEMENTS.md） */
-        <EmptyState
-          icon={CalendarDays}
-          title={tItinerary('emptyState')}
-          description={tItinerary(isAdmin ? 'emptyStateHint' : 'emptyStateHintReadOnly')}
-          action={
-            isAdmin ? (
-              <Button onClick={handleAddDay} className="gap-2">
+          )}
+          {/* 旅程內的日期都建立後就沒有可新增的目標，入口改成導向既有卡片。 */}
+          {isAdmin &&
+            days.length > 0 &&
+            (allDatesCreated ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => focusDayCard(days[0].day_number)}
+              >
+                <CalendarDays className="h-4 w-4" />
+                {tItinerary('dayTarget.viewDates')}
+              </Button>
+            ) : (
+              <Button size="sm" onClick={handleAddDay} className="gap-2">
                 <Plus className="h-4 w-4" />
                 {tItinerary('addDay')}
               </Button>
-            ) : undefined
+            ))}
+        </div>
+        {isAdmin && days.length > 0 && allDatesCreated && (
+          <p className="mb-2 text-right text-xs text-muted-foreground">
+            {tItinerary('dayTarget.allDatesCreated')}
+          </p>
+        )}
+
+        {pdfOpen && (
+          <ItineraryPdfExportDialog
+            key={`${tripId}-${isMember}`}
+            startDate={trip?.start_date}
+            tripId={tripId}
+            days={days}
+            isMember={isMember}
+            onClose={() => setPdfOpen(false)}
+          />
+        )}
+
+        {/* Day cards */}
+        {days.length === 0 ? (
+          /* 沒有新增權限時別叫使用者去按不存在的按鈕（docs/archive/history/UX_IMPROVEMENTS.md） */
+          <EmptyState
+            icon={CalendarDays}
+            title={tItinerary('emptyState')}
+            description={tItinerary(isAdmin ? 'emptyStateHint' : 'emptyStateHintReadOnly')}
+            action={
+              isAdmin ? (
+                <Button onClick={handleAddDay} className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  {tItinerary('addDay')}
+                </Button>
+              ) : undefined
+            }
+          />
+        ) : (
+          <>
+            {days.length > 1 && (
+              <ItineraryDayNav
+                days={days}
+                datesByDayId={datesByDayId}
+                todayDayNumber={activeDayNumber}
+              />
+            )}
+            <div className="flex flex-col gap-6">
+              {days.map((day) => {
+                const date = datesByDayId.get(day.id) ?? null;
+                return (
+                  <div
+                    key={day.id}
+                    id={itineraryDayAnchorId(day.day_number)}
+                    tabIndex={-1}
+                    className="outline-none scroll-mt-[calc(var(--trip-space-header-height,0px)+4rem)] md:scroll-mt-[calc(var(--trip-space-header-height,0px)+8rem)]"
+                  >
+                    <ItineraryDayCard
+                      day={day}
+                      date={date}
+                      outsideTripRange={isTripDayOutsideRange(date, trip?.end_date)}
+                      tripId={tripId}
+                      isAdmin={isAdmin}
+                      onEdit={handleEditDay}
+                      onAddActivity={handleAddActivity}
+                      onDelete={handleDeleteDay}
+                      onEditActivity={handleEditActivity}
+                      onDeleteActivity={handleDeleteActivity}
+                      onImportActivity={handleImportActivity}
+                      importedActivityIds={importedActivityIds}
+                      photos={photosByDay.get(day.id) ?? []}
+                      onSelectPhoto={(index) => setViewingPhotos({ dayId: day.id, index })}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {/* 當天相片的放大檢視（唯讀：編輯與刪除在相簿頁） */}
+        <PhotoLightbox
+          photos={viewingDayPhotos}
+          index={viewingPhotos?.index ?? null}
+          onIndexChange={(index) =>
+            setViewingPhotos(index === null || !viewingPhotos ? null : { ...viewingPhotos, index })
           }
         />
-      ) : (
-        <>
-          {days.length > 1 && (
-            <ItineraryDayNav
-              days={days}
-              datesByDayId={datesByDayId}
-              todayDayNumber={activeDayNumber}
-            />
-          )}
-          <div className="flex flex-col gap-6">
-            {days.map((day) => {
-              const date = datesByDayId.get(day.id) ?? null;
-              return (
-                <div
-                  key={day.id}
-                  id={itineraryDayAnchorId(day.day_number)}
-                  tabIndex={-1}
-                  className="outline-none scroll-mt-[calc(var(--trip-space-header-height,0px)+4rem)] md:scroll-mt-[calc(var(--trip-space-header-height,0px)+8rem)]"
-                >
-                  <ItineraryDayCard
-                    day={day}
-                    date={date}
-                    outsideTripRange={isTripDayOutsideRange(date, trip?.end_date)}
-                    tripId={tripId}
-                    isAdmin={isAdmin}
-                    onEdit={handleEditDay}
-                    onAddActivity={handleAddActivity}
-                    onDelete={handleDeleteDay}
-                    onEditActivity={handleEditActivity}
-                    onDeleteActivity={handleDeleteActivity}
-                    onImportActivity={handleImportActivity}
-                    importedActivityIds={importedActivityIds}
-                    photos={photosByDay.get(day.id) ?? []}
-                    onSelectPhoto={(index) => setViewingPhotos({ dayId: day.id, index })}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
 
-      {/* 當天相片的放大檢視（唯讀：編輯與刪除在相簿頁） */}
-      <PhotoLightbox
-        photos={viewingDayPhotos}
-        index={viewingPhotos?.index ?? null}
-        onIndexChange={(index) =>
-          setViewingPhotos(index === null || !viewingPhotos ? null : { ...viewingPhotos, index })
-        }
-      />
+        <EditTripDialog
+          open={editTripDialog.open}
+          onClose={editTripDialog.closeDialog}
+          onSubmit={handleEditTrip}
+          trip={trip ?? null}
+        />
 
-      <EditTripDialog
-        open={editTripDialog.open}
-        onClose={editTripDialog.closeDialog}
-        onSubmit={handleEditTrip}
-        trip={trip ?? null}
-      />
+        <ItineraryImportDialog
+          open={aiImportOpen}
+          onClose={() => setAiImportOpen(false)}
+          tripId={tripId}
+          tripStartDate={trip?.start_date}
+          tripEndDate={trip?.end_date}
+          onImported={() => {
+            void refetchItinerary();
+            void queryClient.invalidateQueries({ queryKey: tripKeys.activity(tripId) });
+          }}
+        />
 
-      <ItineraryImportDialog
-        open={aiImportOpen}
-        onClose={() => setAiImportOpen(false)}
-        tripId={tripId}
-        tripStartDate={trip?.start_date}
-        tripEndDate={trip?.end_date}
-        onImported={() => {
-          void refetchItinerary();
-          void queryClient.invalidateQueries({ queryKey: tripKeys.activity(tripId) });
-        }}
-      />
+        {/* Add/Edit Dialog */}
+        <ItineraryDayDialog
+          mode={dialogMode}
+          open={dialogOpen}
+          onClose={() => setDialogOpen(false)}
+          onSubmit={handleDialogSubmit}
+          day={editingDay}
+          dayNumber={dialogDayNumber || undefined}
+          date={dialogDayDate}
+          outsideTripRange={isTripDayOutsideRange(dialogDayDate, trip?.end_date)}
+          tripStartDate={trip?.start_date}
+          tripEndDate={trip?.end_date}
+          usedDayNumbers={usedDayNumbers}
+          onViewExistingDay={handleViewExistingDay}
+          onOpenTripSettings={isAdmin ? editTripDialog.openDialog : undefined}
+        />
 
-      {/* Add/Edit Dialog */}
-      <ItineraryDayDialog
-        mode={dialogMode}
-        open={dialogOpen}
-        onClose={() => setDialogOpen(false)}
-        onSubmit={handleDialogSubmit}
-        day={editingDay}
-        dayNumber={dialogDayNumber || undefined}
-        date={dialogDayDate}
-        outsideTripRange={isTripDayOutsideRange(dialogDayDate, trip?.end_date)}
-        tripStartDate={trip?.start_date}
-        tripEndDate={trip?.end_date}
-        usedDayNumbers={usedDayNumbers}
-        onViewExistingDay={handleViewExistingDay}
-        onOpenTripSettings={isAdmin ? editTripDialog.openDialog : undefined}
-      />
+        {/* 卡片捷徑：手機友善的單一活動新增/編輯（不開整天編輯） */}
+        <ActivityFormDialog
+          open={!!activityDialog}
+          onClose={() => setActivityDialog(null)}
+          onSubmit={handleActivitySubmit}
+          tripId={tripId}
+          dayNumber={activityDialog?.day.day_number}
+          activity={activityDialog?.activity ?? null}
+        />
 
-      {/* 卡片捷徑：手機友善的單一活動新增/編輯（不開整天編輯） */}
-      <ActivityFormDialog
-        open={!!activityDialog}
-        onClose={() => setActivityDialog(null)}
-        onSubmit={handleActivitySubmit}
-        tripId={tripId}
-        dayNumber={activityDialog?.day.day_number}
-        activity={activityDialog?.activity ?? null}
-      />
+        {/* 交通/住宿活動「帶入旅行成就」：預填的補登對話框（個人紀錄，任何成員可用） */}
+        <FlightRecordDialog
+          open={importing?.kind === 'flight'}
+          onOpenChange={(open) => !open && setImporting(null)}
+          editing={null}
+          defaults={importing?.flightDefaults ?? null}
+          lockedTrip={lockedTrip}
+          onSaved={() => toast({ title: tAct('importedSuccess') })}
+        />
+        <StayRecordDialog
+          open={importing?.kind === 'stay'}
+          onOpenChange={(open) => !open && setImporting(null)}
+          editing={null}
+          defaults={importing?.stayDefaults ?? null}
+          lockedTrip={lockedTrip}
+          onSaved={() => toast({ title: tAct('importedSuccess') })}
+        />
 
-      {/* 交通/住宿活動「帶入旅行成就」：預填的補登對話框（個人紀錄，任何成員可用） */}
-      <FlightRecordDialog
-        open={importing?.kind === 'flight'}
-        onOpenChange={(open) => !open && setImporting(null)}
-        editing={null}
-        defaults={importing?.flightDefaults ?? null}
-        lockedTrip={lockedTrip}
-        onSaved={() => toast({ title: tAct('importedSuccess') })}
-      />
-      <StayRecordDialog
-        open={importing?.kind === 'stay'}
-        onOpenChange={(open) => !open && setImporting(null)}
-        editing={null}
-        defaults={importing?.stayDefaults ?? null}
-        lockedTrip={lockedTrip}
-        onSaved={() => toast({ title: tAct('importedSuccess') })}
-      />
+        {/* 單筆活動刪除確認 */}
+        <AlertDialog
+          open={!!deletingActivity}
+          onOpenChange={(open) => !open && setDeletingActivity(null)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{tAct('removeConfirm')}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {deletingActivity &&
+                  tAct('removeConfirmMessage', {
+                    title: deletingActivity.activity.title,
+                    dayNumber: deletingActivity.day.day_number,
+                  })}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(event) => {
+                  event.preventDefault();
+                  void confirmDeleteActivity();
+                }}
+                disabled={mutateActivity.isPending}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {tCommon('confirm')}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-      {/* 單筆活動刪除確認 */}
-      <AlertDialog
-        open={!!deletingActivity}
-        onOpenChange={(open) => !open && setDeletingActivity(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{tAct('removeConfirm')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {deletingActivity &&
-                tAct('removeConfirmMessage', {
-                  title: deletingActivity.activity.title,
-                  dayNumber: deletingActivity.day.day_number,
-                })}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(event) => {
-                event.preventDefault();
-                void confirmDeleteActivity();
-              }}
-              disabled={mutateActivity.isPending}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {tCommon('confirm')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deletingDay} onOpenChange={(open) => !open && setDeletingDay(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{tItinerary('deleteConfirm')}</AlertDialogTitle>
-            <AlertDialogDescription>{tItinerary('deleteMessage')}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {tCommon('confirm')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={!!deletingDay} onOpenChange={(open) => !open && setDeletingDay(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{tItinerary('deleteConfirm')}</AlertDialogTitle>
+              <AlertDialogDescription>{tItinerary('deleteMessage')}</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmDelete}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {tCommon('confirm')}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </ActivityBatchDeletionProvider>
   );
 }

@@ -125,7 +125,7 @@ async function readDaysAndImpact(
   );
   return { days, impacts };
 }
-async function readAdmin<T>(
+export async function readItineraryAdmin<T>(
   db: mongo.Db,
   actorId: string,
   tripId: string,
@@ -156,7 +156,7 @@ async function readAdmin<T>(
   );
 }
 export async function readItineraryEditContext(db: mongo.Db, actorId: string, tripId: string) {
-  return readAdmin(db, actorId, tripId, async (_session, trip, options) => {
+  return readItineraryAdmin(db, actorId, tripId, async (_session, trip, options) => {
     const { days, impacts } = await readDaysAndImpact(db, trip._id, options);
     const dto = days.map((d) => toDayDto(d as unknown as LeanDay));
     const itinerary = projectMobileItinerary(
@@ -186,11 +186,19 @@ export async function readItineraryWrite(
   tripId: string,
   uuid: string
 ) {
-  return readAdmin(db, actorId, tripId, async (_session, _trip, options) => {
+  return readItineraryAdmin(db, actorId, tripId, async (_session, _trip, options) => {
     const receipt = await db
       .collection<Receipt>(ITINERARY_RECEIPTS)
       .findOne({ _id: key(actorId, uuid), trip: new mongo.ObjectId(tripId) }, options());
-    return itineraryWriteStateSchema.parse(receipt?.terminal ?? { status: 'not_found' });
+    const terminal: unknown = receipt?.terminal;
+    if (
+      terminal &&
+      typeof terminal === 'object' &&
+      'operation' in terminal &&
+      terminal.operation === 'activities.delete'
+    )
+      throw new ItineraryWriteError('IDEMPOTENCY_CONFLICT');
+    return itineraryWriteStateSchema.parse(terminal ?? { status: 'not_found' });
   });
 }
 async function applyCommand(
@@ -376,7 +384,7 @@ export async function writeItinerary(db: mongo.Db, actorId: string, tripId: stri
     // Different trips have different fences; their simultaneous actor/UUID collision
     // is resolved by the receipt primary key. The losing transaction was rolled back.
     if ((error as { code?: number })?.code !== 11000) throw error;
-    return readAdmin(db, actorId, tripId, async (_session, _trip, options) => {
+    return readItineraryAdmin(db, actorId, tripId, async (_session, _trip, options) => {
       const existing = await db
         .collection<Receipt>(ITINERARY_RECEIPTS)
         .findOne({ _id: key(actorId, input.client_request_id) }, options());

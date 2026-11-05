@@ -1,5 +1,6 @@
 'use client';
 
+import { assertNoConfirmedWebWrite } from '@/lib/confirmedWebWrites';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   createItineraryDay,
@@ -102,7 +103,10 @@ export function useItineraryMutations(tripId: string) {
   };
 
   const create = useMutation({
-    mutationFn: (data: DayInput) => unwrap(createItineraryDay(tripId, data)),
+    mutationFn: (data: DayInput) =>
+      assertNoConfirmedWebWrite(queryClient, tripId).then(() =>
+        unwrap(createItineraryDay(tripId, data))
+      ),
     onError: reportCreateError,
     onSuccess: () => {
       invalidateItinerary();
@@ -112,7 +116,9 @@ export function useItineraryMutations(tripId: string) {
 
   const update = useMutation({
     mutationFn: ({ dayId, data }: { dayId: string; data: UpdateDayInput }) =>
-      unwrap(updateItineraryDay(tripId, dayId, data)),
+      assertNoConfirmedWebWrite(queryClient, tripId).then(() =>
+        unwrap(updateItineraryDay(tripId, dayId, data))
+      ),
     onError: reportUpdateError,
     onSuccess: (_day, { data }) => {
       invalidateItinerary();
@@ -123,7 +129,9 @@ export function useItineraryMutations(tripId: string) {
 
   const mutateActivity = useMutation({
     mutationFn: ({ dayId, data }: { dayId: string; data: MutateItineraryActivityInput }) =>
-      unwrap(mutateItineraryActivity(tripId, dayId, data)),
+      assertNoConfirmedWebWrite(queryClient, tripId).then(() =>
+        unwrap(mutateItineraryActivity(tripId, dayId, data))
+      ),
     onError: reportUpdateError,
     onSuccess: () => {
       void invalidateItinerary();
@@ -131,7 +139,10 @@ export function useItineraryMutations(tripId: string) {
   });
 
   const remove = useMutation({
-    mutationFn: (dayId: string) => unwrap(deleteItineraryDay(tripId, dayId)),
+    mutationFn: (dayId: string) =>
+      assertNoConfirmedWebWrite(queryClient, tripId).then(() =>
+        unwrap(deleteItineraryDay(tripId, dayId))
+      ),
     onSuccess: () => {
       invalidateItinerary();
       invalidatePhotos();

@@ -47,9 +47,19 @@ export function ConfirmedWebRecovery() {
               setBusy(true);
               setError(null);
               try {
-                await resumeConfirmedWebWrite(client, e);
+                await resumeConfirmedWebWrite(client, e, {
+                  retryNotFound:
+                    error?.id === e.request.body.client_request_id &&
+                    error.message === 'ledger.retryOriginal',
+                });
                 await query.refetch();
               } catch (err) {
+                if (
+                  e.request.operation === 'activities.delete' &&
+                  err instanceof Error &&
+                  ['FORBIDDEN', 'UNAUTHORIZED', 'NOT_FOUND'].includes(err.message)
+                )
+                  void client.invalidateQueries();
                 setError({
                   id: e.request.body.client_request_id,
                   message: err instanceof Error ? err.message : String(err),
@@ -59,7 +69,12 @@ export function ConfirmedWebRecovery() {
               }
             }}
           >
-            {t('recover')}
+            {t(
+              error?.id === e.request.body.client_request_id &&
+                error.message === 'ledger.retryOriginal'
+                ? 'retryOriginalAction'
+                : 'recover'
+            )}
           </Button>
         </div>
       ))}

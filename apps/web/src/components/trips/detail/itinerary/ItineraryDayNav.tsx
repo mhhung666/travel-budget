@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { ItineraryDay } from '@/types';
 import { intlLocale } from '@/lib/relativeTime';
+import { useActivityBatchSelection } from './ActivityBatchDeletion';
 import { cn } from '@/lib/utils';
 
 // 行程日頂端離日期列下緣在這個距離內，就算「目前這一天」。留得寬一點：
@@ -31,6 +32,7 @@ export default function ItineraryDayNav({
 }: ItineraryDayNavProps) {
   const t = useTranslations('itinerary');
   const locale = useLocale();
+  const batch = useActivityBatchSelection();
   const navRef = useRef<HTMLElement>(null);
   const shortDate = new Intl.DateTimeFormat(intlLocale(locale), {
     month: 'numeric',
@@ -84,6 +86,8 @@ export default function ItineraryDayNav({
   }, [activeDay]);
 
   const jumpTo = (dayNumber: number) => {
+    const day = days.find((d) => d.day_number === dayNumber);
+    if (day && batch && !batch.canLeaveDay(day.id)) return;
     const el = document.getElementById(itineraryDayAnchorId(dayNumber));
     const nav = navRef.current;
     if (!el || !nav) return;

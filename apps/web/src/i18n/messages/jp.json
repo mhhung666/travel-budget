@@ -1463,6 +1463,36 @@
         "startRequired": "旅行に出発日が設定されていないため、日付で指定できません。"
       },
       "discardDraftConfirm": "移動すると未保存の内容は破棄されます。続けますか？"
+    },
+    "batch": {
+      "start": "アクティビティを選択",
+      "onlineOnly": "選択・削除にはオンライン接続が必要です。",
+      "toolbar": "選択したアクティビティの操作",
+      "selected": "{count} 件選択中",
+      "selectAll": "この日をすべて選択",
+      "unselectAll": "選択をすべて解除",
+      "cancel": "キャンセル",
+      "delete": "{count} 件削除",
+      "confirmTitle": "{count} 件の削除を確認",
+      "impact": "選択したアクティビティとチケットの参照を削除します。日程日、他のアクティビティ、支出、写真は残ります。この操作は取り消せません。",
+      "back": "選択に戻る",
+      "confirm": "{count} 件の削除を確定",
+      "success": "{count} 件のアクティビティを削除しました",
+      "undated": "日付未設定",
+      "untimed": "時刻未設定",
+      "conflict": "選択した内容、日付または見出しが変更されています。最新の内容を確認し、再度削除を確認してください。",
+      "previous": "以前の内容",
+      "latest": "最新の内容",
+      "detailsChanged": "内容やチケットが変更された可能性があります",
+      "missing": "アクティビティは存在しません",
+      "removeMissing": "存在しない項目の選択を解除",
+      "acceptChanges": "最新の内容を使用して選択に戻る",
+      "reviewAgain": "選択を更新しました。削除内容を再確認してください。",
+      "unknown": "削除結果を確認中です。復旧から元のリクエストを照会してください。",
+      "readFailed": "削除内容を読み込めません。接続後に再試行してください。",
+      "saveFailed": "確認した操作を保存できず、送信していません。ブラウザの保存領域を確認してください。",
+      "limit": "1 回に選択できるのは {max} 件までです。複数回に分けて選択してください。",
+      "leave": "移動して選択を解除しますか？"
     }
   },
   "export": {
@@ -1993,8 +2023,11 @@
       "payment_create": "返済を記録",
       "payment_delete": "返済を取消",
       "budget_set": "予算を設定",
-      "currency_set": "記帳通貨を設定"
-    }
+      "currency_set": "記帳通貨を設定",
+      "activities_delete": "アクティビティの一括削除"
+    },
+    "retryOriginal": "結果が見つかりません。未送信とは限りません。同じ UUID と内容で明示的に再試行できます。",
+    "retryOriginalAction": "元の削除リクエストを再試行"
   },
   "currencyPicker": {
     "title": "通貨を選択",

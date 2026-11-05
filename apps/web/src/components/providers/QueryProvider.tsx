@@ -6,6 +6,7 @@ import {
   confirmedWebKey,
 } from '@/lib/confirmedWebWrites';
 import { ConfirmedWebRecovery } from '@/components/expenses/ConfirmedWebRecovery';
+import { initializeHistoryNavigation } from '@/lib/historyNavigation';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { onlineManager, QueryClient } from '@tanstack/react-query';
@@ -118,6 +119,10 @@ export function QueryProvider({
     return bindExpenseOutbox(queryClient, cacheScope);
   });
   const [persister] = useState(() => createQueryPersister(cacheScope));
+
+  useEffect(() => {
+    initializeHistoryNavigation();
+  }, []);
 
   useEffect(() => {
     void removeLegacyQueryCache();

@@ -1470,6 +1470,36 @@
         "startRequired": "The trip has no start date, so days cannot be placed by date."
       },
       "discardDraftConfirm": "Leaving now discards the day you are writing. Continue?"
+    },
+    "batch": {
+      "start": "Select activities",
+      "onlineOnly": "Connect to select and delete activities.",
+      "toolbar": "Activity selection actions",
+      "selected": "{count} selected",
+      "selectAll": "Select all today",
+      "unselectAll": "Clear all",
+      "cancel": "Cancel",
+      "delete": "Delete {count}",
+      "confirmTitle": "Review deletion of {count} activities",
+      "impact": "These activities and their ticket references will be removed. The day, other activities, expenses and photos remain. This cannot be undone.",
+      "back": "Back to selection",
+      "confirm": "Confirm deletion of {count}",
+      "success": "Deleted {count} activities",
+      "undated": "No date",
+      "untimed": "No time",
+      "conflict": "Selected activities or the day date/title have changed. Check the latest details, then review and confirm again.",
+      "previous": "Previously",
+      "latest": "Latest",
+      "detailsChanged": "Content or tickets may have changed",
+      "missing": "Activity no longer exists",
+      "removeMissing": "Remove missing selection",
+      "acceptChanges": "Use latest details and return to selection",
+      "reviewAgain": "Selection updated. Review the deletion again.",
+      "unknown": "Checking the deletion result. Use recovery to look up the original request.",
+      "readFailed": "Unable to load deletion details. Reconnect and try again.",
+      "saveFailed": "Unable to save the confirmed operation. Nothing was sent. Check browser storage and try again.",
+      "limit": "Select at most {max} per batch. This day exceeds the limit; select smaller batches.",
+      "leave": "Leave and clear the selection?"
     }
   },
   "export": {
@@ -2000,8 +2030,11 @@
       "payment_create": "Record payment",
       "payment_delete": "Revoke payment",
       "budget_set": "Set budget",
-      "currency_set": "Set expense currency"
-    }
+      "currency_set": "Set expense currency",
+      "activities_delete": "Delete activities"
+    },
+    "retryOriginal": "No receipt was found. This does not prove failure. You may explicitly retry the original UUID and unchanged request.",
+    "retryOriginalAction": "Retry original deletion"
   },
   "currencyPicker": {
     "title": "Choose currency",

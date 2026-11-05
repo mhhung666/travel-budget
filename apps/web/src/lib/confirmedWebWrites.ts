@@ -13,12 +13,17 @@ import {
   paymentCreateV2Input,
   paymentDeleteV2Input,
   isCentShare,
+  activityDeletionInput,
+  activityDeletionStateSchema,
+  type ActivityDeletionInput,
 } from '@travel-budget/contracts';
 import { updateExpenseSchema, setBudgetSchema, setCurrencySettingsSchema } from './validation';
 import { get, update } from 'idb-keyval';
 import { onlineManager, type QueryClient } from '@tanstack/react-query';
 import {
   getLedgerMutation,
+  writeWebActivityDeletion,
+  lookupWebActivityDeletion,
   createLedgerTrip,
   joinLedgerTrip,
   updateLedgerExpense,
@@ -30,6 +35,7 @@ import type { CreateTripInput, UpdateExpenseInput } from './validation';
 import type { ActionResult } from '@/actions';
 
 export type ConfirmedWebWrite =
+  | { operation: 'activities.delete'; tripId: string; body: ActivityDeletionInput }
   | {
       operation: 'budget.set' | 'currency.set';
       tripId: string;
@@ -205,7 +211,8 @@ async function unwrap<T>(client: QueryClient, p: Promise<ActionResult<T>>) {
 }
 export async function resumeConfirmedWebWrite(
   client: QueryClient,
-  entry: ConfirmedWebEntry
+  entry: ConfirmedWebEntry,
+  options: { retryNotFound?: boolean } = {}
 ): Promise<unknown> {
   const b = binding(client);
   const request = entry.request;
@@ -223,6 +230,68 @@ export async function resumeConfirmedWebWrite(
   if ('tripId' in request)
     await claimWebTripWrite(client, request.tripId, request.body.client_request_id);
   if (!b.active) throw new Error('UNAUTHORIZED');
+  if (request.operation === 'activities.delete') {
+    const finish = async (state: unknown) => {
+      const terminal = activityDeletionStateSchema.parse(state);
+      if (!b.active) throw new Error('UNAUTHORIZED');
+      if (terminal.status === 'not_found') return false;
+      if (
+        terminal.client_request_id !== request.body.client_request_id ||
+        terminal.tripId !== canonicalTrip(client, request.tripId)
+      )
+        throw new Error('LEDGER_DATA_INVALID');
+      if (
+        terminal.status === 'committed' &&
+        (terminal.result.dayId !== request.body.dayId ||
+          [...terminal.result.activityIds].sort().join(',') !==
+            request.body.targets
+              .map((t) => t.activityId)
+              .sort()
+              .join(','))
+      )
+        throw new Error('LEDGER_DATA_INVALID');
+      await writeEntry(client, {
+        ...entry,
+        status: terminal.status === 'committed' ? 'done' : 'rejected',
+        result: terminal,
+        error: terminal.status === 'rejected' ? terminal.code : undefined,
+      });
+      await releaseWebTripWrite(client, request.body.client_request_id).catch(() => undefined);
+      void client.invalidateQueries();
+      if (terminal.status === 'rejected') throw new Error(terminal.code);
+      return terminal;
+    };
+    // Recovery is lookup-only. A not_found receipt never silently resends a delete.
+    const receipt = await unwrap(
+      client,
+      lookupWebActivityDeletion(request.tripId, request.body.client_request_id)
+    );
+    if (!b.active) throw new Error('UNAUTHORIZED');
+    const found = await finish(receipt);
+    if (found) return found;
+    if (!options.retryNotFound) throw new Error('ledger.retryOriginal');
+    // Querying may have set a shared deadline; repeat the guard immediately before sending.
+    await assertCooldown(client);
+    if (!b.active) throw new Error('UNAUTHORIZED');
+    let result;
+    try {
+      result = await unwrap(client, writeWebActivityDeletion(request.tripId, request.body));
+    } catch (error) {
+      if (
+        b.active &&
+        error instanceof WebWriteError &&
+        definitiveWriteRefusals.has(error.code ?? '')
+      ) {
+        await writeEntry(client, { ...entry, status: 'rejected', error: error.code });
+        await releaseWebTripWrite(client, request.body.client_request_id).catch(() => undefined);
+        void client.invalidateQueries();
+      }
+      throw error;
+    }
+    const terminal = await finish(result);
+    if (!terminal) throw new Error('LEDGER_DATA_INVALID');
+    return terminal;
+  }
   const receipt = await unwrap(client, getLedgerMutation(request.body.client_request_id));
   if (!b.active) throw new Error('UNAUTHORIZED');
   if (receipt.status !== 'not_found' && receipt.operation !== request.operation)
@@ -322,6 +391,7 @@ function validateRequest(request: ConfirmedWebWrite) {
   if (
     !request ||
     ![
+      'activities.delete',
       'budget.set',
       'currency.set',
       'trip.create',
@@ -344,7 +414,8 @@ function validateRequest(request: ConfirmedWebWrite) {
     base_currency: z.string().regex(/^[A-Z]{3}$/),
     expected_revision: z.string().regex(/^[a-f0-9]{64}$/),
   });
-  if (request.operation === 'trip.create') tripCreateV2Input.parse(request.body);
+  if (request.operation === 'activities.delete') activityDeletionInput.parse(request.body);
+  else if (request.operation === 'trip.create') tripCreateV2Input.parse(request.body);
   else if (request.operation === 'trip.join') tripJoinInput.parse(request.body);
   else {
     confirmation.parse(request.body);
@@ -393,7 +464,7 @@ export async function confirmWebWrite(
     true
   );
   onPersisted?.(durable);
-  return resumeConfirmedWebWrite(client, durable);
+  return resumeConfirmedWebWrite(client, durable, { retryNotFound: true });
 }
 export async function assertNoConfirmedWebWrite(client: QueryClient, tripId: string) {
   if (!bindings.has(client)) return; // Standalone clients have no durable application journal.

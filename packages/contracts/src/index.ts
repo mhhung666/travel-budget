@@ -365,6 +365,91 @@ export const itineraryEditContextSchema = itinerarySchema.extend({
 export type ItineraryWriteInput = z.infer<typeof itineraryWriteInput>;
 export type ItineraryWriteState = z.infer<typeof itineraryWriteStateSchema>;
 export type ItineraryEditContext = z.infer<typeof itineraryEditContextSchema>;
+/** Same-day batches are independent of the six persisted single-item commands. */
+export const activityDeletionTargetsSchema = z
+  .array(
+    z
+      .object({
+        activityId: idSchema,
+        expectedRevision: itineraryRevisionSchema,
+      })
+      .strict()
+  )
+  .min(1)
+  .max(15)
+  .refine(
+    (targets) => new Set(targets.map((t) => t.activityId.toLowerCase())).size === targets.length,
+    'Duplicate activity IDs'
+  );
+export const activityDeletionPreviewInput = z
+  .object({
+    dayId: idSchema,
+    targets: activityDeletionTargetsSchema,
+  })
+  .strict();
+export const activityDeletionPreviewSchema = z
+  .object({
+    tripId: idSchema,
+    dayId: idSchema,
+    dayNumber: z.number().int().positive(),
+    title: z.string(),
+    date: dateSchema.nullable(),
+    targets: z
+      .array(
+        z
+          .object({
+            activityId: idSchema,
+            revision: itineraryRevisionSchema,
+            title: z.string(),
+            time: itineraryActivitySchema.shape.time,
+            endTime: itineraryActivitySchema.shape.endTime,
+            locationName: z.string(),
+          })
+          .strict()
+      )
+      .max(15),
+    missingIds: z.array(idSchema).max(15),
+    changedIds: z.array(idSchema).max(15),
+    contextRevision: z.string().regex(/^[a-f0-9]{64}$/),
+  })
+  .strict();
+export const activityDeletionInput = activityDeletionPreviewInput
+  .extend({
+    client_request_id: z.string().uuid(),
+    expectedContextRevision: z.string().regex(/^[a-f0-9]{64}$/),
+  })
+  .strict();
+const activityDeletionTerminal = z.object({
+  client_request_id: z.string().uuid(),
+  tripId: idSchema,
+  operation: z.literal('activities.delete'),
+});
+export const activityDeletionStateSchema = z.discriminatedUnion('status', [
+  z.object({ status: z.literal('not_found') }).strict(),
+  activityDeletionTerminal
+    .extend({
+      status: z.literal('committed'),
+      result: z
+        .object({
+          dayId: idSchema,
+          activityIds: z.array(idSchema).min(1).max(15),
+          count: z.number().int().min(1).max(15),
+        })
+        .strict(),
+    })
+    .strict(),
+  activityDeletionTerminal
+    .extend({
+      status: z.literal('rejected'),
+      code: z.enum(['CONFLICT', 'NOT_FOUND', 'FORBIDDEN', 'VALIDATION_ERROR']),
+    })
+    .strict(),
+]);
+export type ActivityDeletionPreviewInput = z.infer<typeof activityDeletionPreviewInput>;
+export type ActivityDeletionPreview = z.infer<typeof activityDeletionPreviewSchema>;
+export type ActivityDeletionInput = z.infer<typeof activityDeletionInput>;
+export type ActivityDeletionState = z.infer<typeof activityDeletionStateSchema>;
+
 export const tripsSchema = z.object({
   items: z.array(tripSchema),
   nextPage: z.number().int().positive().nullable(),
