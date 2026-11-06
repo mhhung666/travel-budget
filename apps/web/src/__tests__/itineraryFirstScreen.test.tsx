@@ -162,7 +162,11 @@ describe('itinerary day card actions', () => {
     Element.prototype.scrollIntoView ??= () => {};
   });
 
-  const renderCard = (isAdmin: boolean, importedActivityIds = new Set<string>()) => {
+  const renderCard = (
+    isAdmin: boolean,
+    importedActivityIds = new Set<string>(),
+    cardDay = day(1, [activity({ type: 'flight', title: 'BR 198' })])
+  ) => {
     const handlers = {
       onEdit: vi.fn(),
       onAddActivity: vi.fn(),
@@ -173,7 +177,7 @@ describe('itinerary day card actions', () => {
     };
     render(
       <ItineraryDayCard
-        day={day(1, [activity({ type: 'flight', title: 'BR 198' })])}
+        day={cardDay}
         tripId="trip-1"
         isAdmin={isAdmin}
         importedActivityIds={importedActivityIds}
@@ -185,6 +189,28 @@ describe('itinerary day card actions', () => {
     return handlers;
   };
 
+  it('offers notes and add activity on an empty day without the Markdown placeholder', async () => {
+    const user = userEvent.setup();
+    const empty = day(1);
+    const handlers = renderCard(true, new Set(), empty);
+    expect(screen.queryByText('dayContentPlaceholder')).toBeNull();
+    expect(screen.getByText('empty')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'addDayNotes' }));
+    expect(handlers.onEdit).toHaveBeenCalledWith(empty, 'notes');
+    await user.click(screen.getByRole('button', { name: 'add' }));
+    expect(handlers.onAddActivity).toHaveBeenCalledWith(empty);
+    await user.click(screen.getByRole('button', { name: 'dayActions' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'editDay' }));
+    expect(handlers.onEdit).toHaveBeenLastCalledWith(empty);
+  });
+
+  it('keeps read-only empty days free of editing prompts', () => {
+    renderCard(false, new Set(), day(1));
+    expect(screen.getByText('empty')).toBeInTheDocument();
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(screen.queryByText('dayContentPlaceholder')).toBeNull();
+  });
+
   it('tucks activity edit and remove behind the overflow menu', async () => {
     const user = userEvent.setup();
     const handlers = renderCard(true);
@@ -192,7 +218,8 @@ describe('itinerary day card actions', () => {
     expect(screen.queryByRole('button', { name: 'edit' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'remove' })).toBeNull();
 
-    await user.click(screen.getByRole('button', { name: 'moreActions' }));
+    await user.click(screen.getByRole('button', { name: 'moreActions · 23:59 · BR 198' }));
+    expect(screen.getByRole('menu')).toHaveTextContent('BR 198');
     await user.click(await screen.findByRole('menuitem', { name: 'remove' }));
 
     expect(handlers.onDeleteActivity).toHaveBeenCalledOnce();
@@ -203,7 +230,7 @@ describe('itinerary day card actions', () => {
     const handlers = renderCard(false);
 
     expect(screen.queryByRole('button', { name: 'dayActions' })).toBeNull();
-    await user.click(screen.getByRole('button', { name: 'moreActions' }));
+    await user.click(screen.getByRole('button', { name: /moreActions/ }));
     expect(screen.queryByRole('menuitem', { name: 'edit' })).toBeNull();
     await user.click(await screen.findByRole('menuitem', { name: 'importToCollections' }));
 
@@ -213,7 +240,7 @@ describe('itinerary day card actions', () => {
   it('shows only the imported badge when nothing else is actionable', () => {
     renderCard(false, new Set(['act-1']));
 
-    expect(screen.queryByRole('button', { name: 'moreActions' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /moreActions/ })).toBeNull();
     expect(screen.getByText('imported')).not.toBeNull();
   });
 });

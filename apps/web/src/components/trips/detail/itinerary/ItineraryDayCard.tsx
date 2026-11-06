@@ -6,7 +6,9 @@ import {
   Trash2,
   MapPin,
   Ticket,
-  CalendarPlus,
+  Plus,
+  ChevronDown,
+  NotebookPen,
   Medal,
   MoreHorizontal,
   ListChecks,
@@ -29,6 +31,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
@@ -40,7 +44,7 @@ interface ItineraryDayCardProps {
   /** 票券附件檢視需要 trip 識別碼。 */
   tripId: string;
   isAdmin: boolean;
-  onEdit: (day: ItineraryDay) => void;
+  onEdit: (day: ItineraryDay, focus?: 'notes') => void;
   /** 卡片上的「新增活動」捷徑：開輕量單一活動對話框。 */
   onAddActivity: (day: ItineraryDay) => void;
   onDelete: (dayId: string) => void;
@@ -88,16 +92,16 @@ export default function ItineraryDayCard({
   return (
     <Card className="shadow-sm hover:shadow-md transition-shadow">
       <CardHeader className="p-4 sm:p-6 pb-2 sm:pb-4">
-        <div className="flex justify-between items-center gap-3">
-          <div className="flex min-w-0 items-center gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex min-w-0 flex-1 basis-56 flex-wrap items-start gap-3">
             <Badge variant="default" className="text-sm font-semibold h-7 px-3 shrink-0">
               Day {day.day_number}
             </Badge>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1 basis-32">
               <h3
                 id={`batch-day-${day.id}`}
                 tabIndex={-1}
-                className="break-words text-lg font-semibold leading-none tracking-tight outline-none"
+                className="[overflow-wrap:anywhere] text-lg font-semibold leading-snug tracking-tight outline-none"
               >
                 {day.title}
               </h3>
@@ -109,7 +113,7 @@ export default function ItineraryDayCard({
               {day.location && (
                 <span className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground">
                   <MapPin className="h-3 w-3 shrink-0" />
-                  <span className="truncate">
+                  <span className="min-w-0 break-words">
                     {countryCodeToFlag(day.location.country_code)}{' '}
                     {pickLocalizedName(day.location.names, locale, day.location.name)}
                   </span>
@@ -118,38 +122,30 @@ export default function ItineraryDayCard({
             </div>
           </div>
           {isAdmin && !selecting && (
-            <div className="flex shrink-0 gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => onAddActivity(day)}
-                title={tAct('add')}
-                aria-label={tAct('add')}
-              >
-                <CalendarPlus className="h-4 w-4" />
-              </Button>
-              {/* 低頻的編輯／刪除整天收進「⋯」，卡片標題列只留新增活動 */}
+            <div className="ml-auto max-w-full">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
+                    className="h-auto min-h-11 max-w-full gap-2 whitespace-normal rounded-lg px-3 py-2"
                     title={tItinerary('dayActions')}
                     aria-label={tItinerary('dayActions')}
                   >
-                    <MoreHorizontal className="h-4 w-4" />
+                    {tItinerary('dayActions')}
+                    <ChevronDown className="h-4 w-4 shrink-0" aria-hidden="true" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => onEdit(day)}>
+                <DropdownMenuContent align="end" className="max-w-[calc(100vw-2rem)]">
+                  <DropdownMenuItem
+                    className="min-h-11 whitespace-normal"
+                    onClick={() => onEdit(day)}
+                  >
                     <Edit2 className="mr-2 h-4 w-4" />
                     {tItinerary('editDay')}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => onDelete(day.id)}
-                    className="text-destructive focus:text-destructive"
+                    className="min-h-11 whitespace-normal text-destructive focus:text-destructive"
                   >
                     <Trash2 className="mr-2 h-4 w-4" />
                     {tItinerary('deleteDay')}
@@ -162,131 +158,164 @@ export default function ItineraryDayCard({
       </CardHeader>
 
       <CardContent className="p-4 sm:p-6 pt-0">
-        <div className="mt-2 text-sm text-foreground/90">
-          {day.content ? (
+        {day.content ? (
+          <div className="mt-2 min-w-0 text-sm text-foreground/90 [overflow-wrap:anywhere]">
             <MarkdownRenderer content={day.content} />
-          ) : (
-            <p className="text-muted-foreground italic">{tItinerary('dayContentPlaceholder')}</p>
-          )}
-        </div>
+          </div>
+        ) : isAdmin && !selecting ? (
+          <Button
+            variant="ghost"
+            className="h-auto min-h-11 max-w-full gap-2 whitespace-normal px-2 py-2 text-muted-foreground"
+            onClick={() => onEdit(day, 'notes')}
+          >
+            <NotebookPen className="h-4 w-4 shrink-0" aria-hidden="true" />
+            {tItinerary('addDayNotes')}
+          </Button>
+        ) : null}
 
-        {activities.length > 0 && (
-          <div className="mt-4 flex flex-col gap-2.5 border-t pt-3">
-            <div className="mb-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-              <h4 className="flex min-h-11 items-center gap-2 text-sm font-medium text-muted-foreground">
-                {tAct('heading')}
-                <span className="rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums">
-                  {activities.length}
-                </span>
-              </h4>
-              {isAdmin && batch && !selecting && (
-                <Button
-                  variant="outline"
-                  className="ml-auto h-auto min-h-11 max-w-full gap-2 rounded-lg border-border bg-transparent px-3 py-2 text-muted-foreground shadow-none whitespace-normal hover:text-foreground"
-                  disabled={!batch.online || batch.busy || batch.pending}
-                  aria-describedby={!batch.online ? `batch-offline-${day.id}` : undefined}
-                  onClick={() => batch.start(day)}
-                >
-                  <ListChecks className="h-4 w-4" aria-hidden="true" />
-                  {tBatch('start')}
-                </Button>
-              )}
-            </div>
-            {isAdmin && batch && !selecting && !batch.online && (
-              <p id={`batch-offline-${day.id}`} className="text-sm text-muted-foreground">
-                {tBatch('onlineOnly')}
-              </p>
-            )}
-            {activities.map((activity) => {
-              if (selecting && batch)
-                return (
-                  <label
-                    key={activity.id}
-                    className={`flex min-h-11 cursor-pointer items-start gap-3 rounded-lg p-3 ${batch.selected.has(activity.id) ? 'bg-primary/10' : 'hover:bg-muted'}`}
+        <div className="mt-4 flex flex-col border-t pt-3">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+            <h4 className="flex min-h-11 items-center gap-2 text-sm font-medium text-muted-foreground">
+              {tAct('heading')}
+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums">
+                {activities.length}
+              </span>
+            </h4>
+            {isAdmin && !selecting && (
+              <div className="ml-auto flex max-w-full flex-wrap gap-2">
+                {batch && activities.length > 0 && (
+                  <Button
+                    id={`batch-start-${day.id}`}
+                    variant="outline"
+                    className="h-auto min-h-11 max-w-full gap-2 rounded-lg bg-transparent px-3 py-2 text-muted-foreground shadow-none whitespace-normal hover:text-foreground"
+                    disabled={!batch.online || batch.busy || batch.pending}
+                    aria-describedby={!batch.online ? `batch-offline-${day.id}` : undefined}
+                    onClick={() => batch.start(day)}
                   >
-                    <input
-                      type="checkbox"
-                      className="mt-1 h-5 w-5 shrink-0 accent-primary"
-                      checked={batch.selected.has(activity.id)}
-                      disabled={
-                        batch.busy ||
-                        batch.pending ||
-                        (!batch.selected.has(activity.id) && batch.selected.size >= 15)
-                      }
-                      onChange={() => batch.toggle(activity)}
-                      aria-label={`Day ${day.day_number} · ${date ?? tBatch('undated')} · ${activity.time ?? tBatch('untimed')}${activity.end_time ? `–${activity.end_time}` : ''} · ${activity.title}`}
-                    />
-                    <span className="min-w-0 break-words">
-                      <span className="mr-2 tabular-nums text-muted-foreground">
-                        {activity.time ?? tBatch('untimed')}
-                        {activity.end_time ? `–${activity.end_time}` : ''}
-                      </span>
-                      <span className="font-medium">{activity.title}</span>
-                      {(activity.location || activity.location_name) && (
-                        <span className="mt-1 block text-sm text-muted-foreground">
-                          {activity.location
-                            ? pickLocalizedName(
-                                activity.location.names,
-                                locale,
-                                activity.location.name
-                              )
-                            : activity.location_name}
-                        </span>
-                      )}
-                    </span>
-                  </label>
-                );
-              const Icon = ACTIVITY_TYPE_ICON[activity.type] ?? MapPin;
-              // 帶入旅行成就是個人紀錄，任何成員都能用；已帶入的只顯示獎章。
-              const canImport =
-                activityImportKind(activity.type) !== null && !importedActivityIds.has(activity.id);
+                    <ListChecks className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    {tBatch('start')}
+                  </Button>
+                )}
+                <Button
+                  className="h-auto min-h-11 max-w-full gap-2 whitespace-normal rounded-lg px-3 py-2"
+                  onClick={() => onAddActivity(day)}
+                >
+                  <Plus className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  {tAct('add')}
+                </Button>
+              </div>
+            )}
+          </div>
+          {isAdmin && batch && activities.length > 0 && !selecting && !batch.online && (
+            <p id={`batch-offline-${day.id}`} className="mb-2 text-sm text-muted-foreground">
+              {tBatch('onlineOnly')}
+            </p>
+          )}
+          {activities.length === 0 && (
+            <p className="py-3 text-sm text-muted-foreground">{tAct('empty')}</p>
+          )}
+          {activities.map((activity) => {
+            if (selecting && batch)
               return (
-                <div key={activity.id} className="flex items-start gap-3">
-                  <div className="flex w-11 shrink-0 flex-col items-end pt-1 text-xs font-medium leading-tight tabular-nums text-muted-foreground">
-                    {activity.time && <span>{activity.time}</span>}
-                    {activity.end_time && (
-                      <span className="text-muted-foreground/70">{activity.end_time}</span>
-                    )}
-                  </div>
-                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                    <Icon className="h-3.5 w-3.5" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <span className="font-medium text-foreground">{activity.title}</span>
+                <label
+                  key={activity.id}
+                  className={`flex min-h-11 cursor-pointer items-start gap-3 rounded-lg p-3 ${batch.selected.has(activity.id) ? 'bg-primary/10' : 'hover:bg-muted'}`}
+                >
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-5 w-5 shrink-0 accent-primary"
+                    checked={batch.selected.has(activity.id)}
+                    disabled={
+                      batch.busy ||
+                      batch.pending ||
+                      (!batch.selected.has(activity.id) && batch.selected.size >= 15)
+                    }
+                    onChange={() => batch.toggle(activity)}
+                    aria-label={`Day ${day.day_number} · ${date ?? tBatch('undated')} · ${activity.time ?? tBatch('untimed')}${activity.end_time ? `–${activity.end_time}` : ''} · ${activity.title}`}
+                  />
+                  <span className="min-w-0 break-words">
+                    <span className="mr-2 tabular-nums text-muted-foreground">
+                      {activity.time ?? tBatch('untimed')}
+                      {activity.end_time ? `–${activity.end_time}` : ''}
+                    </span>
+                    <span className="font-medium">{activity.title}</span>
                     {(activity.location || activity.location_name) && (
-                      <span className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
-                        <MapPin className="h-3 w-3 shrink-0" />
-                        <span className="truncate">
-                          {activity.location
-                            ? `${countryCodeToFlag(activity.location.country_code)} ${pickLocalizedName(
-                                activity.location.names,
-                                locale,
-                                activity.location.name
-                              )}`.trim()
-                            : activity.location_name}
-                        </span>
+                      <span className="mt-1 block text-sm text-muted-foreground">
+                        {activity.location
+                          ? pickLocalizedName(
+                              activity.location.names,
+                              locale,
+                              activity.location.name
+                            )
+                          : activity.location_name}
                       </span>
                     )}
-                    {activity.note && (
-                      <p className="mt-0.5 whitespace-pre-line text-xs text-muted-foreground">
-                        {activity.note}
-                      </p>
-                    )}
-                    {activity.confirmation_code && (
-                      <span className="mt-1 inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
-                        <Ticket className="h-3 w-3 shrink-0" />
-                        <span className="font-mono">{activity.confirmation_code}</span>
-                        <span className="sr-only">{tAct('confirmationCode')}</span>
+                  </span>
+                </label>
+              );
+            const Icon = ACTIVITY_TYPE_ICON[activity.type] ?? MapPin;
+            // 帶入旅行成就是個人紀錄，任何成員都能用；已帶入的只顯示獎章。
+            const canImport =
+              activityImportKind(activity.type) !== null && !importedActivityIds.has(activity.id);
+            return (
+              <div
+                key={activity.id}
+                className="grid grid-cols-[2.75rem_minmax(0,1fr)_auto] items-start gap-x-2 gap-y-1 border-b border-border/50 py-3 last:border-b-0 sm:grid-cols-[2.75rem_1.75rem_minmax(0,1fr)_auto] sm:gap-x-3"
+              >
+                <div className="flex w-11 shrink-0 flex-col items-end pt-1 text-xs font-medium leading-tight tabular-nums text-muted-foreground">
+                  {activity.time && <span>{activity.time}</span>}
+                  {activity.end_time && (
+                    <span className="text-muted-foreground/70">{activity.end_time}</span>
+                  )}
+                </div>
+                <span className="mt-0.5 hidden h-7 w-7 sm:flex shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                  <Icon className="h-3.5 w-3.5" />
+                </span>
+                <div className="min-w-0 [overflow-wrap:anywhere]">
+                  <span className="font-medium text-foreground">
+                    <Icon
+                      className="mr-1 inline-block h-4 w-4 align-text-bottom text-muted-foreground sm:hidden"
+                      aria-hidden="true"
+                    />
+                    {activity.title}
+                  </span>
+                  {(activity.location || activity.location_name) && (
+                    <span className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                      <MapPin className="h-3 w-3 shrink-0" />
+                      <span className="min-w-0 break-words">
+                        {activity.location
+                          ? `${countryCodeToFlag(activity.location.country_code)} ${pickLocalizedName(
+                              activity.location.names,
+                              locale,
+                              activity.location.name
+                            )}`.trim()
+                          : activity.location_name}
                       </span>
-                    )}
-                    {activity.attachments.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {activity.attachments.map((att) => (
-                          <TicketThumb key={att.key} tripId={tripId} attachment={att} />
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                    </span>
+                  )}
+                  {activity.note && (
+                    <p className="mt-0.5 whitespace-pre-line text-xs text-muted-foreground">
+                      {activity.note}
+                    </p>
+                  )}
+                  {activity.confirmation_code && (
+                    <span className="mt-1 inline-flex max-w-full items-start gap-1 rounded bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
+                      <Ticket className="h-3 w-3 shrink-0" />
+                      <span className="min-w-0 font-mono [overflow-wrap:anywhere]">
+                        {activity.confirmation_code}
+                      </span>
+                      <span className="sr-only">{tAct('confirmationCode')}</span>
+                    </span>
+                  )}
+                  {activity.attachments.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {activity.attachments.map((att) => (
+                        <TicketThumb key={att.key} tripId={tripId} attachment={att} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="col-start-3 row-start-1 flex flex-col items-center gap-1 sm:col-start-4">
                   {importedActivityIds.has(activity.id) && (
                     <span
                       className="flex h-7 w-7 shrink-0 items-center justify-center text-primary"
@@ -302,14 +331,21 @@ export default function ItineraryDayCard({
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-7 w-7 shrink-0 text-muted-foreground"
+                          className="h-11 w-11 shrink-0 text-muted-foreground"
                           title={tAct('moreActions')}
-                          aria-label={tAct('moreActions')}
+                          aria-label={`${tAct('moreActions')} · ${activity.time ?? tBatch('untimed')}${activity.end_time ? `–${activity.end_time}` : ''} · ${activity.title}`}
                         >
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
+                      <DropdownMenuContent
+                        align="end"
+                        className="max-w-[calc(100vw-2rem)] [&_[role=menuitem]]:min-h-11 [&_[role=menuitem]]:whitespace-normal"
+                      >
+                        <DropdownMenuLabel className="max-w-72 whitespace-normal [overflow-wrap:anywhere]">
+                          {activity.title}
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator />
                         {canImport && (
                           <DropdownMenuItem onClick={() => onImportActivity(day, activity)}>
                             <Medal className="mr-2 h-4 w-4" />
@@ -324,7 +360,7 @@ export default function ItineraryDayCard({
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => onDeleteActivity(day, activity)}
-                              className="text-destructive focus:text-destructive"
+                              className="min-h-11 whitespace-normal text-destructive focus:text-destructive"
                             >
                               <Trash2 className="mr-2 h-4 w-4" />
                               {tAct('remove')}
@@ -335,10 +371,10 @@ export default function ItineraryDayCard({
                     </DropdownMenu>
                   )}
                 </div>
-              );
-            })}
-          </div>
-        )}
+              </div>
+            );
+          })}
+        </div>
 
         <ActivityBatchBar day={day} />
         {/* 當天相片（相簿裡關聯到這天的相片；沒有就整段不顯示） */}

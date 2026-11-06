@@ -123,6 +123,19 @@ export function ActivityBatchDeletionProvider({
     setError(null);
     setChanged(false);
   };
+  const cancelSelection = () => {
+    if (!busy && !pending) {
+      const id = visible?.dayId;
+      clear();
+      if (id)
+        requestAnimationFrame(() => {
+          const target =
+            document.getElementById(`batch-start-${id}`) ??
+            document.getElementById(`batch-day-${id}`);
+          target?.focus();
+        });
+    }
+  };
   const focusDay = (id: string) =>
     requestAnimationFrame(() => document.getElementById(`batch-day-${id}`)?.focus());
   const finished = useRef(new Set<string>());
@@ -302,7 +315,7 @@ export function ActivityBatchDeletionProvider({
       if (preview) {
         setPreview(null);
         event.preventDefault();
-      } else clear();
+      } else cancelSelection();
     };
     document.addEventListener('keydown', escape);
     return () => document.removeEventListener('keydown', escape);
@@ -485,9 +498,7 @@ export function ActivityBatchDeletionProvider({
             }
       );
     },
-    cancel: () => {
-      if (!busy && !pending) clear();
-    },
+    cancel: cancelSelection,
     review: () => void review(),
   };
   return (
@@ -632,6 +643,7 @@ export function ActivityBatchBar({ day }: { day: ItineraryDay }) {
       aria-label={t('toolbar')}
     >
       <p role="status" aria-live="polite" className="mr-auto">
+        <span className="mr-2 font-medium">Day {day.day_number}</span>
         {batch.pending ? t('unknown') : t('selected', { count })}
       </p>
       {batch.error && (

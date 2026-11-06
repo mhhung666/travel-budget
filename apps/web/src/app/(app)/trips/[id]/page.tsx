@@ -13,6 +13,7 @@ import {
   ItineraryDayCard,
   ItineraryDayNav,
   itineraryDayAnchorId,
+  ItineraryDayDate,
 } from '@/components/trips/detail/itinerary';
 import { PhotoLightbox } from '@/components/trips/detail/album';
 import { QueryFeedback } from '@/components/common/QueryFeedback';
@@ -165,6 +166,7 @@ function ItineraryPageContent() {
 
   // Dialog states
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [dayEditorFocus, setDayEditorFocus] = useState<'notes' | undefined>();
   const [aiImportOpen, setAiImportOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<'add' | 'edit'>('add');
   const [editingDay, setEditingDay] = useState<ItineraryDay | null>(null);
@@ -301,7 +303,8 @@ function ItineraryPageContent() {
     requestAnimationFrame(() => focusDayCard(dayNumber));
   };
 
-  const handleEditDay = (day: ItineraryDay) => {
+  const handleEditDay = (day: ItineraryDay, focus?: 'notes') => {
+    setDayEditorFocus(focus);
     setDialogMode('edit');
     setEditingDay(day);
     setDialogOpen(true);
@@ -607,6 +610,7 @@ function ItineraryPageContent() {
 
         {/* Add/Edit Dialog */}
         <ItineraryDayDialog
+          initialFocus={dialogMode === 'edit' ? dayEditorFocus : undefined}
           mode={dialogMode}
           open={dialogOpen}
           onClose={() => setDialogOpen(false)}
@@ -684,9 +688,22 @@ function ItineraryPageContent() {
 
         {/* Delete Confirmation Dialog */}
         <AlertDialog open={!!deletingDay} onOpenChange={(open) => !open && setDeletingDay(null)}>
-          <AlertDialogContent>
+          <AlertDialogContent className="max-h-[85dvh] overflow-y-auto [overflow-wrap:anywhere]">
             <AlertDialogHeader>
-              <AlertDialogTitle>{tItinerary('deleteConfirm')}</AlertDialogTitle>
+              <AlertDialogTitle>
+                {tItinerary('deleteConfirm', { dayNumber: deletingDay?.day_number ?? '' })}
+              </AlertDialogTitle>
+              {deletingDay && (
+                <div className="space-y-1 text-sm [overflow-wrap:anywhere]">
+                  <p>{deletingDay.title}</p>
+                  <ItineraryDayDate
+                    date={dayDateFromTrip(trip?.start_date, deletingDay.day_number)}
+                  />
+                  <p>
+                    {tAct('heading')} · {deletingDay.activities.length}
+                  </p>
+                </div>
+              )}
               <AlertDialogDescription>{tItinerary('deleteMessage')}</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

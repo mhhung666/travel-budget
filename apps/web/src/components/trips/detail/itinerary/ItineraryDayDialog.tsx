@@ -34,6 +34,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 interface ItineraryDayDialogProps {
   mode: 'add' | 'edit';
+  initialFocus?: 'notes';
   open: boolean;
   onClose: () => void;
   /**
@@ -63,6 +64,7 @@ interface ItineraryDayDialogProps {
 
 export default function ItineraryDayDialog({
   mode,
+  initialFocus,
   open,
   onClose,
   onSubmit,
@@ -237,6 +239,12 @@ export default function ItineraryDayDialog({
     <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
       <DialogContent
         className="sm:max-w-[640px] max-h-[90vh] flex flex-col"
+        onOpenAutoFocus={(event) => {
+          if (initialFocus === 'notes') {
+            event.preventDefault();
+            requestAnimationFrame(() => textareaRef.current?.focus());
+          }
+        }}
         onCloseAutoFocus={(event) => {
           if (navigatingToDay.current) event.preventDefault();
         }}
@@ -323,6 +331,9 @@ export default function ItineraryDayDialog({
           </div>
 
           <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'write' | 'preview')}>
+            <Label htmlFor="day-content" className="mb-2 block">
+              {tItinerary('dayContent')}
+            </Label>
             <div className="flex justify-end mb-2">
               <TabsList className="grid w-[200px] grid-cols-2">
                 <TabsTrigger value="write" className="gap-2">
@@ -338,6 +349,7 @@ export default function ItineraryDayDialog({
 
             <TabsContent value="write" className="m-0 border rounded-md">
               <Textarea
+                id="day-content"
                 ref={textareaRef}
                 className="min-h-[200px] w-full resize-none border-0 focus-visible:ring-0 rounded-md p-4"
                 placeholder={tItinerary('dayContentPlaceholder')}

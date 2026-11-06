@@ -199,3 +199,9 @@ it('offers viewing an existing day without a start date and confirms before disc
   expect(onViewExistingDay).toHaveBeenCalledWith(1);
   confirm.mockRestore();
 });
+
+it('focuses the labelled notes field when opened through the notes shortcut', async () => {
+  open({ mode: 'edit', initialFocus: 'notes', dayNumber: 2 });
+  await waitFor(() => expect(screen.getByRole('textbox', { name: 'dayContent' })).toHaveFocus());
+  expect(screen.queryByLabelText('dateLabel')).toBeNull();
+});

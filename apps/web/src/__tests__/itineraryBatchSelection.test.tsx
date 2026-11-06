@@ -207,6 +207,7 @@ it('uses visible admin entry and whole-row keyboard checkboxes, hides competing 
   await userEvent.click(screen.getByRole('checkbox', { name: '取消全選' }));
   expect(screen.getByRole('button', { name: '刪除 0 項' })).toBeDisabled();
   await userEvent.click(screen.getByRole('button', { name: '取消' }));
+  await waitFor(() => expect(screen.getByRole('button', { name: '選取活動' })).toHaveFocus());
   expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
 });
 it('reviews before confirming, retains selection on cancel, and never expands it after reorder/new activities', async () => {
@@ -299,6 +300,7 @@ it('protects selections on link departure and handles Escape one layer at a time
   expect(row()).toBeChecked();
   await userEvent.keyboard('{Escape}');
   expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
+  await waitFor(() => expect(screen.getByRole('button', { name: '選取活動' })).toHaveFocus());
 });
 it('does not send if initial saving fails, or allow double clicks while confirmation is in flight', async () => {
   render(tree());
