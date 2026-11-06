@@ -36,6 +36,7 @@ export interface ActivityPayload {
   id: string | null;
   time: string | null;
   end_time: string | null;
+  end_day_offset?: number | null;
   title: string;
   type: ActivityType;
   location?: Location | null;

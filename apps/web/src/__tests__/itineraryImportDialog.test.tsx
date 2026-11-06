@@ -100,7 +100,7 @@ describe('ItineraryImportDialog', { timeout: 15_000 }, () => {
     await user.click(screen.getByRole('button', { name: 'parse' }));
 
     const confirm = await screen.findByRole('button', { name: 'confirmImport' });
-    expect(confirm).toBeDisabled();
+    expect(confirm).toBeEnabled();
     const code = screen.getByLabelText('confirmationCode');
     expect(code).toHaveAttribute('type', 'password');
     await user.click(screen.getByRole('button', { name: 'showCode' }));

@@ -11,6 +11,7 @@ import {
 } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
+import { activityTimingLabels, activityTimingText } from '@/lib/activityTiming';
 import type { ActivityDeletionPreview } from '@travel-budget/contracts';
 import type { Activity, ItineraryDay } from '@/types';
 import { previewWebActivityDeletion } from '@/actions';
@@ -81,6 +82,8 @@ export function ActivityBatchDeletionProvider({
   isAdmin: boolean;
   children: ReactNode;
 }) {
+  const tTime = useTranslations('itinerary.timing');
+  const timingLabels = activityTimingLabels(tTime);
   const t = useTranslations('itinerary.batch'),
     tLedger = useTranslations('ledger');
   const client = useQueryClient(),
@@ -342,6 +345,7 @@ export function ActivityBatchDeletionProvider({
       await assertWebCooldown(client);
       if (!valid() || generation.current !== token) return;
       const result = await previewWebActivityDeletion(tripId, {
+        includeEndDayOffset: true,
         dayId: visible.dayId,
         targets: visible.targets.map((a) => ({ activityId: a.id, expectedRevision: a.revision })),
       });
@@ -416,6 +420,7 @@ export function ActivityBatchDeletionProvider({
           tripId,
           body: {
             client_request_id: id,
+            includeEndDayOffset: true,
             dayId: visible.dayId,
             targets: visible.targets.map((a) => ({
               activityId: a.id,
@@ -537,16 +542,32 @@ export function ActivityBatchDeletionProvider({
                   return (
                     <li key={a.id} className="rounded border p-3 break-words">
                       <p>
-                        {a.time ?? t('untimed')}
-                        {a.end_time ? `–${a.end_time}` : ''} · {a.title}
+                        {
+                          activityTimingText(a, visible!.dayNumber, visible!.date, timingLabels)
+                            .summary
+                        }{' '}
+                        · {a.title}
                       </p>
                       {!latest ? (
                         <span>{t('missing')}</span>
                       ) : (
                         (changed || preview.changedIds.includes(a.id)) && (
                           <p>
-                            {t('latest')}: {latest.time ?? t('untimed')} · {latest.title} ·{' '}
-                            {latest.locationName} · {t('detailsChanged')}
+                            {t('latest')}:{' '}
+                            {
+                              activityTimingText(
+                                {
+                                  ...a,
+                                  time: latest.time,
+                                  end_time: latest.endTime,
+                                  end_day_offset: latest.endDayOffset,
+                                },
+                                preview.dayNumber,
+                                preview.date,
+                                timingLabels
+                              ).summary
+                            }{' '}
+                            · {latest.title} · {latest.locationName} · {t('detailsChanged')}
                           </p>
                         )
                       )}
@@ -587,6 +608,7 @@ export function ActivityBatchDeletionProvider({
                                 title: n.title,
                                 time: n.time,
                                 end_time: n.endTime,
+                                end_day_offset: n.endDayOffset,
                               };
                             }),
                           }

@@ -35,10 +35,10 @@ const styles = StyleSheet.create({
     paddingTop: 5,
     paddingBottom: 2,
   },
-  activityHeader: { flexDirection: 'row', alignItems: 'flex-start' },
-  time: { width: 86, paddingRight: 8, fontSize: 8, color: '#24576a' },
+  activityHeader: { flexDirection: 'column', alignItems: 'stretch' },
+  time: { fontSize: 8, color: '#24576a', marginBottom: 3 },
   activityTitle: { flex: 1, fontSize: 10, color: '#142c3b' },
-  activityDetail: { marginLeft: 86, marginTop: 2 },
+  activityDetail: { marginTop: 2 },
   paragraph: { marginBottom: 3, color: '#465566' },
   footer: {
     position: 'absolute',

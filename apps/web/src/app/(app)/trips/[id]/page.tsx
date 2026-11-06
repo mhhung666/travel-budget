@@ -1,4 +1,6 @@
 'use client';
+import { activityTimingLabels } from '@/lib/activityTiming';
+import { toDateOnly } from '@/lib/itineraryDayTarget';
 import dynamic from 'next/dynamic';
 import { ActivityBatchDeletionProvider } from '@/components/trips/detail/itinerary/ActivityBatchDeletion';
 import { ClientQueryBoundary } from '@/components/common/ClientQueryBoundary';
@@ -126,10 +128,16 @@ function ItineraryPageContent() {
   // 行程資訊卡（原在支出分頁）：行程分頁成為空間落點後改掛這裡
   const { editTripDialog, handleEditTrip } = useEditTrip(tripId);
   const tExport = useTranslations('export');
+  const tTime = useTranslations('itinerary.timing');
 
   const buildExport = (format: ExportFormat) =>
     exportItinerary(days, format, {
       heading: tExport('itinerary.heading'),
+      timing: activityTimingLabels(tTime),
+      startDate: toDateOnly(trip?.start_date),
+      activityColumn: tTime('activity'),
+      startColumn: tTime('csvStart'),
+      endColumn: tTime('csvEnd'),
       day: (n) => tExport('itinerary.day', { n }),
       columns: {
         day: tExport('itinerary.colDay'),
@@ -560,6 +568,8 @@ function ItineraryPageContent() {
                     <ItineraryDayCard
                       day={day}
                       date={date}
+                      tripStartDate={toDateOnly(trip?.start_date)}
+                      tripEndDate={toDateOnly(trip?.end_date)}
                       outsideTripRange={isTripDayOutsideRange(date, trip?.end_date)}
                       tripId={tripId}
                       isAdmin={isAdmin}
@@ -633,6 +643,8 @@ function ItineraryPageContent() {
           onSubmit={handleActivitySubmit}
           tripId={tripId}
           dayNumber={activityDialog?.day.day_number}
+          date={activityDialog ? datesByDayId.get(activityDialog.day.id) : null}
+          endDate={toDateOnly(trip?.end_date)}
           activity={activityDialog?.activity ?? null}
         />
 

@@ -103,6 +103,7 @@ function activityStorage(activity: ItineraryImportActivity): Record<string, unkn
   const validated = activitySchema.parse({
     time: activity.time ?? null,
     end_time: activity.endTime ?? null,
+    end_day_offset: activity.endDayOffset ?? null,
     title: activity.title,
     type: activity.type,
     location: null,
@@ -114,6 +115,7 @@ function activityStorage(activity: ItineraryImportActivity): Record<string, unkn
   return {
     time: validated.time,
     endTime: validated.end_time,
+    endDayOffset: validated.end_day_offset,
     title: validated.title,
     type: validated.type,
     location: null,

@@ -1,5 +1,6 @@
 'use client';
 
+import { activityTimingLabels, activityTimingText } from '@/lib/activityTiming';
 import { ActivityBatchBar, useActivityBatchSelection } from './ActivityBatchDeletion';
 import {
   Edit2,
@@ -41,6 +42,8 @@ interface ItineraryDayCardProps {
   /** 由旅程開始日與 day number 推算，不另外存入行程日。 */
   date?: string | null;
   outsideTripRange?: boolean;
+  tripStartDate?: string | null;
+  tripEndDate?: string | null;
   /** 票券附件檢視需要 trip 識別碼。 */
   tripId: string;
   isAdmin: boolean;
@@ -68,6 +71,8 @@ export default function ItineraryDayCard({
   day,
   date,
   outsideTripRange,
+  tripStartDate,
+  tripEndDate,
   tripId,
   isAdmin,
   onEdit,
@@ -80,6 +85,8 @@ export default function ItineraryDayCard({
   photos,
   onSelectPhoto,
 }: ItineraryDayCardProps) {
+  const tTime = useTranslations('itinerary.timing');
+  const timingLabels = activityTimingLabels(tTime);
   const tItinerary = useTranslations('itinerary');
   const tAct = useTranslations('itinerary.activities');
   const locale = useLocale();
@@ -215,6 +222,7 @@ export default function ItineraryDayCard({
             <p className="py-3 text-sm text-muted-foreground">{tAct('empty')}</p>
           )}
           {activities.map((activity) => {
+            const timing = activityTimingText(activity, day.day_number, date, timingLabels);
             if (selecting && batch)
               return (
                 <label
@@ -231,14 +239,23 @@ export default function ItineraryDayCard({
                       (!batch.selected.has(activity.id) && batch.selected.size >= 15)
                     }
                     onChange={() => batch.toggle(activity)}
-                    aria-label={`Day ${day.day_number} · ${date ?? tBatch('undated')} · ${activity.time ?? tBatch('untimed')}${activity.end_time ? `–${activity.end_time}` : ''} · ${activity.title}`}
+                    aria-label={`Day ${day.day_number} · ${date ?? tBatch('undated')} · ${timing.summary} · ${activity.title}`}
                   />
                   <span className="min-w-0 break-words">
                     <span className="mr-2 tabular-nums text-muted-foreground">
-                      {activity.time ?? tBatch('untimed')}
-                      {activity.end_time ? `–${activity.end_time}` : ''}
+                      {timing.summary}
                     </span>
                     <span className="font-medium">{activity.title}</span>
+                    {timing.showSummary && (
+                      <p className="mt-1 text-xs text-muted-foreground">{timing.summary}</p>
+                    )}
+                    {timing.endDate &&
+                      ((tripStartDate && timing.endDate < tripStartDate) ||
+                        (tripEndDate && timing.endDate > tripEndDate)) && (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {tTime('outsideRange')}
+                        </p>
+                      )}
                     {(activity.location || activity.location_name) && (
                       <span className="mt-1 block text-sm text-muted-foreground">
                         {activity.location
@@ -260,13 +277,13 @@ export default function ItineraryDayCard({
             return (
               <div
                 key={activity.id}
-                className="grid grid-cols-[2.75rem_minmax(0,1fr)_auto] items-start gap-x-2 gap-y-1 border-b border-border/50 py-3 last:border-b-0 sm:grid-cols-[2.75rem_1.75rem_minmax(0,1fr)_auto] sm:gap-x-3"
+                className="grid grid-cols-[4.5rem_minmax(0,1fr)_auto] items-start gap-x-2 gap-y-1 border-b border-border/50 py-3 last:border-b-0 sm:grid-cols-[4.5rem_1.75rem_minmax(0,1fr)_auto] sm:gap-x-3"
               >
-                <div className="flex w-11 shrink-0 flex-col items-end pt-1 text-xs font-medium leading-tight tabular-nums text-muted-foreground">
-                  {activity.time && <span>{activity.time}</span>}
-                  {activity.end_time && (
-                    <span className="text-muted-foreground/70">{activity.end_time}</span>
-                  )}
+                <div className="flex min-w-0 shrink-0 flex-col items-end pt-1 text-xs font-medium leading-tight tabular-nums text-muted-foreground">
+                  <span>{timing.start}</span>
+                  <span className="mt-1 max-w-full [overflow-wrap:anywhere] text-muted-foreground/70">
+                    {timing.end}
+                  </span>
                 </div>
                 <span className="mt-0.5 hidden h-7 w-7 sm:flex shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
                   <Icon className="h-3.5 w-3.5" />
@@ -279,6 +296,14 @@ export default function ItineraryDayCard({
                     />
                     {activity.title}
                   </span>
+                  {timing.showSummary && (
+                    <p className="mt-1 text-xs text-muted-foreground">{timing.summary}</p>
+                  )}
+                  {timing.endDate &&
+                    ((tripStartDate && timing.endDate < tripStartDate) ||
+                      (tripEndDate && timing.endDate > tripEndDate)) && (
+                      <p className="mt-1 text-xs text-muted-foreground">{tTime('outsideRange')}</p>
+                    )}
                   {(activity.location || activity.location_name) && (
                     <span className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
                       <MapPin className="h-3 w-3 shrink-0" />
@@ -333,7 +358,7 @@ export default function ItineraryDayCard({
                           size="icon"
                           className="h-11 w-11 shrink-0 text-muted-foreground"
                           title={tAct('moreActions')}
-                          aria-label={`${tAct('moreActions')} · ${activity.time ?? tBatch('untimed')}${activity.end_time ? `–${activity.end_time}` : ''} · ${activity.title}`}
+                          aria-label={`${tAct('moreActions')} · ${timing.summary} · ${activity.title}`}
                         >
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>

@@ -1,3 +1,4 @@
+import { itineraryEndDayOffsetSchema } from '@travel-budget/contracts';
 import { ITINERARY_IMPORT_LIMITS } from './importLimits';
 import {
   ITINERARY_IMPORT_ACTIVITY_TYPES,
@@ -12,6 +13,8 @@ export type ItineraryImportPreviewActivity = {
   included: boolean;
   time: string;
   endTime: string;
+  endDayOffset?: number | null;
+  invalidEndDate?: boolean;
   title: string;
   type: ItineraryImportActivity['type'];
   locationName: string;
@@ -46,6 +49,7 @@ export type ItineraryImportPreviewIssueCode =
   | 'DAY_CONTENT_TOO_LONG'
   | 'MISSING_ACTIVITY_TITLE'
   | 'ACTIVITY_TITLE_TOO_LONG'
+  | 'INVALID_END_DATE'
   | 'INVALID_TIME'
   | 'END_TIME_BEFORE_START'
   | 'LOCATION_TOO_LONG'
@@ -95,6 +99,7 @@ export function createItineraryImportPreview(draft: ItineraryImportDraft): Itine
         included: true,
         time: activity.time ?? '',
         endTime: activity.endTime ?? '',
+        ...(activity.endDayOffset !== undefined ? { endDayOffset: activity.endDayOffset } : {}),
         title: activity.title,
         type: activity.type,
         locationName: activity.locationName ?? '',
@@ -149,13 +154,10 @@ export function validateItineraryImportPreview(
         issues.push({ code: 'INVALID_TIME', dayIndex, activityIndex });
       }
       if (
-        activity.time &&
-        activity.endTime &&
-        TIME_PATTERN.test(activity.time) &&
-        TIME_PATTERN.test(activity.endTime) &&
-        activity.endTime < activity.time
+        activity.invalidEndDate ||
+        !itineraryEndDayOffsetSchema.safeParse(activity.endDayOffset ?? null).success
       ) {
-        issues.push({ code: 'END_TIME_BEFORE_START', dayIndex, activityIndex });
+        issues.push({ code: 'INVALID_END_DATE', dayIndex, activityIndex });
       }
       if (activity.locationName.trim().length > ITINERARY_IMPORT_LIMITS.locationNameCharacters) {
         issues.push({ code: 'LOCATION_TOO_LONG', dayIndex, activityIndex });
@@ -198,6 +200,9 @@ export function toItineraryImportDraft(
             {
               ...(activity.time ? { time: activity.time } : {}),
               ...(activity.endTime ? { endTime: activity.endTime } : {}),
+              ...(activity.endDayOffset !== undefined
+                ? { endDayOffset: activity.endDayOffset }
+                : {}),
               title: activity.title.trim(),
               type: activity.type,
               ...(activity.locationName.trim()

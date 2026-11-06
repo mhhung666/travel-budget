@@ -239,3 +239,38 @@ describe('itinerary import provider', () => {
     expect(error.cause).toBe(cause);
   });
 });
+
+it.each([
+  { evidence: undefined, source: '22:25 → 00:20', expected: null },
+  { evidence: '22:25 → 00:20', source: '22:25 → 00:20', expected: null },
+  { evidence: '翌日抵達', source: 'No date supplied', expected: null },
+  { evidence: '翌日抵達', source: '22:25 出發，翌日抵達 00:20', expected: 1 },
+])(
+  'retains a model end date only when its quoted evidence occurs in the source: $source',
+  async ({ evidence, source, expected }) => {
+    const { retainEvidencedEndDates } = await import('@/lib/ai/itineraryImportProvider');
+    const draft = {
+      sourceSummary: '',
+      days: [
+        {
+          date: '2028-02-29',
+          activities: [
+            {
+              title: 'Flight',
+              type: 'flight' as const,
+              time: '22:25',
+              endTime: '00:20',
+              endDayOffset: 1,
+              endDateEvidence: evidence,
+            },
+          ],
+        },
+      ],
+      warnings: [],
+    };
+    const result = retainEvidencedEndDates(draft, source);
+    expect(result.days[0].activities[0]).toHaveProperty('endDayOffset', expected);
+    expect(result.days[0].activities[0]).not.toHaveProperty('endDateEvidence');
+    expect(draft.days[0].activities[0].endDayOffset).toBe(1);
+  }
+);

@@ -1,5 +1,6 @@
 'use client';
 
+import ActivityTimeFields from './ActivityTimeFields';
 import { Plus, Trash2, ArrowDownUp } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { ActivityType } from '@/types';
@@ -35,7 +36,15 @@ export function ActivityCard({
   activity,
   onChange,
   onRemove,
+  date,
+  dayNumber,
+  endDate,
+  onValidityChange,
 }: {
+  date?: string | null;
+  dayNumber?: number;
+  endDate?: string | null;
+  onValidityChange?: (valid: boolean) => void;
   tripId: string;
   activity: ActivityDraft;
   onChange: (fields: Partial<ActivityDraft>) => void;
@@ -46,23 +55,15 @@ export function ActivityCard({
 
   return (
     <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
-      <div className="flex items-center gap-2">
-        <Input
-          type="time"
-          aria-label={t('time')}
-          className="w-[7.5rem]"
-          value={activity.time}
-          onChange={(e) => onChange({ time: e.target.value })}
-        />
-        <span className="text-muted-foreground">–</span>
-        <Input
-          type="time"
-          aria-label={t('endTime')}
-          className="w-[7.5rem]"
-          value={activity.endTime}
-          onChange={(e) => onChange({ endTime: e.target.value })}
-        />
-        <div className="flex-1" />
+      <ActivityTimeFields
+        value={activity}
+        onChange={onChange}
+        date={date}
+        dayNumber={dayNumber}
+        endDate={endDate}
+        onValidityChange={onValidityChange}
+      />
+      <div className="flex justify-end">
         {onRemove && (
           <Button
             type="button"

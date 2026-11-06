@@ -218,7 +218,7 @@ describe('itinerary day card actions', () => {
     expect(screen.queryByRole('button', { name: 'edit' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'remove' })).toBeNull();
 
-    await user.click(screen.getByRole('button', { name: 'moreActions · 23:59 · BR 198' }));
+    await user.click(screen.getByRole('button', { name: /moreActions · .*23:59.* · BR 198/ }));
     expect(screen.getByRole('menu')).toHaveTextContent('BR 198');
     await user.click(await screen.findByRole('menuitem', { name: 'remove' }));
 

@@ -131,7 +131,12 @@ export function normalizeItineraryImport(
     }
 
     day.activities.forEach((activity, activityIndex) => {
-      if (activity.time && activity.endTime && activity.endTime < activity.time) {
+      if (
+        activity.endDayOffset == null &&
+        activity.time &&
+        activity.endTime &&
+        activity.endTime < activity.time
+      ) {
         addWarning(warnings, warningKeys, {
           code: 'END_TIME_BEFORE_START',
           dayIndex,

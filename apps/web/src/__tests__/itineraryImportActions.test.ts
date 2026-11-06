@@ -277,3 +277,28 @@ describe('confirmItineraryImport', () => {
     expect(storedDays.map((day) => day.dayNumber)).toEqual([1, 2, 3, 4, 5]);
   });
 });
+
+it.each([undefined, null, 0, 1, -1])(
+  'stores confirmed AI offset %s and retries the original import only once',
+  async (endDayOffset) => {
+    const input = draft([
+      {
+        date: '2026-09-01',
+        title: 'Arrival',
+        activities: [
+          {
+            title: 'Flight',
+            type: 'flight',
+            time: '22:25',
+            endTime: '00:20',
+            ...(endDayOffset !== undefined ? { endDayOffset } : {}),
+          },
+        ],
+      },
+    ]);
+    expect((await confirmItineraryImport(TRIP_ID, input)).success).toBe(true);
+    expect(storedDays[0].activities[0]).toMatchObject({ endDayOffset: endDayOffset ?? null });
+    expect((await confirmItineraryImport(TRIP_ID, input)).success).toBe(true);
+    expect(storedDays[0].activities).toHaveLength(1);
+  }
+);

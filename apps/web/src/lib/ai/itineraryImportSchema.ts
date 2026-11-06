@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { itineraryEndDayOffsetSchema } from '@travel-budget/contracts';
 import { locales } from '@/i18n/routing';
 import { ITINERARY_IMPORT_LIMITS, isItineraryImportSourceWithinLimit } from './importLimits';
 
@@ -66,6 +67,8 @@ export const itineraryImportActivitySchema = z
   .object({
     time: timeSchema.optional(),
     endTime: timeSchema.optional(),
+    endDayOffset: itineraryEndDayOffsetSchema.optional(),
+    endDateEvidence: z.string().trim().max(500).optional(),
     title: z.string().trim().min(1).max(ITINERARY_IMPORT_LIMITS.activityTitleCharacters),
     type: z.enum(ITINERARY_IMPORT_ACTIVITY_TYPES),
     locationName: z
@@ -163,6 +166,8 @@ export const openAIItineraryImportDraftSchema = z
                   .object({
                     time: timeSchema.nullable(),
                     endTime: timeSchema.nullable(),
+                    endDayOffset: itineraryEndDayOffsetSchema,
+                    endDateEvidence: z.string().trim().max(500).nullable(),
                     title: z
                       .string()
                       .trim()
@@ -226,6 +231,8 @@ export function parseOpenAIItineraryImportDraft(value: unknown): ItineraryImport
       activities: day.activities.map((activity) => ({
         ...(activity.time !== null ? { time: activity.time } : {}),
         ...(activity.endTime !== null ? { endTime: activity.endTime } : {}),
+        ...(activity.endDayOffset !== null ? { endDayOffset: activity.endDayOffset } : {}),
+        ...(activity.endDateEvidence !== null ? { endDateEvidence: activity.endDateEvidence } : {}),
         title: activity.title,
         type: activity.type,
         ...(activity.locationName !== null ? { locationName: activity.locationName } : {}),

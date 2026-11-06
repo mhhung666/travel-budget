@@ -1403,7 +1403,8 @@
         "outside": "Outside trip dates"
       },
       "warnings": {
-        "UNRECOGNIZED_CONTENT": "Some source content could not be mapped to itinerary fields. Compare the preview with the original text."
+        "UNRECOGNIZED_CONTENT": "Some source content could not be mapped to itinerary fields. Compare the preview with the original text.",
+        "END_TIME_BEFORE_START": "End date unconfirmed"
       },
       "issues": {
         "NO_SELECTION": "Keep at least one day",
@@ -1416,10 +1417,11 @@
         "MISSING_ACTIVITY_TITLE": "Enter an activity title",
         "ACTIVITY_TITLE_TOO_LONG": "The activity title is too long",
         "INVALID_TIME": "The time is invalid",
-        "END_TIME_BEFORE_START": "End time cannot be before start time",
+        "END_TIME_BEFORE_START": "End date unconfirmed",
         "LOCATION_TOO_LONG": "The location text is too long",
         "NOTE_TOO_LONG": "The note is too long",
-        "CONFIRMATION_CODE_TOO_LONG": "The booking reference is too long"
+        "CONFIRMATION_CODE_TOO_LONG": "The booking reference is too long",
+        "INVALID_END_DATE": "Choose a valid date within 3,650 days of the start day."
       },
       "errors": {
         "UNAUTHENTICATED": "Your session expired. Sign in again.",
@@ -1501,7 +1503,32 @@
       "limit": "Select at most {max} per batch. This day exceeds the limit; select smaller batches.",
       "leave": "Leave and clear the selection?"
     },
-    "addDayNotes": "Add day notes"
+    "addDayNotes": "Add day notes",
+    "timing": {
+      "day": "Day {n}",
+      "nextDay": "Next day",
+      "unknown": "Time not set",
+      "unconfirmed": "End date unconfirmed",
+      "start": "Start",
+      "end": "End",
+      "departure": "Departure",
+      "arrival": "Arrival",
+      "startTime": "Start time",
+      "endTime": "End time",
+      "endsOn": "Ends on",
+      "sameDay": "Same day",
+      "otherDate": "Other date",
+      "otherDay": "Other day",
+      "endDate": "End date",
+      "endDay": "End day number",
+      "invalidDate": "Choose a valid date within 3,650 days of the start day.",
+      "unsupported": "Update the server to set an end date.",
+      "suggestNextDay": "Use next day for the end date",
+      "outsideRange": "End date is outside this trip’s dates.",
+      "activity": "Activity",
+      "csvStart": "Start date / time",
+      "csvEnd": "End date / time"
+    }
   },
   "export": {
     "label": "Export",

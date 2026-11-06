@@ -179,7 +179,7 @@ async function select() {
   await userEvent.click(screen.getByRole('button', { name: '選取活動' }));
 }
 const row = (time = '07:00') =>
-  screen.getByRole('checkbox', { name: new RegExp(`${time} · Same name`) });
+  screen.getByRole('checkbox', { name: new RegExp(`${time}.* · Same name`) });
 async function review() {
   await userEvent.click(screen.getByRole('button', { name: /^刪除 \d 項$/ }));
   await screen.findByRole('alertdialog');
@@ -538,3 +538,37 @@ it.each([-2, -1, 1, 2])(
     }
   }
 );
+
+it('CD1 confirms end dates and persists the preview opt-in in the original UUID request', async () => {
+  const overnight = { ...activities[0], time: '22:25', end_time: '00:20', end_day_offset: 1 };
+  h.preview.mockResolvedValue({
+    success: true,
+    data: {
+      ...response([overnight]),
+      targets: [{ ...response([overnight]).targets[0], endDayOffset: 1 }],
+    },
+  });
+  render(
+    <QueryClientProvider client={client}>
+      <ActivityBatchDeletionProvider
+        tripId={tripId}
+        days={[{ ...day, activities: [overnight] }]}
+        dates={dates}
+        isAdmin
+      >
+        {card({ ...day, activities: [overnight] }, true)}
+      </ActivityBatchDeletionProvider>
+    </QueryClientProvider>
+  );
+  await userEvent.click(screen.getByRole('button', { name: '選取活動' }));
+  await userEvent.click(screen.getByRole('checkbox', { name: /2028-03-01 00:20/ }));
+  await review();
+  expect(h.preview).toHaveBeenCalledWith(
+    tripId,
+    expect.objectContaining({ includeEndDayOffset: true })
+  );
+  expect((await screen.findByRole('alertdialog')).textContent).toContain('2028-03-01 00:20');
+  await userEvent.click(screen.getByRole('button', { name: '確認刪除 1 項' }));
+  await waitFor(() => expect(h.write).toHaveBeenCalled());
+  expect(h.write.mock.calls[0][1]).toMatchObject({ includeEndDayOffset: true });
+});

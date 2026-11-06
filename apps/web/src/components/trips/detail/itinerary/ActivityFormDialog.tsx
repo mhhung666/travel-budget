@@ -29,6 +29,8 @@ interface ActivityFormDialogProps {
   tripId: string;
   /** 對話框標題顯示「第 N 天」；可省略。 */
   dayNumber?: number;
+  date?: string | null;
+  endDate?: string | null;
   /** 給定既有活動＝編輯模式（預填欄位）；不給＝新增空白活動。 */
   activity?: Activity | null;
 }
@@ -44,6 +46,8 @@ export default function ActivityFormDialog({
   onSubmit,
   tripId,
   dayNumber,
+  date,
+  endDate,
   activity,
 }: ActivityFormDialogProps) {
   const t = useTranslations('itinerary.activities');
@@ -51,15 +55,19 @@ export default function ActivityFormDialog({
 
   const [draft, setDraft] = useState<ActivityDraft>(makeEmptyActivity());
   const [loading, setLoading] = useState(false);
+  const [validTime, setValidTime] = useState(true);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 開啟對話框時重置/預填草稿，刻意的同步
-    if (open) setDraft(activity ? dayActivitiesToDrafts([activity])[0] : makeEmptyActivity());
+    if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 開啟對話框時重置/預填草稿，刻意的同步
+      setDraft(activity ? dayActivitiesToDrafts([activity])[0] : makeEmptyActivity());
+      setValidTime(true);
+    }
   }, [open, activity]);
 
   const handleSubmit = async () => {
     const [payload] = draftsToPayload([draft]); // 沒填標題會被濾掉 → undefined
-    if (!payload) return;
+    if (!payload || !validTime) return;
     setLoading(true);
     try {
       await onSubmit(payload);
@@ -88,6 +96,11 @@ export default function ActivityFormDialog({
 
         <div className="flex-1 overflow-y-auto p-1">
           <ActivityCard
+            key={draft.key}
+            date={date}
+            dayNumber={dayNumber}
+            endDate={endDate}
+            onValidityChange={setValidTime}
             tripId={tripId}
             activity={draft}
             onChange={(fields) => setDraft((prev) => ({ ...prev, ...fields }))}
@@ -98,7 +111,11 @@ export default function ActivityFormDialog({
           <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
             {tCommon('cancel')}
           </Button>
-          <Button type="button" onClick={handleSubmit} disabled={loading || !draft.title.trim()}>
+          <Button
+            type="button"
+            onClick={handleSubmit}
+            disabled={loading || !draft.title.trim() || !validTime}
+          >
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {tCommon('save')}
           </Button>

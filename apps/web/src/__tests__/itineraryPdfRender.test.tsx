@@ -1,3 +1,4 @@
+import messages from '@/i18n/messages/en.json';
 // @vitest-environment node
 import { expect, it } from 'vitest';
 import path from 'node:path';
@@ -13,6 +14,7 @@ it('renders a long itinerary with fixed page numbers', async () => {
     locale: 'zh-TW',
     labels: {
       day: 'Day {n}',
+      timing: messages.itinerary.timing,
       generated: 'Generated',
       range: 'Range',
       outsideRange: 'Outside',

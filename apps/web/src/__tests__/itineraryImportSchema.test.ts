@@ -100,6 +100,8 @@ describe('itineraryImportDraftSchema', () => {
               {
                 time: '09:00',
                 endTime: null,
+                endDayOffset: null,
+                endDateEvidence: null,
                 title: '抵達東京站',
                 type: 'ground_transport',
                 locationName: '東京站',

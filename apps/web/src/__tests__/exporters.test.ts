@@ -1,3 +1,4 @@
+import messages from '@/i18n/messages/en.json';
 import { describe, it, expect } from 'vitest';
 import { escapeCsvField, toCsv } from '@/lib/exporters/csv';
 import { exportItinerary, type ItineraryLabels } from '@/lib/exporters/itinerary';
@@ -33,6 +34,10 @@ describe('csv helper', () => {
 
 const itineraryLabels: ItineraryLabels = {
   heading: 'Itinerary',
+  timing: messages.itinerary.timing,
+  activityColumn: 'Activity',
+  startColumn: 'Start date / time',
+  endColumn: 'End date / time',
   day: (n) => `Day ${n}`,
   columns: { day: 'Day', title: 'Title', content: 'Content' },
 };
@@ -124,8 +129,10 @@ describe('exportItinerary', () => {
       ...itineraryLabels,
       activityTypes: { food: 'Food', sightseeing: 'Sightseeing' },
     });
-    expect(content).toContain('- 09:00 · **Castle** · (Sightseeing)');
-    expect(content).toContain('- 12:30 · **Lunch** · (Food)');
+    expect(content).toContain(
+      '09:00 → End date unconfirmed Time not set · **Castle** · (Sightseeing)'
+    );
+    expect(content).toContain('12:30 → End date unconfirmed Time not set · **Lunch** · (Food)');
     // 09:00 activity must come before 12:30
     expect(content.indexOf('Castle')).toBeLessThan(content.indexOf('Lunch'));
   });

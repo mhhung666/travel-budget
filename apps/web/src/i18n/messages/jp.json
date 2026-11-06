@@ -1396,7 +1396,8 @@
         "outside": "旅行期間外"
       },
       "warnings": {
-        "UNRECOGNIZED_CONTENT": "原文の一部を旅程の項目に対応できませんでした。原文とプレビューを確認してください。"
+        "UNRECOGNIZED_CONTENT": "原文の一部を旅程の項目に対応できませんでした。原文とプレビューを確認してください。",
+        "END_TIME_BEFORE_START": "終了日未確認"
       },
       "issues": {
         "NO_SELECTION": "少なくとも1日を残してください",
@@ -1409,10 +1410,11 @@
         "MISSING_ACTIVITY_TITLE": "予定のタイトルを入力してください",
         "ACTIVITY_TITLE_TOO_LONG": "予定のタイトルが長すぎます",
         "INVALID_TIME": "時刻が正しくありません",
-        "END_TIME_BEFORE_START": "終了時刻を開始時刻より前にはできません",
+        "END_TIME_BEFORE_START": "終了日未確認",
         "LOCATION_TOO_LONG": "場所のテキストが長すぎます",
         "NOTE_TOO_LONG": "メモが長すぎます",
-        "CONFIRMATION_CODE_TOO_LONG": "予約番号が長すぎます"
+        "CONFIRMATION_CODE_TOO_LONG": "予約番号が長すぎます",
+        "INVALID_END_DATE": "開始日から3,650日以内の有効な日付を選択してください。"
       },
       "errors": {
         "UNAUTHENTICATED": "セッションが切れました。再度ログインしてください。",
@@ -1494,7 +1496,32 @@
       "limit": "1 回に選択できるのは {max} 件までです。複数回に分けて選択してください。",
       "leave": "移動して選択を解除しますか？"
     },
-    "addDayNotes": "この日のメモを追加"
+    "addDayNotes": "この日のメモを追加",
+    "timing": {
+      "day": "{n}日目",
+      "nextDay": "翌日",
+      "unknown": "時刻未定",
+      "unconfirmed": "終了日未確認",
+      "start": "開始",
+      "end": "終了",
+      "departure": "出発",
+      "arrival": "到着",
+      "startTime": "開始時刻",
+      "endTime": "終了時刻",
+      "endsOn": "終了日",
+      "sameDay": "当日",
+      "otherDate": "別の日付",
+      "otherDay": "別の日",
+      "endDate": "終了日付",
+      "endDay": "終了する日数",
+      "invalidDate": "開始日から3,650日以内の有効な日付を選択してください。",
+      "unsupported": "終了日を設定するにはサーバーを更新してください。",
+      "suggestNextDay": "終了日を翌日にする",
+      "outsideRange": "終了日が旅行期間外です。",
+      "activity": "アクティビティ",
+      "csvStart": "開始日／時刻",
+      "csvEnd": "終了日／時刻"
+    }
   },
   "export": {
     "label": "エクスポート",

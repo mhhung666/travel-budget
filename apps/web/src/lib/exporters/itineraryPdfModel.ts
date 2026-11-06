@@ -1,3 +1,4 @@
+import { activityTimingText, type ActivityTimingLabels } from '@/lib/activityTiming';
 import { itineraryPdfMarkdown, type PdfBlock } from './itineraryPdfMarkdown';
 import type { ActivityType, ItineraryDay, Trip } from '@/types';
 import { sortActivities } from '@/lib/itineraryActivities';
@@ -6,6 +7,7 @@ import { intlLocale } from '@/lib/relativeTime';
 
 export interface PdfLabels {
   day: string;
+  timing: ActivityTimingLabels;
   generated: string;
   range: string;
   outsideRange: string;
@@ -83,11 +85,7 @@ export function buildItineraryPdfModel(
         content: options.includeNotes ? itineraryPdfMarkdown(day.content, labels.imageOmitted) : [],
         activities: sortActivities(day.activities ?? []).map((activity) => ({
           title: activity.title,
-          time: activity.time
-            ? `${activity.time}${activity.end_time ? ` – ${activity.end_time}` : ''}`
-            : activity.end_time
-              ? `${labels.end} ${activity.end_time}`
-              : '',
+          time: activityTimingText(activity, day.day_number, date, labels.timing).summary,
           type: labels.types[activity.type] ?? labels.types.other,
           location: activity.location?.name || activity.location_name || '',
           note: activity.note,

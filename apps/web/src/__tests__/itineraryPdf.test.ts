@@ -1,3 +1,4 @@
+import messages from '@/i18n/messages/en.json';
 import { describe, expect, it } from 'vitest';
 import { buildItineraryPdfModel, type PdfLabels } from '@/lib/exporters/itineraryPdfModel';
 import { itineraryPdfMarkdown, safePdfLink } from '@/lib/exporters/itineraryPdfMarkdown';
@@ -6,6 +7,7 @@ import type { Activity, ItineraryDay } from '@/types';
 
 const labels: PdfLabels = {
   day: 'Day {n}',
+  timing: messages.itinerary.timing,
   generated: 'Generated',
   range: 'Range',
   outsideRange: 'Outside trip',
@@ -81,7 +83,7 @@ describe('PDF itinerary projection', () => {
       'untimed',
     ]);
     expect(model.days[0].activities[3]).toMatchObject({
-      time: 'End 19:00',
+      time: 'Start 2024-02-28 Time not set → End date unconfirmed 19:00',
       location: 'Text place',
     });
   });

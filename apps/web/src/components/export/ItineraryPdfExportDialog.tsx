@@ -1,4 +1,5 @@
 'use client';
+import { activityTimingLabels } from '@/lib/activityTiming';
 
 import { useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
@@ -34,6 +35,7 @@ export default function ItineraryPdfExportDialog({
   onClose: () => void;
 }) {
   const t = useTranslations('export.pdfOptions');
+  const tTime = useTranslations('itinerary.timing');
   const tAct = useTranslations('itinerary.activities');
   const locale = useLocale();
   const authenticated = useAuthenticatedSession();
@@ -95,6 +97,7 @@ export default function ItineraryPdfExportDialog({
         throw new Error('PDF_READ_FAILED');
       if (client.isMutating()) throw new Error('PDF_SAVING');
       const labels: PdfLabels = {
+        timing: activityTimingLabels(tTime),
         day: t('day', { n: '{n}' }),
         generated: t('generated'),
         range: t('range'),

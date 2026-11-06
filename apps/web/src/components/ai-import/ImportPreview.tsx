@@ -1,4 +1,6 @@
 'use client';
+import ActivityTimeFields from '@/components/trips/detail/itinerary/ActivityTimeFields';
+import { isCalendarDate } from '@/lib/itineraryDayTarget';
 
 import { useState } from 'react';
 import { AlertTriangle, Eye, EyeOff, Trash2 } from 'lucide-react';
@@ -252,34 +254,27 @@ export default function ImportPreview({
                               </Alert>
                             )}
                             <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
-                              <div className="min-w-0 space-y-1.5">
-                                <Label htmlFor={`${activity.id}-time`}>{tActivities('time')}</Label>
-                                <Input
-                                  id={`${activity.id}-time`}
-                                  className="min-w-0 max-w-full appearance-none [color-scheme:light] dark:[color-scheme:dark]"
-                                  type="time"
-                                  aria-label={tActivities('time')}
-                                  value={activity.time}
-                                  onChange={(event) =>
+                              <div className="min-w-0 sm:col-span-2">
+                                <ActivityTimeFields
+                                  key={`${activity.id}-${day.date}`}
+                                  value={{
+                                    ...activity,
+                                    endDayOffset: activity.endDayOffset ?? null,
+                                  }}
+                                  date={isCalendarDate(day.date) ? day.date : null}
+                                  endDate={tripEndDate}
+                                  startDate={tripStartDate}
+                                  onChange={(fields) =>
                                     patchActivity(dayIndex, activityIndex, {
-                                      time: event.target.value,
+                                      ...fields,
+                                      ...('endDayOffset' in fields
+                                        ? { invalidEndDate: false }
+                                        : {}),
                                     })
                                   }
-                                />
-                              </div>
-                              <div className="min-w-0 space-y-1.5">
-                                <Label htmlFor={`${activity.id}-endTime`}>
-                                  {tActivities('endTime')}
-                                </Label>
-                                <Input
-                                  id={`${activity.id}-endTime`}
-                                  className="min-w-0 max-w-full appearance-none [color-scheme:light] dark:[color-scheme:dark]"
-                                  type="time"
-                                  aria-label={tActivities('endTime')}
-                                  value={activity.endTime}
-                                  onChange={(event) =>
+                                  onValidityChange={(valid) =>
                                     patchActivity(dayIndex, activityIndex, {
-                                      endTime: event.target.value,
+                                      invalidEndDate: !valid,
                                     })
                                   }
                                 />

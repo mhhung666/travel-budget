@@ -1,3 +1,5 @@
+import { activityTimingText, type ActivityTimingLabels } from '@/lib/activityTiming';
+import { dateForDayNumber } from '@/lib/itineraryDayTarget';
 import type { Activity, ItineraryDay } from '@/types';
 import { sortActivities } from '@/lib/itineraryActivities';
 import type { ExportFile, ExportFormat } from './types';
@@ -8,6 +10,11 @@ import { toCsv } from './csv';
 export interface ItineraryLabels {
   /** 文件主標題，例如「行程規劃」 */
   heading: string;
+  timing: ActivityTimingLabels;
+  startDate?: string | null;
+  activityColumn: string;
+  startColumn: string;
+  endColumn: string;
   /** 第 n 天的顯示文字，例如 (1) => 「第 1 天」/「Day 1」 */
   day: (n: number) => string;
   /** CSV 表頭 */
@@ -17,11 +24,9 @@ export interface ItineraryLabels {
 }
 
 /** 把單一活動序列化成一行 markdown 清單項目。 */
-function activityLine(activity: Activity, labels: ItineraryLabels): string {
-  const time =
-    activity.time && activity.end_time
-      ? `${activity.time}–${activity.end_time}`
-      : (activity.time ?? activity.end_time ?? '');
+function activityLine(activity: Activity, day: ItineraryDay, labels: ItineraryLabels): string {
+  const date = labels.startDate ? dateForDayNumber(labels.startDate, day.day_number) : null;
+  const time = activityTimingText(activity, day.day_number, date, labels.timing).summary;
   const typeLabel = labels.activityTypes?.[activity.type] ?? activity.type;
   const segments = [
     time,
@@ -42,7 +47,7 @@ function toMarkdown(days: ItineraryDay[], labels: ItineraryLabels): string {
       parts.push('', d.content.trim());
     }
     if (d.activities.length > 0) {
-      parts.push('', ...sortActivities(d.activities).map((a) => activityLine(a, labels)));
+      parts.push('', ...sortActivities(d.activities).map((a) => activityLine(a, d, labels)));
     }
     parts.push('');
   }
@@ -52,8 +57,23 @@ function toMarkdown(days: ItineraryDay[], labels: ItineraryLabels): string {
 function toItineraryCsv(days: ItineraryDay[], labels: ItineraryLabels): string {
   const { columns } = labels;
   return toCsv(
-    [columns.day, columns.title, columns.content],
-    days.map((d) => [d.day_number, d.title, d.content])
+    [
+      columns.day,
+      columns.title,
+      columns.content,
+      labels.activityColumn,
+      labels.startColumn,
+      labels.endColumn,
+    ],
+    days.flatMap((d) => {
+      if (!d.activities.length) return [[d.day_number, d.title, d.content, '', '', '']];
+      const date = labels.startDate ? dateForDayNumber(labels.startDate, d.day_number) : null;
+      return sortActivities(d.activities).map((a) => {
+        const summary = activityTimingText(a, d.day_number, date, labels.timing).summary;
+        const [start, end] = summary.split(' → ');
+        return [d.day_number, d.title, d.content, a.title, start, end];
+      });
+    })
   );
 }
 

@@ -1396,7 +1396,8 @@
         "outside": "超出旅程範圍"
       },
       "warnings": {
-        "UNRECOGNIZED_CONTENT": "部分來源內容無法對應到行程欄位，請對照原文檢查預覽。"
+        "UNRECOGNIZED_CONTENT": "部分來源內容無法對應到行程欄位，請對照原文檢查預覽。",
+        "END_TIME_BEFORE_START": "結束日期待確認"
       },
       "issues": {
         "NO_SELECTION": "請至少保留一天",
@@ -1409,10 +1410,11 @@
         "MISSING_ACTIVITY_TITLE": "請填寫活動標題",
         "ACTIVITY_TITLE_TOO_LONG": "活動標題過長",
         "INVALID_TIME": "時間格式不正確",
-        "END_TIME_BEFORE_START": "結束時間不可早於開始時間",
+        "END_TIME_BEFORE_START": "結束日期待確認",
         "LOCATION_TOO_LONG": "地點文字過長",
         "NOTE_TOO_LONG": "備註過長",
-        "CONFIRMATION_CODE_TOO_LONG": "訂位代碼過長"
+        "CONFIRMATION_CODE_TOO_LONG": "訂位代碼過長",
+        "INVALID_END_DATE": "請選擇有效日期，與開始日相差不得超過 3,650 天。"
       },
       "errors": {
         "UNAUTHENTICATED": "登入狀態已失效，請重新登入。",
@@ -1494,7 +1496,32 @@
       "limit": "單批最多 {max} 項；本日超過上限，請分批選取。",
       "leave": "離開並清除選取？"
     },
-    "addDayNotes": "新增本日備註"
+    "addDayNotes": "新增本日備註",
+    "timing": {
+      "day": "第 {n} 天",
+      "nextDay": "翌日",
+      "unknown": "時間未定",
+      "unconfirmed": "結束日期待確認",
+      "start": "開始",
+      "end": "結束",
+      "departure": "出發",
+      "arrival": "抵達",
+      "startTime": "開始時間",
+      "endTime": "結束時間",
+      "endsOn": "結束於",
+      "sameDay": "當日",
+      "otherDate": "其他日期",
+      "otherDay": "其他天數",
+      "endDate": "結束日期",
+      "endDay": "結束於第幾天",
+      "invalidDate": "請選擇有效日期，與開始日相差不得超過 3,650 天。",
+      "unsupported": "請更新後端以設定結束日期。",
+      "suggestNextDay": "採用翌日作為結束日",
+      "outsideRange": "結束日期超出旅行日期範圍。",
+      "activity": "活動",
+      "csvStart": "開始日期／時間",
+      "csvEnd": "結束日期／時間"
+    }
   },
   "export": {
     "label": "匯出",

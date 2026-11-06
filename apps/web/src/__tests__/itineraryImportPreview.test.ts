@@ -46,7 +46,7 @@ describe('itinerary import preview', () => {
         startDate: '2026-09-01',
         endDate: '2026-09-30',
       })
-    ).toEqual([{ code: 'END_TIME_BEFORE_START', dayIndex: 0, activityIndex: 0 }]);
+    ).toEqual([]);
   });
 
   it('clears a time blocker after the user fixes the end time', () => {
@@ -109,3 +109,21 @@ describe('itinerary import preview', () => {
     });
   });
 });
+
+it.each([null, 0, 1, -1, 3])(
+  'keeps a user-confirmed offset %s through preview and submission without comparing clocks',
+  (endDayOffset) => {
+    const preview = createItineraryImportPreview({
+      ...draft,
+      days: [{ ...draft.days[0], activities: [{ ...draft.days[0].activities[0], endDayOffset }] }],
+    });
+    expect(validateItineraryImportPreview(preview)).toEqual([]);
+    expect(toItineraryImportDraft(preview)?.days[0].activities[0].endDayOffset).toBe(endDayOffset);
+    preview.days[0].activities[0].invalidEndDate = true;
+    expect(validateItineraryImportPreview(preview)).toContainEqual({
+      code: 'INVALID_END_DATE',
+      dayIndex: 0,
+      activityIndex: 0,
+    });
+  }
+);

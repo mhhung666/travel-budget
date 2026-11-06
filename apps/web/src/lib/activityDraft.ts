@@ -9,6 +9,7 @@ export interface ActivityDraft {
   id: string | null;
   time: string;
   endTime: string;
+  endDayOffset: number | null;
   title: string;
   type: ActivityType;
   location: LocationOption | null;
@@ -31,6 +32,7 @@ export function makeEmptyActivity(): ActivityDraft {
     id: null,
     time: '',
     endTime: '',
+    endDayOffset: 0,
     title: '',
     type: 'other',
     location: null,
@@ -48,6 +50,7 @@ export function dayActivitiesToDrafts(activities: Activity[]): ActivityDraft[] {
     id: a.id,
     time: a.time ?? '',
     endTime: a.end_time ?? '',
+    endDayOffset: a.end_day_offset ?? null,
     title: a.title,
     type: a.type,
     location: a.location
@@ -76,6 +79,7 @@ export function draftsToPayload(drafts: ActivityDraft[]): ActivityPayload[] {
       id: d.id,
       time: d.time || null,
       end_time: d.endTime || null,
+      end_day_offset: d.endDayOffset,
       title: d.title.trim(),
       type: d.type,
       location: d.location,

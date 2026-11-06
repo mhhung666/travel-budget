@@ -167,7 +167,7 @@ export async function parseItineraryImport(input: {
       ? parseOpenAIItineraryImportDraft(result.output)
       : itineraryImportDraftSchema.parse(result.output);
     return {
-      draft,
+      draft: retainEvidencedEndDates(draft, input.sourceText),
       provider: config.provider,
       model: config.model,
       usage: {
@@ -179,4 +179,35 @@ export async function parseItineraryImport(input: {
   } catch (error) {
     throw new AiProviderError(classifyAiProviderFailure(error), { cause: error });
   }
+}
+
+/** A clock pair alone is not evidence of a calendar date. Never retain a model-only date claim. */
+export function retainEvidencedEndDates(
+  draft: ItineraryImportDraft,
+  source: string
+): ItineraryImportDraft {
+  const dateEvidence =
+    /(?:\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}[月/]\d{1,2}|翌日|翌々日|隔天|次日|同日|當日|当日|next day|same day|following day|\bday\s*[+-]?\d+|\d+\s*(?:days? later|天後|天后|日後)|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2})/iu;
+  return {
+    ...draft,
+    days: draft.days.map((day) => ({
+      ...day,
+      activities: day.activities.map((activity) => {
+        const { endDateEvidence, endDayOffset, ...rest } = activity;
+        return {
+          ...rest,
+          ...(endDayOffset !== undefined
+            ? {
+                endDayOffset:
+                  endDateEvidence?.trim() &&
+                  dateEvidence.test(endDateEvidence) &&
+                  source.includes(endDateEvidence.trim())
+                    ? endDayOffset
+                    : null,
+              }
+            : {}),
+        };
+      }),
+    })),
+  };
 }

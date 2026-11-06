@@ -4,6 +4,12 @@
 
 ## Unreleased
 
+### 2026-11-06：Web 跨日活動顯示與編輯
+
+- CD1 表單、成員／公開活動列及批次確認統一起訖日期，支援當日、翌日、較早日期與無日期的 Day N；未知不猜測，保留原 UUID 恢復與權限／票券規則。
+- AI 加入來源日期證據與可編輯預覽；CSV 改按原活動列出起訖，Markdown／PDF 同步摘要及未知狀態，不重複活動。
+- 新增 27 項回歸，全套測試、check／build、frozen install 與三平台匯出通過；獨立審查、Web／PWA 實際操作及 CD2–CD4 待續，未部署或執行遠端 migration，見 [共同交接](docs/design/ITINERARY_PRESENTATION.md#cd1-web-實作與交接)。
+
 ### 2026-11-06：行程跨日共用後端與版面規劃
 
 - 建立 [共用規劃](docs/design/ITINERARY_PRESENTATION.md)，統一 Web／App 版面與跨日語意；CD0 新增有界可空日差、共用日期規則、v2 能力及相容預覽，舊 App／整日更新保留原值，UUID／歷史 receipt 不改寫。
