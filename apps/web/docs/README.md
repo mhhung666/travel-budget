@@ -2,17 +2,18 @@
 
 這裡維護 `apps/web` 的 Web 與後端文件。跨應用架構、workspace 指令及手機入口見 [repository 文件入口](../../../docs/README.md)。
 
-| 文件                                                                   | 用途                                         |
-| ---------------------------------------------------------------------- | -------------------------------------------- |
-| [變更紀錄](../../../changelog.md)                                      | 全專案的簡短變更摘要                         |
-| [現有功能](FEATURES.md)                                                | 使用者能做什麼、主要操作流程與使用限制       |
-| [AI 維護與測試](AI.md)                                                 | 三種 AI 功能的現況、設定、測試方式與評測入口 |
-| [架構摘要](ARCHITECTURE.md)                                            | 核心資料流、程式入口與維護原則               |
-| [共同設計：我的旅行](../../../docs/design/MY_TRIPS.md)                 | Web／Mobile 列表設計、實作與待驗證項目       |
-| [新旅行：基準幣別選擇](../../../docs/design/BASE_CURRENCY_CREATION.md) | BC1 Web 搜尋單選與跨端開放規劃               |
-| [手機 API](MOBILE_API.md)                                              | 原生 `/api/v2` 的認證、資料邊界與驗證        |
-| [共用 OpenAPI](../../../packages/contracts/openapi.json)               | Web／手機共用的 API 契約產物                 |
-| [專案 README](../README.md)                                            | 安裝、環境設定與開發指令                     |
+| 文件                                                                     | 用途                                         |
+| ------------------------------------------------------------------------ | -------------------------------------------- |
+| [變更紀錄](../../../changelog.md)                                        | 全專案的簡短變更摘要                         |
+| [現有功能](FEATURES.md)                                                  | 使用者能做什麼、主要操作流程與使用限制       |
+| [AI 維護與測試](AI.md)                                                   | 三種 AI 功能的現況、設定、測試方式與評測入口 |
+| [架構摘要](ARCHITECTURE.md)                                              | 核心資料流、程式入口與維護原則               |
+| [共同設計：我的旅行](../../../docs/design/MY_TRIPS.md)                   | Web／Mobile 列表設計、實作與待驗證項目       |
+| [行程共用版面與跨日活動](../../../docs/design/ITINERARY_PRESENTATION.md) | Web／App 統一配置、跨日日期與分階段交付      |
+| [新旅行：基準幣別選擇](../../../docs/design/BASE_CURRENCY_CREATION.md)   | BC1 Web 搜尋單選與跨端開放規劃               |
+| [手機 API](MOBILE_API.md)                                                | 原生 `/api/v2` 的認證、資料邊界與驗證        |
+| [共用 OpenAPI](../../../packages/contracts/openapi.json)                 | Web／手機共用的 API 契約產物                 |
+| [專案 README](../README.md)                                              | 安裝、環境設定與開發指令                     |
 
 歷史測試結果、驗收紀錄、詳細設計與待辦已集中到 [archive](archive/README.md)，需要追溯時再查閱。封存不代表待辦完成，也不代表所有功能已通過正式環境驗收；目前不以封存清單安排下一步工作。
 
@@ -28,9 +29,9 @@
 
 | 項目               | 剩餘工作                                                                                                                                                                                         |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 日卡 UI            | Web 排版與四語命名已完成；App UI-M 對齊與 UI-V 真實操作／閱讀器待驗，見 [共同設計](../../../docs/design/ITINERARY_BATCH_DELETE.md#日卡排版與命名2026-11-06)。 |
+| 行程版面／跨日     | Web 日卡已完成；CD0 共用後端 → CD1 Web 跨日 → CD2 App 版面與跨日 → CD3 延續提示 → CD4 聯合驗收，見 [共同規劃](../../../docs/design/ITINERARY_PRESENTATION.md)。                                  |
 | UX-T3              | 真 Web 窄版／桌面、iOS／閱讀器、同資料畫面與使用者任務驗證；以共同設計為準                                                                                                                       |
-| 基準幣別 B4        | Web／Mobile 精確帳務、舊資料／PWA 恢復、公開／匯出跨端核對；非 TWD 建立已依使用者確認固定開放，見 [B4](../../mobile/docs/LOCAL_ACCEPTANCE.md#b4-固定帳務案例)                                                    |
+| 基準幣別 B4        | Web／Mobile 精確帳務、舊資料／PWA 恢復、公開／匯出跨端核對；非 TWD 建立已依使用者確認固定開放，見 [B4](../../mobile/docs/LOCAL_ACCEPTANCE.md#b4-固定帳務案例)                                    |
 | 相簿               | 真 PUT／CORS、iPhone／Android 大檔／慢網、公開副本及正式 cron；18 張當時近期照片未查重、二次掃除未確認。正式 storedHash 回填未執行，接入新上傳／感知比對／歷史合併／關頁續傳／bytes 百分比未排程 |
 | 行程日期／PDF      | 日期 replica-set 並行、真機瀏覽器／讀屏；PDF 的 iOS Safari、Android Chrome、PWA 開啟／儲存、首次字型慢網與手機效能。整天改期、自訂月曆、批次新增未排程                                           |
 | 帳號／附件外部服務 | 共用 M／G 已實作；R2、外部郵件／通知與原生操作待驗見 [Mobile 驗收](../../mobile/docs/LOCAL_ACCEPTANCE.md)。E2 匿名配額風險仍待 F2                                                                |
