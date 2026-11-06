@@ -1,4 +1,9 @@
-import { itineraryWriteStateSchema, type ItineraryWriteState } from '@travel-budget/contracts';
+import {
+  itineraryWriteStateSchema,
+  type ItineraryWriteState,
+  activityDeletionStateSchema,
+  type ActivityDeletionState,
+} from '@travel-budget/contracts';
 import { retiredOperation } from '@/api/recovery';
 import {
   budgetV2Input,
@@ -242,6 +247,7 @@ export class TripEntry {
     if (
       result.status === 'committed' &&
       result.operation !== 'itinerary.write' &&
+      result.operation !== 'activities.delete' &&
       (!('ledger' in result) ||
         (record.baseCurrency && baseCurrency(result) !== record.baseCurrency))
     )
@@ -333,6 +339,16 @@ export class TripEntry {
       : record;
     try {
       await this.ready(store, receiptScope, guard);
+      if (record.operation === 'activities.delete') {
+        const result = await this.deps.request(
+          record.accountId,
+          `/trips/${record.tripId}/itinerary/activity-deletions/${record.clientRequestId}`,
+          activityDeletionStateSchema,
+          { beforeSend: this.beforeSend(store, record, guard) }
+        );
+        guard(record.tripId);
+        return await this.finishActivityDeletion(store, record, result);
+      }
       if (record.operation === 'itinerary.write') {
         const result = await this.deps.request(
           record.accountId,
@@ -363,6 +379,20 @@ export class TripEntry {
   ): Promise<MutationOutcome> {
     try {
       await this.ready(store, record, guard);
+      if (record.operation === 'activities.delete') {
+        const result = await this.deps.request(
+          record.accountId,
+          `/trips/${record.tripId}/itinerary/activity-deletions`,
+          activityDeletionStateSchema,
+          {
+            method: 'POST',
+            body: record.payload!.body,
+            beforeSend: this.beforeSend(store, record, guard),
+          }
+        );
+        guard(record.tripId);
+        return await this.finishActivityDeletion(store, record, result);
+      }
       if (record.operation === 'itinerary.write') {
         const result = await this.deps.request(
           record.accountId,
@@ -472,5 +502,39 @@ export class TripEntry {
         return this.query(store, record, guard);
       return failed;
     }
+  }
+
+  private async finishActivityDeletion(
+    store: MutationStore,
+    record: PendingMutation,
+    raw: ActivityDeletionState
+  ) {
+    const result = activityDeletionStateSchema.parse(raw);
+    if (result.status === 'not_found') return { kind: 'pending' } as const;
+    const payload = record.payload;
+    if (
+      payload?.operation !== 'activities.delete' ||
+      result.client_request_id !== record.clientRequestId ||
+      result.tripId !== record.tripId ||
+      (result.status === 'committed' &&
+        (result.result.dayId !== payload.body.dayId ||
+          result.result.count !== payload.body.targets.length ||
+          result.result.activityIds.length !== payload.body.targets.length ||
+          new Set(result.result.activityIds).size !== payload.body.targets.length ||
+          payload.body.targets.some((t) => !result.result.activityIds.includes(t.activityId))))
+    )
+      throw new ApiError('INVALID_RESPONSE');
+    return this.finish(
+      store,
+      record,
+      result.status === 'rejected'
+        ? { status: 'rejected', operation: 'activities.delete', code: result.code }
+        : {
+            status: 'committed',
+            operation: 'activities.delete',
+            resourceId: result.result.dayId,
+            result: { tripId: result.tripId, receipt: result },
+          }
+    );
   }
 }

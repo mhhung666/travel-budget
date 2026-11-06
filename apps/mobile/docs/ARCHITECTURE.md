@@ -33,6 +33,12 @@ Server Actions 與 HTTP API 是兩個呼叫入口，部署初期同在現有 Nex
 
 編輯資訊讀取同樣套用持久等待、登入／catalog 世代及每次 fetch 守衛；403 FORBIDDEN 表示降權、不寫整趟旅行 tombstone，404 NOT_FOUND 才走既有撤權保存。E 已知 429 即使落盤失敗也保留本次記憶體絕對期限，下一次操作先修復保存，不延長原期限；只有成功落盤才保證重啟保存該期限。行程提交成功使同旅行讀取失效；原 E 啟動／前景／重連恢復只查詢，POST 重試必須明確操作。規則與待驗集中 [契約](BACKEND_CONTRACT.md#2a-行程維護服務與恢復契約) 與 [2B](LOCAL_ACCEPTANCE.md#2b-app-行程日維護交接)／[2C 交接](LOCAL_ACCEPTANCE.md#2c-app-活動維護交接)。
 
+## App 活動批次刪除
+
+`features/itinerary/ActivityBatchScreen` 由閱讀器進入獨立 stack 路由 `trips/[id]/itinerary/batch-delete`；FlatList 與底部操作列由 ScreenFrame 管理安全區，不在每列掛遠端查詢。選取按環境／帳號／登入世代／旅行／來源重建，使用同一管理員 edit-context 的 ID／revision，未確認標籤與內容僅記憶體。批次 preview 的 missing／changed 與日上下文核對後才能確認，`NOT_FOUND` 不當作撤權；全旅行拒絕仍由既有 context／閱讀守衛遮蔽。
+
+`pending_mutation` 新增 JSON operation `activities.delete`，沿用 schema 11 與 TripEntry 的 beforeSend、登入／catalog 世代、同旅行 C／E 原子保留和帳號絕對 429；不修改舊 `itinerary.write` body 或結果。新 receipt 用 contracts 的獨立 runtime schema，另核對日／活動完整集合及 count；沒有帳務 ledger，不進帳務單位驗證。拒絕保留固定 body 供明確恢復選取，已提交清除 body；provider 同時使該旅行讀取失效。啟動恢復僅查原結果，原內容 POST 重試仍由 E 引擎在明確操作後查詢再送；`OperationsScreen` 提供批次名稱、終局提示、原 UUID 及被拒續改入口。沒有新 provider、資料表、DB migration 或後端契約變更。
+
 ## B3：Mobile 帳本與舊資料恢復
 
 線上旅行／帳務讀取與新確認操作使用 v2，HTTP 必須驗證共用 v2 schema 的 ledger；缺單位、子資料單位不一致或服務未就緒都阻擋，不 fallback v1。B5c-1 起 `api.environment` 是原已驗證 v1 環境識別（設定 `/api/v2` 也正規化為同一字串），`transport()` 從同 origin 送出 v2；B5d-1 起所有請求（含 auth 與恢復）只走 v2，共用登入世代、refresh、beforeSend 與 SQLite／429 scope。`api/recovery.ts` 只判定 v1 舊紀錄已退役：仍解碼、不改標，但不再送出或補查。遠端 Query key 尾端加 v2，本機 key 不變。名冊觀察器與 catalog 保留原撤權世代規則。

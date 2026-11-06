@@ -3,6 +3,8 @@ import {
   itineraryWriteInput,
   itineraryWriteStateSchema,
   itineraryWriteRejectionSchema,
+  activityDeletionInput,
+  activityDeletionStateSchema,
 } from '@travel-budget/contracts';
 import {
   budgetV2Input,
@@ -57,10 +59,40 @@ export const itineraryMutationResult = z.union([
   }),
 ]);
 export type StoredMutationResult =
-  z.infer<typeof mutationRequestSchema> | z.infer<typeof itineraryMutationResult>;
-const storedResult = z.union([mutationRequestV2Schema, itineraryMutationResult]);
+  | z.infer<typeof mutationRequestSchema>
+  | z.infer<typeof itineraryMutationResult>
+  | z.infer<typeof activityDeletionMutationResult>;
+export const activityDeletionMutationResult = z.union([
+  z
+    .object({
+      status: z.literal('committed'),
+      operation: z.literal('activities.delete'),
+      resourceId: idSchema,
+      result: z.object({ tripId: idSchema, receipt: activityDeletionStateSchema.options[1] }),
+    })
+    .refine(
+      (v) =>
+        v.resourceId === v.result.receipt.result.dayId &&
+        v.result.tripId === v.result.receipt.tripId
+    ),
+  z.object({
+    status: z.literal('rejected'),
+    operation: z.literal('activities.delete'),
+    code: activityDeletionStateSchema.options[2].shape.code,
+  }),
+]);
+const storedResult = z.union([
+  mutationRequestV2Schema,
+  itineraryMutationResult,
+  activityDeletionMutationResult,
+]);
 
 export const mutationPayload = z.discriminatedUnion('operation', [
+  z.object({
+    operation: z.literal('activities.delete'),
+    tripId: idSchema,
+    body: activityDeletionInput,
+  }),
   z.object({
     operation: z.literal('itinerary.write'),
     tripId: idSchema,
@@ -306,7 +338,7 @@ export async function createMutationStore(db: SqlDatabase): Promise<MutationStor
             );
           }
           await db.runAsync(
-            "UPDATE pending_mutation SET status = 'completed', payload = CASE WHEN ? = 1 AND (operation LIKE 'expense.%' OR operation LIKE 'payment.%' OR operation LIKE 'member.%' OR operation IN ('itinerary.write', 'trip.update', 'trip.archive', 'trip.access', 'trip.currency', 'budget.set')) THEN payload ELSE NULL END, result = ? WHERE environment = ? AND account_id = ? AND client_request_id = ?",
+            "UPDATE pending_mutation SET status = 'completed', payload = CASE WHEN ? = 1 AND (operation LIKE 'expense.%' OR operation LIKE 'payment.%' OR operation LIKE 'member.%' OR operation IN ('activities.delete', 'itinerary.write', 'trip.update', 'trip.archive', 'trip.access', 'trip.currency', 'budget.set')) THEN payload ELSE NULL END, result = ? WHERE environment = ? AND account_id = ? AND client_request_id = ?",
             result.status === 'rejected' ? 1 : 0,
             JSON.stringify(parsed),
             ...scopeArgs(scope),

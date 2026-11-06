@@ -799,3 +799,57 @@ it.each(['activity.create', 'activity.update', 'activity.delete'] as const)(
     expect(h.push).not.toHaveBeenCalled();
   }
 );
+it('batch deletion recovery opens the itinerary or resumes rejected frozen selections without routing to single-item editors', () => {
+  const tripId = 'b'.repeat(24),
+    dayId = 'c'.repeat(24),
+    activityId = 'd'.repeat(24);
+  h.operations = [
+    {
+      ...operation('completed'),
+      tripId,
+      operation: 'activities.delete',
+      payload: {
+        operation: 'activities.delete',
+        tripId,
+        body: {
+          dayId,
+          targets: [{ activityId, expectedRevision: 2 }],
+          expectedContextRevision: 'a'.repeat(64),
+          client_request_id: '12345678-1234-4234-8234-123456789abc',
+        },
+      },
+      result: { status: 'rejected', operation: 'activities.delete', code: 'NOT_FOUND' },
+    },
+  ];
+  const resume = action(render(OperationsScreen), 'mutation-batch-resume-uuid');
+  resume.onPress();
+  expect(h.push).toHaveBeenCalledWith({
+    pathname: '/trips/[id]/itinerary/batch-delete',
+    params: { id: tripId, dayId, source: 'uuid' },
+  });
+  h.push.mockClear();
+  h.visible = false;
+  resume.onPress();
+  expect(h.push).not.toHaveBeenCalled();
+  h.visible = true;
+  h.operations[0].result = {
+    status: 'committed',
+    operation: 'activities.delete',
+    resourceId: dayId,
+    result: {
+      tripId,
+      receipt: {
+        status: 'committed',
+        operation: 'activities.delete',
+        tripId,
+        client_request_id: '12345678-1234-4234-8234-123456789abc',
+        result: { dayId, activityIds: [activityId], count: 1 },
+      },
+    },
+  };
+  action(render(OperationsScreen), 'mutation-open-uuid').onPress();
+  expect(h.push).toHaveBeenCalledWith({
+    pathname: '/trips/[id]/itinerary',
+    params: { id: tripId },
+  });
+});

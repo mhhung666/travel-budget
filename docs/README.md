@@ -6,7 +6,7 @@
 | [開發規範](DEVELOPMENT.md)                               | Workspace 指令、環境、版本與部署          |
 | [共同設計：我的旅行](design/MY_TRIPS.md)                 | Web／Mobile 列表設計、實作現況與共同驗證  |
 | [新旅行：基準幣別選擇](design/BASE_CURRENCY_CREATION.md) | Web／App 共同 UI／UX、搜尋單選及開放條件  |
-| [行程活動多選刪除](design/ITINERARY_BATCH_DELETE.md)     | 同日選取／確認／恢復、Web 實作與 App 待辦 |
+| [行程活動多選刪除](design/ITINERARY_BATCH_DELETE.md)     | 同日選取／確認／恢復、Web／App 實作與待驗 |
 | [Web／後端](../apps/web/docs/README.md)                  | 功能、架構、AI 與 API                     |
 | [Mobile](../apps/mobile/docs/README.md)                  | 功能、開發、驗收與路線                    |
 | [共用契約](../packages/contracts/README.md)              | Schema 與 OpenAPI                         |

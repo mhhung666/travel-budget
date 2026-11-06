@@ -6,6 +6,7 @@ import { ApiError } from '@/api/client';
 import { colors } from '@/theme/tokens';
 import { ItineraryScreen, ActivityCard } from './ItineraryScreen';
 import { activityTime, dayLabel, locationName } from './presentation';
+vi.mock('expo-router', () => ({ router: { push: vi.fn() } }));
 const h = vi.hoisted(() => ({
   selected: null as string | null,
   locale: 'en' as keyof typeof messages,

@@ -86,7 +86,10 @@ export function TripEntryProvider({ children }: PropsWithChildren) {
           void client.invalidateQueries({ queryKey: keyOf(scope) });
         },
         committed: async (scope, tripId, result) => {
-          if (result.status === 'committed' && result.operation === 'itinerary.write') {
+          if (
+            result.status === 'committed' &&
+            ['itinerary.write', 'activities.delete'].includes(result.operation)
+          ) {
             await client.invalidateQueries({
               predicate: (q) =>
                 q.queryKey[0] === scope.environment &&

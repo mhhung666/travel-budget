@@ -7,7 +7,7 @@ export function locationName(location: ItineraryLocation | null, fallback: strin
 export function dayLabel(dayNumber: number, t: Messages) {
   return t.itineraryDay.replace('%d', String(dayNumber));
 }
-export function activityTime(activity: ItineraryActivity, t: Messages) {
+export function activityTime(activity: Pick<ItineraryActivity, 'time' | 'endTime'>, t: Messages) {
   if (activity.time && activity.endTime) return `${activity.time}–${activity.endTime}`;
   // Legacy activities may carry only an end time; keep it visible without inventing a start.
   if (activity.endTime) return `${t.itineraryUntimed}–${activity.endTime}`;

@@ -45,6 +45,12 @@ target 為嚴格互斥的 `{ date, expected_start_date, expected_end_date }` 或
 
 編輯 context 與影響摘要採同一授權 snapshot，按三個 collection 批次讀取、無逐日 N+1；查詢與寫入的完整游標使用 per-operation CSOT 共用 20 秒期限（包括重試與 commit），避免 MongoDB driver 7.2 在非 awaitData getMore 帶 maxTimeMS 的相容性錯誤。新寫入仍共用 trip fence，和既有 Web 管理、相片／支出關聯寫入協調。
 
+## BD2 活動批次刪除
+
+App 已接 BD1 的獨立 preview／submit／lookup 契約：`POST /trips/{id}/itinerary/activity-deletions/preview`、`POST .../activity-deletions`、`GET .../activity-deletions/{uuid}`。最多 15 個不同活動 ID、原選取 revision、確認上下文 hash 及固定 UUID；runtime 直接使用共用 `activityDeletion*` schemas，不改既有六種單筆 command。完整交易、票券保留、授權與相容規則只維護於 [共同設計](../../../docs/design/ITINERARY_BATCH_DELETE.md#共用後端與契約設計)。
+
+本機批次確認先保存固定 body，再交 TripEntry；committed receipt 必須符合原 UUID／旅行／日、活動集合及 count，rejected 終局保留輸入。傳輸拒絕／not_found 仍保留未知結果，重啟只查詢、明確原內容重試才可 POST。preview 的日消失不建立 catalog deny，讀取整旅行編輯 context 的成員拒絕仍沿既有守衛。端點須先於新版 App 部署；本片未改 wire schema 或舊記錄格式。
+
 ## 已實作端點
 
 基底路徑 `/api/v2`（`/api/v1` 已於 B5d-2 刪除；App 設定只填網域，舊的 `/api/v1`／`/api/v2` 結尾仍接受並對應同一個環境身分，送出時一律用 v2）。手機與後端透過 `@travel-budget/contracts` 共用 schema，單一來源為 [packages/contracts/src/index.ts](../../../packages/contracts/src/index.ts)，OpenAPI 產物為 [packages/contracts/openapi.json](../../../packages/contracts/openapi.json)。從 repository 根目錄執行 `pnpm contracts:generate` 更新產物，`pnpm contracts:check` 檢查同步。手機沒有 Web source 或 DB 相依。

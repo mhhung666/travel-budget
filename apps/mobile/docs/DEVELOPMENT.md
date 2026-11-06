@@ -22,7 +22,7 @@ Mobile 文件也受 App 的 Prettier 規則檢查。根目錄 `.prettierignore` 
 
 新增 Native／Expo 套件時，從 `apps/mobile` 使用 `pnpm exec expo install <package>`，再執行 `pnpm exec expo install --check`。CI 的相容性檢查若列出同 SDK 的 patch 差異，使用 Expo CLI 對齊列出的套件並更新根 lockfile，再核對 root frozen install、check／測試與三平台匯出；不略過相容性檢查或跨 SDK 升級。`expo-sqlite` 的 config plugin 只設定 FTS／SQLCipher 等選填建置屬性，預設用法不必加入 `app.config.ts`；它的 Web 版需要額外的 wasm 打包設定，所以資料庫入口以 `.web.ts` 檔案在 Web 預覽中換成不引入它的版本。一般純 JS 套件從根目錄用 `pnpm --filter travel-budget-mobile add <package>`；不要為了跟網站相同而強改 React 版本。
 
-Expo 的建議版本清單會隨同 SDK patch 更新，交付時須重新執行相容性檢查，不能沿用先前通過紀錄。pnpm 若為這批新發布版本產生 `minimumReleaseAgeExclude`，核對並保留根 workspace 內的確切套件／版本例外，讓 frozen install 可重現；不擴成套件通配或全域停用發布等待期。
+Expo 的建議版本清單會隨同 SDK patch 更新，交付時須重新執行相容性檢查，不能沿用先前通過紀錄。pnpm 若為這批新發布版本產生 `minimumReleaseAgeExclude`，核對並保留根 workspace 內的確切套件／版本例外，讓 frozen install 可重現；同套件多個版本合併成單筆精確 `版本 || 版本`，避免 pnpm 只採用第一筆同名規則；不擴成套件通配或全域停用發布等待期。
 
 共用契約透過 `@travel-budget/contracts` 引用，來源在 `packages/contracts/src/index.ts`。更動 schema 後從根目錄執行 `pnpm contracts:generate` 更新 `packages/contracts/openapi.json`，並以 `pnpm contracts:check` 檢查產物同步。
 

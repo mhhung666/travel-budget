@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { router } from 'expo-router';
+import { batchDeletionMessages } from '@/i18n/batchDeletionMessages';
 import { ActivityIndicator, FlatList, Text, View } from 'react-native';
 import type { ItineraryActivity, ItineraryLocation } from '@travel-budget/contracts';
 import { ScreenFrame } from '@/components/frame';
@@ -159,6 +161,21 @@ function ItineraryReader({
                   </Section>
                 )}
                 <ActivityActions tripId={tripId} dayId={day.id} canEdit={canEdit} online={online} />
+                {canEdit && day.activities.length > 0 && (
+                  <Action
+                    testID="itinerary-select-activities"
+                    variant="ghost"
+                    label={batchDeletionMessages[locale].select}
+                    disabled={!online}
+                    onPress={() => {
+                      if (online)
+                        router.push({
+                          pathname: '/trips/[id]/itinerary/batch-delete',
+                          params: { id: tripId, dayId: day.id },
+                        });
+                    }}
+                  />
+                )}
                 {day.activities.length === 0 && <Copy>{t.itineraryNoActivities}</Copy>}
               </>
             )}
