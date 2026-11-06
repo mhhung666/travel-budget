@@ -8,7 +8,7 @@
 
 - Web／共用後端：管理員同日最多 15 項、影響確認、版本／日期衝突與失效選取；整批刪除及 UUID 收據同交易，保留日／支出／相片／成就並只清理無引用票券。Web 凍結請求與恢復、資源消失及取消歷史跳轉修正已通過獨立程式審查；實際畫面待驗。
 - Mobile：同日整列多選、差異再次確認、失效選取及未提交離開提醒；沿用 TripEntry／SQLite 固定 UUID、同旅行保留與帳號 429，重啟只查原結果，被拒可恢復選取。沒有新後端契約或 DB migration；對齊現有 Expo SDK 建議 patch。
-- 新增 37 項 App 故障與恢復回歸；Web／Mobile 全套、根 check／build、frozen install、Expo 相容性、三平台匯出與隔離真 HTTP／DB 通過，工程結果與待驗集中於 [共同設計](docs/design/ITINERARY_BATCH_DELETE.md)。BD2 獨立程式審查與工程複驗通過（未重跑隔離 HTTP／DB）；iPhone／iPad／閱讀器待驗，Android 延後，跨日／整日多選及部署未啟動。
+- 新增 37 項 App 故障與恢復回歸；Web／Mobile 全套、根 check／build、frozen install、Expo 相容性、三平台匯出與隔離真 HTTP／DB 通過，工程結果與待驗集中於 [共同設計](docs/design/ITINERARY_BATCH_DELETE.md)。BD2 獨立程式審查與工程複驗通過（未重跑隔離 HTTP／DB）；iPhone／iPad／閱讀器待驗，Android 延後。BD3 跨日暫緩、整日多選保留候選，不阻擋本輪結案；文件集中列出 CI、Web／iOS 操作與真網路恢復的收尾條件，部署另排。
 
 ### 2026-11-03：旅行卡片簡化
 

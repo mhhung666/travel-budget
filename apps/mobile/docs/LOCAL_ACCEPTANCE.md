@@ -21,7 +21,7 @@
 4. SQLite 保存前故障不 POST；連點只一份 UUID／body；提交已完成但丟回應、終局保存失敗、重啟／前景／重連只查原 UUID，不自動 POST；not_found 由使用者在待處理操作明確原內容重試。終局核對活動集合與數量，DB 僅一份刪除效果；rejected／NOT_FOUND 可修正選取，查詢拒絕仍保留未知操作。
 5. 同旅行 C／E 未結案不能繞過；429 要求 120 秒後重啟並過 31 秒，其他旅行／preview／lookup 仍等待；限速保存故障保留本次記憶體原期限，先修復落盤而不延長。只有落盤成功才保證當機保存期限。
 6. 請求中換帳號／登出、撤權／管理員降權、離線／背景與晚到回應，不殘留私人成文內容、不錯結案。撤權不可藉 preview 解除，恢復授權仍查原 UUID。
-7. 四語、深淺色、iPhone／iPad、200% 與最大字級；底部操作列不遮活動或系統安全區，閱讀器可辨識日／時間／名稱、勾選狀態／數量，成功後回閱讀器核對已刪列與空日。跨日／整日多選未啟動。
+7. 四語、深淺色、iPhone／iPad、200% 與最大字級；底部操作列不遮活動或系統安全區，閱讀器可辨識日／時間／名稱、勾選狀態／數量，成功後回閱讀器核對已刪列與空日。BD3 跨日暫緩、整日多選未排程，不列入本輪驗收；結案依 [共同收尾清單](../../../docs/design/ITINERARY_BATCH_DELETE.md#本項目收尾)。
 
 重跑：`pnpm --filter travel-budget-mobile exec vitest run src/features/itinerary src/features/tripEntry src/features/recovery/recoveryScreens.test.ts`；再跑 Mobile 全套測試、check、Expo 相容性及三平台匯出。BD2 的完整工程結果集中於共同設計，不在此累積測試日誌。
 
