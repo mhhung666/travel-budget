@@ -1,7 +1,16 @@
 'use client';
 
 import { ActivityBatchBar, useActivityBatchSelection } from './ActivityBatchDeletion';
-import { Edit2, Trash2, MapPin, Ticket, CalendarPlus, Medal, MoreHorizontal } from 'lucide-react';
+import {
+  Edit2,
+  Trash2,
+  MapPin,
+  Ticket,
+  CalendarPlus,
+  Medal,
+  MoreHorizontal,
+  ListChecks,
+} from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
 import type { Activity, ItineraryDay, TripPhoto } from '@/types';
 import { pickLocalizedName } from '@/lib/utils';
@@ -161,23 +170,33 @@ export default function ItineraryDayCard({
           )}
         </div>
 
-        {isAdmin && activities.length > 0 && batch && !selecting && (
-          <div className="mt-3">
-            <Button
-              variant="ghost"
-              className="min-h-11 h-auto whitespace-normal"
-              disabled={!batch.online || batch.busy || batch.pending}
-              onClick={() => batch.start(day)}
-            >
-              {tBatch('start')}
-            </Button>
-            {!batch.online && (
-              <p className="text-sm text-muted-foreground">{tBatch('onlineOnly')}</p>
-            )}
-          </div>
-        )}
         {activities.length > 0 && (
-          <div className="mt-4 flex flex-col gap-2.5 border-t pt-4">
+          <div className="mt-4 flex flex-col gap-2.5 border-t pt-3">
+            <div className="mb-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+              <h4 className="flex min-h-11 items-center gap-2 text-sm font-medium text-muted-foreground">
+                {tAct('heading')}
+                <span className="rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums">
+                  {activities.length}
+                </span>
+              </h4>
+              {isAdmin && batch && !selecting && (
+                <Button
+                  variant="outline"
+                  className="ml-auto h-auto min-h-11 max-w-full gap-2 rounded-lg border-border bg-transparent px-3 py-2 text-muted-foreground shadow-none whitespace-normal hover:text-foreground"
+                  disabled={!batch.online || batch.busy || batch.pending}
+                  aria-describedby={!batch.online ? `batch-offline-${day.id}` : undefined}
+                  onClick={() => batch.start(day)}
+                >
+                  <ListChecks className="h-4 w-4" aria-hidden="true" />
+                  {tBatch('start')}
+                </Button>
+              )}
+            </div>
+            {isAdmin && batch && !selecting && !batch.online && (
+              <p id={`batch-offline-${day.id}`} className="text-sm text-muted-foreground">
+                {tBatch('onlineOnly')}
+              </p>
+            )}
             {activities.map((activity) => {
               if (selecting && batch)
                 return (
