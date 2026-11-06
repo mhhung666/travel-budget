@@ -19,6 +19,7 @@ export type NavigationChoice = {
   icon?: IconName;
   testID: string;
   onPress: () => void;
+  destructive?: boolean;
 };
 function focusControl(control: View | null) {
   if (!control) return;
@@ -34,6 +35,8 @@ export function NavigationMenu({
   testID,
   context,
   iconOnly = false,
+  disabled = false,
+  icon = 'menu',
 }: {
   label: string;
   title: string;
@@ -42,6 +45,8 @@ export function NavigationMenu({
   testID: string;
   context?: string;
   iconOnly?: boolean;
+  disabled?: boolean;
+  icon?: IconName;
 }) {
   const p = usePalette();
   const [open, setOpen] = useState(false);
@@ -74,11 +79,14 @@ export function NavigationMenu({
         testID={testID}
         accessibilityRole="button"
         accessibilityLabel={`${title}: ${label}`}
-        accessibilityState={{ expanded: open }}
-        onPress={() => setOpen(true)}
+        accessibilityState={{ expanded: open, ...(disabled ? { disabled: true } : {}) }}
+        disabled={disabled}
+        onPress={() => !disabled && setOpen(true)}
         style={({ pressed }) => ({
           minHeight: sizing.touch,
           minWidth: sizing.touch,
+          maxWidth: '100%',
+          flexShrink: 1,
           justifyContent: iconOnly ? 'center' : undefined,
           borderWidth: sizing.border,
           borderColor: p.border,
@@ -90,7 +98,7 @@ export function NavigationMenu({
           backgroundColor: pressed ? p.selected : p.surface,
         })}
       >
-        <Icon name="menu" color={p.primary} />
+        <Icon name={icon} color={p.primary} />
         {!iconOnly && (
           <Text style={[typography.body, { color: p.text, flexShrink: 1, fontWeight: '600' }]}>
             {label}
@@ -136,8 +144,13 @@ export function NavigationMenu({
                   testID={choice.testID}
                   accessibilityRole="button"
                   accessibilityLabel={choice.label}
-                  accessibilityState={{ selected: !!choice.selected }}
+                  accessibilityState={{
+                    selected: !!choice.selected,
+                    ...(disabled ? { disabled: true } : {}),
+                  }}
+                  disabled={disabled}
                   onPress={() => {
+                    if (disabled) return;
                     // Dismiss before switching tabs: the old trigger must still be visible when
                     // focus is restored, and the next screen must not sit beneath this modal.
                     selection.current = choice.onPress;
@@ -158,7 +171,11 @@ export function NavigationMenu({
                   <Text
                     style={[
                       typography.body,
-                      { color: p.text, flex: 1, fontWeight: choice.selected ? '700' : '500' },
+                      {
+                        color: choice.destructive ? p.danger : p.text,
+                        flex: 1,
+                        fontWeight: choice.selected ? '700' : '500',
+                      },
                     ]}
                   >
                     {choice.label}

@@ -39,6 +39,7 @@ export type EditorDefinition<F extends Record<string, string>, C extends Itinera
   restore: (context: ItineraryEditContext, command: C) => F;
   accepts: (command: ItineraryWriteInput, target: EditorTarget) => command is C;
   same: (a: ItineraryEditContext, b: ItineraryEditContext, target: EditorTarget) => boolean;
+  valid?: (context: ItineraryEditContext, fields: F, target: EditorTarget) => boolean;
   Fields: (args: {
     fields: F;
     context: ItineraryEditContext;
@@ -123,6 +124,7 @@ function ItineraryEditor<F extends Record<string, string>, C extends ItineraryWr
     !missing &&
     !!context &&
     !!fields &&
+    (definition.valid?.(context, fields, target) ?? true) &&
     !!records.data &&
     !records.isPending &&
     !records.isError &&

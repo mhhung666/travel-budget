@@ -4,21 +4,30 @@ import { DayActions } from './DayActions';
 import { ActivityActions } from './ActivityActions';
 const h = vi.hoisted(() => ({ push: vi.fn(), online: true }));
 vi.mock('expo-router', () => ({ router: { push: h.push } }));
+vi.mock('@/components/NavigationMenu', () => ({ NavigationMenu: 'NavigationMenu' }));
 vi.mock('@/components/ui', () => ({ Action: 'Action' }));
-vi.mock('@/i18n/useMessages', () => ({ useAppLocale: () => 'en' }));
+vi.mock('@/i18n/useMessages', () => ({
+  useAppLocale: () => 'en',
+  useMessages: () => ({ closeNavigation: 'Close' }),
+}));
 vi.mock('@/providers/useOnline', () => ({ useOnline: () => h.online }));
 type Node = ReactElement<{
   children?: ReactNode;
   testID: string;
   disabled?: boolean;
-  variant: string;
+  destructive: boolean;
+  choices?: Node['props'][];
   onPress: () => void;
 }>;
 function nodes(node: ReactNode): Node[] {
   if (Array.isArray(node)) return node.flatMap(nodes);
   if (!isValidElement(node)) return [];
   const n = node as Node;
-  return [n, ...nodes(n.props.children)];
+  return [
+    n,
+    ...nodes(n.props.children),
+    ...(n.props.choices ?? []).map((props) => ({ type: 'Choice', props }) as unknown as Node),
+  ];
 }
 const tripId = 'a'.repeat(24),
   dayId = 'b'.repeat(24),
@@ -49,7 +58,7 @@ it('routes create, update and dangerous delete to the selected day and activity'
     params: { id: tripId, dayId, activityId },
   });
   const remove = actions.find((n) => n.props.testID === `itinerary-delete-activity-${activityId}`)!;
-  expect(remove.props.variant).toBe('danger');
+  expect(remove.props.destructive).toBe(true);
   remove.props.onPress();
   expect(h.push).toHaveBeenLastCalledWith({
     pathname: '/trips/[id]/itinerary/activity',
@@ -57,12 +66,33 @@ it('routes create, update and dangerous delete to the selected day and activity'
   });
 });
 it('keeps offline controls disabled and their callbacks do not navigate', () => {
-  const actions = nodes(
-    ActivityActions({ tripId, dayId, activityId, canEdit: true, online: false })
-  ).filter((n) => n.props.testID);
-  for (const n of actions) {
-    expect(n.props.disabled).toBe(true);
-    n.props.onPress();
-  }
+  const actions = ActivityActions({
+    tripId,
+    dayId,
+    activityId,
+    canEdit: true,
+    online: false,
+  }) as Node;
+  expect(actions.props.disabled).toBe(true);
+  for (const choice of actions.props.choices ?? []) choice.onPress();
   expect(h.push).not.toHaveBeenCalled();
+});
+it('CD2 puts day settings and empty-note entry in the day card while retaining deletion confirmation routes', () => {
+  const settings = nodes(DayActions({ tripId, dayId, canEdit: true, mode: 'settings' }));
+  expect(settings.find((n) => n.props.testID === 'itinerary-add-day')).toBeUndefined();
+  const remove = settings.find((n) => n.props.testID === 'itinerary-delete-day')!;
+  expect(remove.props.destructive).toBe(true);
+  remove.props.onPress();
+  expect(h.push).toHaveBeenLastCalledWith({
+    pathname: '/trips/[id]/itinerary/day',
+    params: { id: tripId, dayId, remove: 'true' },
+  });
+  const note = nodes(DayActions({ tripId, dayId, canEdit: true, mode: 'notes' })).find(
+    (n) => n.props.testID === 'itinerary-add-notes'
+  )!;
+  note.props.onPress();
+  expect(h.push).toHaveBeenLastCalledWith({
+    pathname: '/trips/[id]/itinerary/day',
+    params: { id: tripId, dayId },
+  });
 });

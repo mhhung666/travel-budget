@@ -2,6 +2,7 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { isValidElement, type ReactElement, type ReactNode } from 'react';
 import type { ItineraryEditContext } from '@travel-budget/contracts';
 import { messages } from '@/i18n/messages';
+import { itineraryPresentationMessages } from '@/i18n/itineraryPresentationMessages';
 import { itineraryMessages } from '@/i18n/itineraryMessages';
 import { ApiError } from '@/api/client';
 import { DayEditorScreen } from './DayEditorScreen';
@@ -362,7 +363,7 @@ it.each(['zh', 'zh-CN', 'en', 'jp'] as const)(
   async (locale) => {
     h.locale = locale;
     await mount();
-    expect(find('label', itineraryMessages[locale].title)).toBeDefined();
+    expect(find('label', itineraryPresentationMessages[locale].dayTitle)).toBeDefined();
   }
 );
 

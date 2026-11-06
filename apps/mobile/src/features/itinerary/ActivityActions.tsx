@@ -1,6 +1,8 @@
 import { router } from 'expo-router';
+import { NavigationMenu } from '@/components/NavigationMenu';
+import { itineraryPresentationMessages } from '@/i18n/itineraryPresentationMessages';
 import { Action } from '@/components/ui';
-import { useAppLocale } from '@/i18n/useMessages';
+import { useAppLocale, useMessages } from '@/i18n/useMessages';
 import { activityMessages } from '@/i18n/activityMessages';
 
 /** Role and connectivity come from the reader; rows never mount another query. */
@@ -10,14 +12,19 @@ export function ActivityActions({
   activityId,
   canEdit,
   online,
+  label,
 }: {
   tripId: string;
   dayId: string;
   activityId?: string;
   canEdit: boolean;
   online: boolean;
+  label?: string;
 }) {
-  const copy = activityMessages[useAppLocale()];
+  const locale = useAppLocale(),
+    t = useMessages();
+  const copy = activityMessages[locale],
+    labels = itineraryPresentationMessages[locale];
   if (!canEdit) return null;
   const open = (remove = false) => {
     if (!online) return;
@@ -31,24 +38,39 @@ export function ActivityActions({
       },
     });
   };
-  return (
-    <>
+  if (!activityId)
+    return (
       <Action
-        testID={activityId ? `itinerary-edit-activity-${activityId}` : 'itinerary-add-activity'}
-        variant="secondary"
-        label={activityId ? copy.edit : copy.add}
+        testID="itinerary-add-activity"
+        label={copy.add}
+        icon="plus"
         disabled={!online}
         onPress={() => open()}
       />
-      {activityId && (
-        <Action
-          testID={`itinerary-delete-activity-${activityId}`}
-          variant="danger"
-          label={copy.remove}
-          disabled={!online}
-          onPress={() => open(true)}
-        />
-      )}
-    </>
+    );
+  return (
+    <NavigationMenu
+      testID={`itinerary-activity-menu-${activityId}`}
+      title={labels.more}
+      label={label ?? copy.edit}
+      context={label}
+      closeLabel={t.closeNavigation}
+      iconOnly
+      icon="more"
+      disabled={!online}
+      choices={[
+        {
+          label: copy.edit,
+          testID: `itinerary-edit-activity-${activityId}`,
+          onPress: () => open(),
+        },
+        {
+          label: copy.remove,
+          testID: `itinerary-delete-activity-${activityId}`,
+          destructive: true,
+          onPress: () => open(true),
+        },
+      ]}
+    />
   );
 }

@@ -2,6 +2,7 @@ import { ActivityIndicator, View, type ViewStyle } from 'react-native';
 import { sizing } from '@/theme/tokens';
 
 export type IconName =
+  | 'plane'
   | 'bed'
   | 'train'
   | 'utensils'
@@ -10,6 +11,7 @@ export type IconName =
   | 'ticket'
   | 'receipt'
   | 'camera'
+  | 'more'
   | 'menu'
   | 'map-pin'
   | 'plus'
@@ -24,6 +26,14 @@ export type IconName =
 
 type Segment = readonly [number, number, number, number];
 const paths: Partial<Record<IconName, readonly Segment[]>> = {
+  plane: [
+    [2, 10, 18, 10],
+    [18, 10, 14, 6],
+    [18, 10, 14, 14],
+    [8, 10, 4, 3],
+    [8, 10, 4, 17],
+    [3, 10, 1, 6],
+  ],
   bed: [
     [2, 4, 2, 18],
     [2, 12, 18, 12],
@@ -157,6 +167,21 @@ export function Icon({ name, color }: { name: IconName; color: string }) {
         <ActivityIndicator size="small" color={color} style={{ width: 20, height: 20 }} />
       ) : (
         <>
+          {name === 'more' &&
+            [4, 10, 16].map((x) => (
+              <View
+                key={x}
+                style={{
+                  position: 'absolute',
+                  left: x - 1,
+                  top: 9,
+                  width: 3,
+                  height: 3,
+                  borderRadius: 2,
+                  backgroundColor: color,
+                }}
+              />
+            ))}
           {(paths[name] ?? []).map(([x1, y1, x2, y2], index) => {
             const width = Math.hypot(x2 - x1, y2 - y1);
             return (

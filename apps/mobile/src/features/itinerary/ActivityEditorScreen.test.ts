@@ -286,8 +286,13 @@ it('shows a concurrent Web edit in full and requires explicit rebase while retai
   h.request.mockResolvedValue(latest);
   await review();
   expect(button(copy.confirm)).toBeUndefined();
-  for (const value of ['Web title', 'Web note', 'NEW-CODE', '10:00'])
+  for (const value of ['Web title', 'Web note', 'NEW-CODE'])
     expect(find('value', value)).toBeDefined();
+  expect(
+    nodes(render()).some(
+      (n) => typeof n.props.value === 'string' && n.props.value.includes('10:00')
+    )
+  ).toBe(true);
   expect(button(copy.title).props.value).toBe('My title');
   button(copy.rebase).props.onPress();
   render();
@@ -459,3 +464,98 @@ it.each(['zh', 'zh-CN', 'en', 'jp'] as const)(
     expect(find('testID', 'itinerary-activity-review').props.disabled).toBe(true);
   }
 );
+
+it('CD2 preserves the unknown legacy date until the next-day suggestion is explicitly adopted', async () => {
+  const supported = {
+    ...structuredClone(data),
+    capabilities: { activityEndDayOffset: true as const },
+  };
+  supported.days[0].activities[0].time = '22:25';
+  supported.days[0].activities[0].endTime = '00:20';
+  h.request.mockResolvedValue(supported);
+  await mount();
+  const timing = (await import('@/i18n/itineraryPresentationMessages'))
+    .itineraryPresentationMessages.en;
+  expect(find('testID', 'activity-ends-on').props.label).toBe(timing.unconfirmed);
+  expect(
+    nodes(render()).some(
+      (n) => typeof n.props.value === 'string' && n.props.value.includes('End date unconfirmed')
+    )
+  ).toBe(true);
+  find('testID', 'activity-adopt-next-day').props.onPress();
+  render();
+  expect(find('testID', 'activity-ends-on').props.label).toBe(timing.nextDay);
+  await review();
+  button(copy.confirm).props.onPress();
+  await settle();
+  expect(h.confirm.mock.calls[0][1].body.activity.endDayOffset).toBe(1);
+});
+it('CD2 blocks invalid custom dates and submits a signed date after correction', async () => {
+  const supported = {
+    ...structuredClone(data),
+    capabilities: { activityEndDayOffset: true as const },
+  };
+  h.request.mockResolvedValue(supported);
+  await mount();
+  const timing = (await import('@/i18n/itineraryPresentationMessages'))
+    .itineraryPresentationMessages.en;
+  const choices = find('testID', 'activity-ends-on').props.choices as {
+    testID: string;
+    onPress: () => void;
+  }[];
+  choices.find((c) => c.testID === 'activity-end-other')!.onPress();
+  render();
+  button(timing.endDate).props.onChangeText('2026-02-30');
+  render();
+  expect(button(copy.review).props.disabled).toBe(true);
+  button(copy.review).props.onPress();
+  await settle();
+  expect(button(copy.confirm)).toBeUndefined();
+  button(timing.endDate).props.onChangeText('2026-11-02');
+  render();
+  expect(button(copy.review).props.disabled).toBe(false);
+  await review();
+  button(copy.confirm).props.onPress();
+  await settle();
+  expect(h.confirm.mock.calls[0][1].body.activity.endDayOffset).toBe(-1);
+});
+it('CD2 retains a confirmed end date during Web revision conflicts and local save failures', async () => {
+  const supported = {
+    ...structuredClone(data),
+    capabilities: { activityEndDayOffset: true as const },
+  };
+  h.request.mockResolvedValue(supported);
+  await mount();
+  const choices = find('testID', 'activity-ends-on').props.choices as {
+    testID: string;
+    onPress: () => void;
+  }[];
+  choices.find((c) => c.testID === 'activity-end-1')!.onPress();
+  render();
+  const fresh = structuredClone(supported);
+  fresh.days[0].activities[0].revision++;
+  h.request.mockResolvedValue(fresh);
+  await review();
+  expect(button(copy.confirm)).toBeUndefined();
+  button(copy.rebase).props.onPress();
+  render();
+  await review();
+  h.confirm.mockResolvedValue({ kind: 'not-sent', error: new Error('disk full') });
+  button(copy.confirm).props.onPress();
+  await settle();
+  expect(h.confirm.mock.calls[0][1].body.activity.endDayOffset).toBe(1);
+  expect(find('testID', 'activity-ends-on').props.label).toBe('Next day');
+  expect(find('children', copy.storage)).toBeDefined();
+});
+it('CD2 disables new date controls without backend capability while preserving safe text edits', async () => {
+  await mount();
+  expect(find('testID', 'activity-ends-on')).toBeUndefined();
+  expect(find('testID', 'activity-adopt-next-day')).toBeUndefined();
+  expect(find('children', 'Update the server to set an end date.')).toBeDefined();
+  button(copy.title).props.onChangeText('Text only');
+  render();
+  await review();
+  button(copy.confirm).props.onPress();
+  await settle();
+  expect(h.confirm.mock.calls[0][1].body.activity).not.toHaveProperty('endDayOffset');
+});

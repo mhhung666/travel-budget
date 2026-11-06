@@ -1,5 +1,6 @@
 import { Action, Copy, DetailRow, Section, TextField } from '@/components/ui';
 import { useMessages, useAppLocale } from '@/i18n/useMessages';
+import { itineraryPresentationMessages } from '@/i18n/itineraryPresentationMessages';
 import { itineraryMessages } from '@/i18n/itineraryMessages';
 import {
   dayFields,
@@ -47,11 +48,13 @@ export function DayEditorScreen(props: Omit<EditorTarget, 'activityId'>) {
 }
 type FieldsProps = Parameters<typeof definition.Fields>[0];
 function DayFieldsForm({ fields, context, target, frozen, change, clearPlace }: FieldsProps) {
-  const copy = itineraryMessages[useAppLocale()];
+  const locale = useAppLocale(),
+    copy = itineraryMessages[locale],
+    labels = itineraryPresentationMessages[locale];
   return (
     <>
       <TextField
-        label={copy.title}
+        label={labels.dayTitle}
         value={fields.title}
         editable={!frozen && !target.remove}
         maxLength={1000}
@@ -67,7 +70,7 @@ function DayFieldsForm({ fields, context, target, frozen, change, clearPlace }: 
       {!target.remove && (
         <>
           <TextField
-            label={copy.content}
+            label={labels.dayNotes}
             value={fields.content}
             multiline
             maxLength={50000}

@@ -24,7 +24,8 @@ import type { PendingMutation, StoredMutationResult } from '@/storage/mutations'
 import { spacing, typography } from '@/theme/tokens';
 import { readItineraryEditContext } from './editContext';
 import { useItinerary } from './queries';
-import { activityTime, dayLabel } from './presentation';
+import { itineraryPresentationMessages } from '@/i18n/itineraryPresentationMessages';
+import { activityTiming, dayLabel } from './presentation';
 import {
   itinerarySelectionSignature,
   readActivityDeletionPreview,
@@ -58,6 +59,11 @@ function BatchEditor({
   const locale = useAppLocale();
   const copy = batchDeletionMessages[locale];
   const common = itineraryMessages[locale];
+  const timingCopy = itineraryPresentationMessages[locale];
+  const summary = (
+    a: Parameters<typeof activityTiming>[0],
+    d: { dayNumber: number | null; date: string | null }
+  ) => activityTiming(a, d, t, timingCopy).summary;
   const format = useDisplayFormat();
   const p = usePalette();
   const online = useOnline();
@@ -325,7 +331,7 @@ function BatchEditor({
         : [...old.targets, { activityId: id, expectedRevision: a.revision }],
       labels: {
         ...old.labels,
-        [id]: `${activityTime(a, t)} · ${a.title}${a.locationName ? ` · ${a.locationName}` : ''}`,
+        [id]: `${summary(a, day!)} · ${a.title}${a.locationName ? ` · ${a.locationName}` : ''}`,
       },
     });
     setReview(null);
@@ -343,7 +349,11 @@ function BatchEditor({
         store: openMutationStore,
         scope: scope!,
         tripId,
-        input: { dayId: selection.day.id, targets: selection.targets },
+        input: {
+          dayId: selection.day.id,
+          targets: selection.targets,
+          ...(context?.capabilities?.activityEndDayOffset ? { includeEndDayOffset: true } : {}),
+        },
         guard: guard(),
       });
       if (!current() || !catalog.isVisible(scope!, tripId)) return;
@@ -373,6 +383,7 @@ function BatchEditor({
       tripId,
       body: {
         dayId: selection.day.id,
+        ...(context?.capabilities?.activityEndDayOffset ? { includeEndDayOffset: true } : {}),
         targets: selection.targets,
         expectedContextRevision: review.contextRevision,
       },
@@ -499,7 +510,7 @@ function BatchEditor({
                               ...Object.fromEntries(
                                 day.activities.map((a) => [
                                   a.id,
-                                  `${activityTime(a, t)} · ${a.title}${a.locationName ? ` · ${a.locationName}` : ''}`,
+                                  `${summary(a, day)} · ${a.title}${a.locationName ? ` · ${a.locationName}` : ''}`,
                                 ])
                               ),
                               ...selection?.labels,
@@ -563,7 +574,7 @@ function BatchEditor({
                         />
                         <DetailRow
                           label={copy.latest}
-                          value={`${activityTime(a, t)} · ${a.title}${a.locationName ? ` · ${a.locationName}` : ''}`}
+                          value={`${summary(a, review)} · ${a.title}${a.locationName ? ` · ${a.locationName}` : ''}`}
                         />
                       </View>
                     ))}
@@ -590,7 +601,7 @@ function BatchEditor({
                               labels: Object.fromEntries(
                                 review.targets.map((a) => [
                                   a.activityId,
-                                  `${activityTime(a, t)} · ${a.title}${a.locationName ? ` · ${a.locationName}` : ''}`,
+                                  `${summary(a, review)} · ${a.title}${a.locationName ? ` · ${a.locationName}` : ''}`,
                                 ])
                               ),
                               contextRevision: review.contextRevision,
@@ -612,7 +623,7 @@ function BatchEditor({
             <Pressable
               testID={`batch-activity-${item.id}`}
               accessibilityRole="checkbox"
-              accessibilityLabel={`${dayLabel(day!.dayNumber, t)}${day!.date ? ` · ${format.date(day!.date)}` : ''} · ${activityTime(item, t)} · ${item.title}${item.locationName ? ` · ${item.locationName}` : ''}`}
+              accessibilityLabel={`${dayLabel(day!.dayNumber, t)}${day!.date ? ` · ${format.date(day!.date)}` : ''} · ${summary(item, day!)} · ${item.title}${item.locationName ? ` · ${item.locationName}` : ''}`}
               accessibilityState={{ checked: ids.includes(item.id), disabled: !ready }}
               disabled={!ready}
               onPress={() => toggle(item.id)}
@@ -626,7 +637,7 @@ function BatchEditor({
             >
               <Text
                 style={[typography.body, { color: p.text }]}
-              >{`${ids.includes(item.id) ? '☑' : '☐'} ${activityTime(item, t)}`}</Text>
+              >{`${ids.includes(item.id) ? '☑' : '☐'} ${summary(item, day!)}`}</Text>
               <Text style={[typography.section, { color: p.text }]}>{item.title}</Text>
               {!!item.locationName && (
                 <Text style={[typography.body, { color: p.muted }]}>{item.locationName}</Text>

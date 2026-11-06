@@ -193,3 +193,35 @@ it.each(['android', 'web'])(
     else expect(h.focus).toHaveBeenCalledWith(trigger, 'focus');
   }
 );
+
+it('blocks disabled action menus and presents deletion as a dangerous choice', () => {
+  const select = vi.fn();
+  const menu = (disabled: boolean) =>
+    render(() =>
+      NavigationMenu({
+        title: 'Actions',
+        label: 'Flight',
+        closeLabel: 'Close',
+        testID: 'more',
+        iconOnly: true,
+        icon: 'more',
+        disabled,
+        choices: [
+          { label: 'Delete activity', testID: 'delete', destructive: true, onPress: select },
+        ],
+      })
+    );
+  let tree = menu(true);
+  expect(find(tree, 'testID', 'more').props.disabled).toBe(true);
+  (find(tree, 'testID', 'more').props.onPress as () => void)();
+  expect(nodes(menu(true)).find((e) => e.type === 'Modal')!.props.visible).toBe(false);
+  (find(tree, 'testID', 'delete').props.onPress as () => void)();
+  expect(select).not.toHaveBeenCalled();
+  tree = menu(false);
+  (find(tree, 'testID', 'more').props.onPress as () => void)();
+  tree = menu(false);
+  expect(find(tree, 'testID', 'more').props.accessibilityLabel).toBe('Actions: Flight');
+  const deletion = find(tree, 'testID', 'delete');
+  const label = nodes(deletion).find((n) => n.props.children === 'Delete activity')!;
+  expect(label.props.style).toContainEqual(expect.objectContaining({ color: colors.light.danger }));
+});

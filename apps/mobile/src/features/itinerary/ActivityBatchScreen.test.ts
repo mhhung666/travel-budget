@@ -561,3 +561,74 @@ it('explicit cancel bypasses the unsaved selection prompt', async () => {
   expect(h.alert).not.toHaveBeenCalled();
   expect(h.dispatch).toHaveBeenCalledWith('back');
 });
+
+it('CD2 opts new previews and submissions into end dates and shows them in rows and confirmation', async () => {
+  const supported: ItineraryEditContext = {
+    ...structuredClone(data),
+    capabilities: { activityEndDayOffset: true },
+  };
+  Object.assign(supported.days[0].activities[0], {
+    time: '22:25',
+    endTime: '00:20',
+    endDayOffset: 1,
+  });
+  h.live = supported;
+  h.request.mockImplementation(async (_a, path, _schema, opts) => {
+    opts?.beforeSend?.();
+    if (path.endsWith('/preview'))
+      return previewData({
+        targets: [
+          { ...previewData().targets[0], time: '22:25', endTime: '00:20', endDayOffset: 1 },
+        ],
+      });
+    return supported;
+  });
+  await mount();
+  const row = find('testID', `batch-activity-${activityId}`);
+  expect(row.props.accessibilityLabel).toContain('2026-11-04 00:20');
+  row.props.onPress();
+  await review();
+  expect(
+    h.request.mock.calls.find((c) => c[1].endsWith('/preview'))?.[3].body.includeEndDayOffset
+  ).toBe(true);
+  expect(
+    nodes(render()).some(
+      (n) => typeof n.props.value === 'string' && n.props.value.includes('2026-11-04 00:20')
+    )
+  ).toBe(true);
+  find('testID', 'batch-confirm').props.onPress();
+  await settle();
+  expect(h.confirm.mock.calls[0][1].body.includeEndDayOffset).toBe(true);
+});
+it('CD2 requires re-adoption after an end-date change and reconfirms the latest calendar date', async () => {
+  const supported: ItineraryEditContext = {
+    ...structuredClone(data),
+    capabilities: { activityEndDayOffset: true },
+  };
+  h.request.mockResolvedValue(supported);
+  await mount();
+  find('testID', `batch-activity-${activityId}`).props.onPress();
+  const preview = previewData({
+    changedIds: [activityId],
+    targets: [{ ...previewData().targets[0], revision: 6, endDayOffset: -1 }],
+  });
+  h.request.mockResolvedValueOnce(preview);
+  await review();
+  expect(find('testID', 'batch-confirm').props.disabled).toBe(true);
+  expect(
+    nodes(render()).some(
+      (n) => typeof n.props.value === 'string' && n.props.value.includes('2026-11-02')
+    )
+  ).toBe(true);
+  find('testID', 'batch-adopt').props.onPress();
+  render();
+  h.request.mockResolvedValueOnce({ ...preview, changedIds: [] });
+  await review();
+  expect(find('testID', 'batch-confirm').props.disabled).toBe(false);
+  find('testID', 'batch-confirm').props.onPress();
+  await settle();
+  expect(h.confirm.mock.calls[0][1].body).toMatchObject({
+    includeEndDayOffset: true,
+    targets: [{ activityId, expectedRevision: 6 }],
+  });
+});

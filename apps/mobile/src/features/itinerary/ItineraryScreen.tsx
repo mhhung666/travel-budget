@@ -5,11 +5,12 @@ import { ActivityIndicator, FlatList, Text, View } from 'react-native';
 import type { ItineraryActivity, ItineraryLocation } from '@travel-budget/contracts';
 import { ScreenFrame } from '@/components/frame';
 import { ScrollChrome } from '@/components/scrollChrome';
-import { NavigationMenu } from '@/components/NavigationMenu';
+import { DaySelector } from './DaySelector';
+import { itineraryPresentationMessages } from '@/i18n/itineraryPresentationMessages';
 import { Disclosure } from '@/components/Disclosure';
 import {
   Action,
-  Card,
+  Icon,
   Copy,
   DetailRow,
   Notice,
@@ -24,12 +25,12 @@ import { useDraftCatalog } from '@/features/localDrafts/provider';
 import { useMessages, useAppLocale } from '@/i18n/useMessages';
 import { useDisplayFormat } from '@/i18n/useDisplayFormat';
 import { useOnline } from '@/providers/useOnline';
-import { spacing, typography } from '@/theme/tokens';
+import { radius, sizing, spacing, typography } from '@/theme/tokens';
 import { useTrip } from '@/features/trips/queries';
 import { ActivityActions } from './ActivityActions';
 import { DayActions } from './DayActions';
 import { useItinerary } from './queries';
-import { activityTime, activityType, dayLabel, locationName } from './presentation';
+import { activityIcon, activityTiming, activityType, dayLabel, locationName } from './presentation';
 
 export function ItineraryScreen({ tripId }: { tripId: string }) {
   const { manager, user, status } = useAuth();
@@ -90,7 +91,7 @@ function ItineraryReader({
         keyExtractor={(activity) => activity.id}
         contentContainerStyle={{
           padding: spacing.medium,
-          gap: spacing.medium,
+          gap: 0,
           width: '100%',
           maxWidth: 640,
           alignSelf: 'center',
@@ -101,7 +102,7 @@ function ItineraryReader({
           <View style={{ gap: spacing.medium }}>
             <ScrollChrome />
             <Title>{t.itinerary}</Title>
-            {query.data && <DayActions tripId={tripId} dayId={day?.id} canEdit={canEdit} />}
+            {query.data && <DayActions tripId={tripId} canEdit={canEdit} mode="add" />}
             {!online && <Notice tone="warning">{t.offline}</Notice>}
             {query.isPending && online && <ActivityIndicator accessibilityLabel={t.loading} />}
             {query.isError && (
@@ -120,63 +121,89 @@ function ItineraryReader({
             {day && (
               <>
                 {!query.data?.startDate && <Copy>{t.itineraryNoDates}</Copy>}
-                <NavigationMenu
-                  testID="itinerary-day-picker"
-                  title={t.itineraryChooseDay}
-                  closeLabel={t.closeNavigation}
-                  label={`${dayLabel(day.dayNumber, t)}${day.date ? ` · ${f.date(day.date)}` : ''} · ${day.title}`}
-                  choices={days.map((item) => ({
-                    label: `${dayLabel(item.dayNumber, t)}${item.date ? ` · ${f.date(item.date)}` : ''} · ${item.title}`,
-                    selected: item.id === day.id,
-                    testID: `itinerary-day-${item.id}`,
-                    onPress: () => setSelectedId(item.id),
-                  }))}
-                />
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small }}>
-                  <View style={{ flexGrow: 1, flexBasis: 140 }}>
-                    <Action
-                      testID="itinerary-previous"
-                      variant="secondary"
-                      label={t.itineraryPrevious}
-                      disabled={index === 0}
-                      onPress={() => setSelectedId(days[index - 1].id)}
-                    />
-                  </View>
-                  <View style={{ flexGrow: 1, flexBasis: 140 }}>
-                    <Action
-                      testID="itinerary-next"
-                      variant="secondary"
-                      label={t.itineraryNext}
-                      disabled={index === days.length - 1}
-                      onPress={() => setSelectedId(days[index + 1].id)}
-                    />
-                  </View>
-                </View>
-                <Title>{day.title}</Title>
-                {day.outsideTripRange && <Notice tone="warning">{t.itineraryOutside}</Notice>}
-                {day.location && <LocationDetails location={day.location} locale={locale} />}
-                {!!day.content && (
-                  <Section title={t.itineraryDayContent}>
-                    <ReadableText>{day.content}</ReadableText>
-                  </Section>
-                )}
-                <ActivityActions tripId={tripId} dayId={day.id} canEdit={canEdit} online={online} />
-                {canEdit && day.activities.length > 0 && (
-                  <Action
-                    testID="itinerary-select-activities"
-                    variant="ghost"
-                    label={batchDeletionMessages[locale].select}
-                    disabled={!online}
-                    onPress={() => {
-                      if (online)
-                        router.push({
-                          pathname: '/trips/[id]/itinerary/batch-delete',
-                          params: { id: tripId, dayId: day.id },
-                        });
+                <DaySelector days={days} selectedId={day.id} select={setSelectedId} />
+                <View
+                  testID="itinerary-day-card-header"
+                  style={{
+                    borderWidth: sizing.border,
+                    borderBottomWidth: 0,
+                    borderColor: p.border,
+                    borderTopLeftRadius: radius.card,
+                    borderTopRightRadius: radius.card,
+                    backgroundColor: p.surface,
+                    padding: spacing.medium,
+                    gap: spacing.compact,
+                  }}
+                >
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      flexWrap: 'wrap',
+                      alignItems: 'flex-start',
+                      gap: spacing.small,
                     }}
-                  />
-                )}
-                {day.activities.length === 0 && <Copy>{t.itineraryNoActivities}</Copy>}
+                  >
+                    <View style={{ flex: 1, minWidth: 140, gap: spacing.tiny }}>
+                      <Copy>
+                        {dayLabel(day.dayNumber, t)}
+                        {day.date ? ` · ${f.date(day.date)}` : ''}
+                      </Copy>
+                      <Title>{day.title}</Title>
+                    </View>
+                    <DayActions tripId={tripId} dayId={day.id} canEdit={canEdit} mode="settings" />
+                  </View>
+                  {day.outsideTripRange && <Notice tone="warning">{t.itineraryOutside}</Notice>}
+                  {day.location && <LocationDetails location={day.location} locale={locale} />}
+                  {!!day.content && (
+                    <Section title={itineraryPresentationMessages[locale].dayNotes}>
+                      <ReadableText>{day.content}</ReadableText>
+                    </Section>
+                  )}
+                  {!day.content && (
+                    <DayActions tripId={tripId} dayId={day.id} canEdit={canEdit} mode="notes" />
+                  )}
+                  <View
+                    testID="itinerary-activity-toolbar"
+                    style={{
+                      borderTopWidth: sizing.border,
+                      borderColor: p.border,
+                      paddingTop: spacing.compact,
+                      flexDirection: 'row',
+                      flexWrap: 'wrap',
+                      gap: spacing.small,
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text
+                      accessibilityRole="header"
+                      style={[typography.label, { color: p.text, fontWeight: '700', flexGrow: 1 }]}
+                    >
+                      {itineraryPresentationMessages[locale].activities} · {day.activities.length}
+                    </Text>
+                    {canEdit && day.activities.length > 0 && (
+                      <Action
+                        testID="itinerary-select-activities"
+                        variant="ghost"
+                        label={batchDeletionMessages[locale].select}
+                        disabled={!online}
+                        onPress={() => {
+                          if (online)
+                            router.push({
+                              pathname: '/trips/[id]/itinerary/batch-delete',
+                              params: { id: tripId, dayId: day.id },
+                            });
+                        }}
+                      />
+                    )}
+                    <ActivityActions
+                      tripId={tripId}
+                      dayId={day.id}
+                      canEdit={canEdit}
+                      online={online}
+                    />
+                  </View>
+                  {day.activities.length === 0 && <Copy>{t.itineraryNoActivities}</Copy>}
+                </View>
               </>
             )}
           </View>
@@ -184,12 +211,15 @@ function ItineraryReader({
         renderItem={({ item }) => (
           <ActivityCard
             activity={item}
+            day={day}
+            trip={query.data}
             actions={
               day ? (
                 <ActivityActions
                   tripId={tripId}
                   dayId={day.id}
                   activityId={item.id}
+                  label={`${activityTiming(item, day, t, itineraryPresentationMessages[locale], query.data).summary} · ${item.title}`}
                   canEdit={canEdit}
                   online={online}
                 />
@@ -199,14 +229,29 @@ function ItineraryReader({
         )}
         ListFooterComponent={
           query.data ? (
-            <Action
-              testID="itinerary-refresh"
-              variant="secondary"
-              label={t.refresh}
-              busy={query.isFetching}
-              disabled={!online}
-              onPress={() => void query.refresh()}
-            />
+            <View style={{ gap: spacing.medium }}>
+              {day && (
+                <View
+                  style={{
+                    backgroundColor: p.surface,
+                    height: spacing.small,
+                    borderWidth: sizing.border,
+                    borderTopWidth: 0,
+                    borderColor: p.border,
+                    borderBottomLeftRadius: radius.card,
+                    borderBottomRightRadius: radius.card,
+                  }}
+                />
+              )}
+              <Action
+                testID="itinerary-refresh"
+                variant="secondary"
+                label={t.refresh}
+                busy={query.isFetching}
+                disabled={!online}
+                onPress={() => void query.refresh()}
+              />
+            </View>
           ) : null
         }
       />
@@ -236,24 +281,65 @@ function LocationDetails({ location, locale }: { location: ItineraryLocation; lo
 export function ActivityCard({
   activity,
   actions,
+  day = { dayNumber: 1, date: null },
+  trip,
 }: {
   activity: ItineraryActivity;
   actions?: React.ReactNode;
+  day?: { dayNumber: number; date: string | null };
+  trip?: { startDate: string | null; endDate: string | null };
 }) {
-  const t = useMessages();
-  const locale = useAppLocale();
+  const t = useMessages(),
+    locale = useAppLocale(),
+    p = usePalette();
+  const copy = itineraryPresentationMessages[locale];
   const place = locationName(activity.location, activity.locationName, locale);
+  const timing = activityTiming(activity, day, t, copy, trip);
   return (
-    <Card>
-      <Copy>
-        {activityTime(activity, t)} · {activityType(activity.type, t)}
-      </Copy>
-      <Title>{activity.title}</Title>
-      {!!place && <Copy>{place}</Copy>}
+    <View
+      testID={`itinerary-activity-row-${activity.id}`}
+      style={{
+        padding: spacing.compact,
+        backgroundColor: p.surface,
+        borderWidth: sizing.border,
+        borderTopWidth: 0,
+        borderColor: p.border,
+      }}
+    >
+      <View
+        style={{
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          alignItems: 'flex-start',
+          gap: spacing.small,
+        }}
+      >
+        <View style={{ width: 76, gap: spacing.tiny }}>
+          <Text style={[typography.label, { color: p.muted, fontVariant: ['tabular-nums'] }]}>
+            {timing.start}
+          </Text>
+          <Text style={[typography.meta, { color: p.muted }]}>{timing.end}</Text>
+        </View>
+        <View style={{ flex: 1, minWidth: 110, gap: spacing.tiny }}>
+          <View style={{ flexDirection: 'row', gap: spacing.small, alignItems: 'flex-start' }}>
+            <Icon name={activityIcon(activity.type)} color={p.primary} />
+            <Text style={[typography.body, { color: p.text, fontWeight: '700', flex: 1 }]}>
+              {activity.title}
+            </Text>
+          </View>
+          <Copy>{activityType(activity.type, t)}</Copy>
+          {!!place && <Copy>{place}</Copy>}
+        </View>
+        {actions}
+      </View>
+      {timing.showSummary && <Copy>{timing.summary}</Copy>}
+      {timing.outsideRange && <Notice tone="warning">{copy.outsideRange}</Notice>}
       <Disclosure
         testID={`itinerary-activity-${activity.id}`}
-        title={`${t.itineraryDetails} · ${activity.title}`}
+        title={t.itineraryDetails}
+        accessibilityLabel={`${t.itineraryDetails} · ${timing.summary} · ${activity.title}`}
       >
+        <DetailRow label={copy.summary} value={timing.summary} />
         {activity.location && <LocationDetails location={activity.location} locale={locale} />}
         {!!activity.locationName && activity.locationName !== place && (
           <DetailRow label={t.itineraryLocation} value={activity.locationName} />
@@ -266,8 +352,7 @@ export function ActivityCard({
         {!!activity.confirmationCode && (
           <DetailRow label={t.itineraryConfirmation} value={activity.confirmationCode} />
         )}
-        {actions}
       </Disclosure>
-    </Card>
+    </View>
   );
 }

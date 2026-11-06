@@ -5,7 +5,7 @@ import { messages } from '@/i18n/messages';
 import { ApiError } from '@/api/client';
 import { colors } from '@/theme/tokens';
 import { ItineraryScreen, ActivityCard } from './ItineraryScreen';
-import { activityTime, dayLabel, locationName } from './presentation';
+import { locationName } from './presentation';
 vi.mock('expo-router', () => ({ router: { push: vi.fn() } }));
 const h = vi.hoisted(() => ({
   selected: null as string | null,
@@ -43,7 +43,9 @@ vi.mock('react-native', () =>
 );
 vi.mock('@/components/ui', () => ({
   ...Object.fromEntries(
-    ['Action', 'Card', 'Copy', 'DetailRow', 'Notice', 'Page', 'Section', 'Title'].map((n) => [n, n])
+    ['Icon', 'Action', 'Card', 'Copy', 'DetailRow', 'Notice', 'Page', 'Section', 'Title'].map(
+      (n) => [n, n]
+    )
   ),
   usePalette: () => colors.light,
 }));
@@ -164,20 +166,14 @@ it.each(['zh', 'zh-CN', 'en', 'jp'] as const)(
   (locale) => {
     h.locale = locale;
     let tree = screen();
-    expect(find(tree, 'label', messages[locale].itineraryPrevious).props.disabled).toBe(true);
-    expect(find(tree, 'testID', 'itinerary-day-picker').props.label).toContain(
-      dayLabel(2, messages[locale])
-    );
-    find(tree, 'testID', 'itinerary-next').props.onPress();
+    const selector = nodes(tree).find((n) => n.props.selectedId === id(1))!;
+    expect(selector.props.days).toEqual(itinerary.days);
+    (selector.props.select as (id: string) => void)(id(2));
     tree = screen();
-    expect(find(tree, 'testID', 'itinerary-day-picker').props.label).toContain(
-      dayLabel(5, messages[locale])
-    );
-    expect(find(tree, 'testID', 'itinerary-next').props.disabled).toBe(true);
+    const next = nodes(tree).find((n) => n.props.selectedId === id(2))!;
+    expect(next).toBeDefined();
     expect(find(tree, 'children', messages[locale].itineraryNoActivities)).toBeDefined();
-    const choices = find(tree, 'testID', 'itinerary-day-picker').props.choices;
-    expect(choices.map((c: { selected: boolean }) => c.selected)).toEqual([false, true]);
-    choices[0].onPress();
+    (next.props.select as (id: string) => void)(id(1));
     expect(find(screen(), 'testID', 'itinerary-list').props.data).toHaveLength(1);
   }
 );
@@ -187,8 +183,6 @@ it('preserves all long details, legacy type, location and private member-only bo
   expect(find(tree, 'children', activity.note).props.numberOfLines).toBeUndefined();
   expect(find(tree, 'value', activity.confirmationCode)).toBeDefined();
   expect(find(tree, 'children', activity.locationName)).toBeDefined();
-  expect(activityTime(activity, messages.en)).toBe('08:00–09:00');
-  expect(activityTime({ ...activity, time: null }, messages.en)).toContain('09:00');
   expect(
     locationName(
       { name: '原名', names: { jp: '日本語' }, display_name: '', lat: 0, lon: 0 },
@@ -230,3 +224,17 @@ it.each(['catalog', 'http', 'session'])(
     expect(find(tree, 'children', messages.en.notFound)).toBeDefined();
   }
 );
+it('CD2 keeps date relationships in the row and accessible details while keeping the visible details control short', () => {
+  const overnight = { ...activity, time: '22:25', endTime: '00:20', endDayOffset: 1 };
+  const tree = expand(
+    ActivityCard({ activity: overnight, day: { dayNumber: 2, date: '2028-02-29' } })
+  );
+  const details = find(tree, 'testID', `itinerary-activity-${activity.id}`);
+  expect(details.props.title).toBe(messages.en.itineraryDetails);
+  expect(details.props.accessibilityLabel).toContain('2028-03-01 00:20');
+  expect(details.props.accessibilityLabel).toContain(activity.title);
+  expect(find(tree, 'children', 'Next day 00:20')).toBeDefined();
+  expect(
+    find(tree, 'testID', `itinerary-activity-row-${activity.id}`).props.style
+  ).not.toHaveProperty('borderRadius');
+});

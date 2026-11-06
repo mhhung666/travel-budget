@@ -8,7 +8,8 @@ export function Disclosure({
   title,
   testID,
   children,
-}: PropsWithChildren<{ title: string; testID: string }>) {
+  accessibilityLabel,
+}: PropsWithChildren<{ title: string; testID: string; accessibilityLabel?: string }>) {
   const [expanded, setExpanded] = useState(false);
   const p = usePalette();
   return (
@@ -16,7 +17,7 @@ export function Disclosure({
       <Pressable
         testID={testID}
         accessibilityRole="button"
-        accessibilityLabel={title}
+        accessibilityLabel={accessibilityLabel ?? title}
         accessibilityState={{ expanded }}
         onPress={() => setExpanded((value) => !value)}
         style={{

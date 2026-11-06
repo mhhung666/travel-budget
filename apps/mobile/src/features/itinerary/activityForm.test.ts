@@ -34,6 +34,7 @@ const activity = {
 };
 const context: ItineraryEditContext = {
   tripId,
+  capabilities: { activityEndDayOffset: true },
   startDate: '2026-11-03',
   endDate: '2026-11-05',
   days: [
@@ -92,6 +93,7 @@ it('creates optional times without ticket or AI fields, and updates only the ide
         'type',
         'time',
         'endTime',
+        'endDayOffset',
         'location',
         'locationName',
         'note',

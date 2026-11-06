@@ -316,3 +316,30 @@ it('preview honors and repairs the account 429 deadline, and NOT_FOUND does not 
   await h.restart();
   expect(await h.store.retryAt(scope)).toBe(121000);
 });
+
+it.each([undefined, true])(
+  'CD2 restart/retry preserves the exact batch opt-in %s and original UUID',
+  async (includeEndDayOffset) => {
+    const h = await setup();
+    const confirmed = {
+      ...command,
+      body: { ...body, ...(includeEndDayOffset ? { includeEndDayOffset: true as const } : {}) },
+    };
+    h.request.mockRejectedValueOnce(new ApiError('NETWORK'));
+    expect((await h.engine().confirm(scope, confirmed)).kind).toBe('pending');
+    const before = (await h.store.get(scope, key))?.payload;
+    await h.restart();
+    h.request.mockClear();
+    expect((await h.store.get(scope, key))?.payload).toEqual(before);
+    await h.engine().recover(scope);
+    expect(h.request.mock.calls.map((c) => c[3]?.method ?? 'GET')).toEqual(['GET']);
+    h.request.mockClear();
+    expect((await h.engine().retry(scope, key)).kind).toBe('completed');
+    expect(h.request.mock.calls.map((c) => c[3]?.method ?? 'GET')).toEqual(['GET', 'POST']);
+    const retry = h.request.mock.calls[1][3]?.body;
+    expect(retry).toEqual({ ...confirmed.body, client_request_id: key });
+    expect(Object.hasOwn(retry as object, 'includeEndDayOffset')).toBe(
+      includeEndDayOffset === true
+    );
+  }
+);

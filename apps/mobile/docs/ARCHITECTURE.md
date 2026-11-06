@@ -20,13 +20,13 @@ Server Actions 與 HTTP API 是兩個呼叫入口，部署初期同在現有 Nex
 
 ## App 行程閱讀
 
-`features/itinerary` 提供單一記憶體 Query、逐日選擇與活動 FlatList；薄路由為 `trips/[id]/itinerary`。`TripLayout` 在原三頁前增加行程，沿用安全區與大字級導覽選單；原概覽 URL／進旅行落點不變。日期與排序由後端提供，App 不另算日曆、拼接空白日或重新排序。選中日以穩定 ID 保留，日遭刪除時回第一個現有日；換日重建列表並回頂端。
+`features/itinerary` 提供單一記憶體 Query、水平逐日選擇與日卡分隔活動 FlatList；薄路由為 `trips/[id]/itinerary`。`TripLayout` 在原三頁前增加行程，沿用安全區與大字級導覽選單；原概覽 URL／進旅行落點不變。日卡日期與排序由後端提供，App 不拼接空白日或重新排序；活動結束日期僅由 contracts 共用 date-only 規則推導。選中日以穩定 ID 保留，日遭刪除時回第一個現有日；換日重建列表並回頂端；水平列依實際量測位置顯示選中日，完整選單保留。日卡表頭／備註／工具列與活動清單沿用同一 surface，單筆選單與詳情不另掛遠端 Query。
 
 行程 Query 使用 requestAs、AbortSignal 與 catalog 撤權世代守衛，403／404 納入 catalog 既有持久拒絕；畫面在 session／catalog／HTTP 拒絕任一成立時卸載私人閱讀器，晚到結果不能解除隱藏。沒有新 provider、SQLite 表、背景同步或票券儲存；本文／備註以原生可選取 Text 顯示，全部文字可換行。
 
 ## App 行程日維護與恢復
 
-`features/itinerary/ItineraryEditorScreen` 共用 2B／2C 的確認、未保存提醒、登入／catalog 守衛與提交狀態；`DayEditorScreen`／`ActivityEditorScreen` 提供各自欄位、快照與確認摘要，薄路由為 `trips/[id]/itinerary/day`／`activity`。按環境／帳號／登入世代／旅行／日／活動／模式重建；未確認輸入與已檢視 command 僅頁面記憶體，不因 refocus 重置。`dayForm`／`activityForm` 用共用 schema 驗證並組 command，最終授權、日期／版本／容量與關聯效果仍由 2A 後端決定。活動只比對目標 revision；其他活動修改不觸發整日衝突，所屬日標題／日期變動仍要求重新確認。
+`features/itinerary/ItineraryEditorScreen` 共用 2B／2C 的確認、未保存提醒、登入／catalog 守衛與提交狀態；`DayEditorScreen`／`ActivityEditorScreen` 提供各自欄位、快照與確認摘要，薄路由為 `trips/[id]/itinerary/day`／`activity`。按環境／帳號／登入世代／旅行／日／活動／模式重建；未確認輸入與已檢視 command 僅頁面記憶體，不因 refocus 重置。`dayForm`／`activityForm` 用共用 schema 驗證並組 command，最終授權、日期／版本／容量與關聯效果仍由 2A 後端決定。CD2 的 `ActivityTimeFields` 將日期選項與未確認輸入留在原表單記憶體，`activityForm` 只在能力成立時將有界日差放入確認 body；缺能力停用新欄位並以省略保留原值。`presentation.activityTiming` 依 API 來源日日期呼叫 contracts 的純 date-only 規則，供閱讀／詳情／衝突／批次摘要共用；不引入 Web 原始碼或時區引擎。活動只比對目標 revision；其他活動修改不觸發整日衝突，所屬日標題／日期變動仍要求重新確認。
 
 閱讀器只在上層觀察一次現有旅行摘要的管理員角色，將權限／連線傳入日及活動操作；列不掛額外遠端查詢。活動表單保存未改地點的翻譯／國家 metadata，票券由既有後端保留，App 不讀取或送出票券 key。
 2B 擴充既有 `pending_mutation` 的 `itinerary.write` JSON envelope，沿用 schema 11，沒有新增 provider、資料庫、表或帳務幣別。body／HTTP receipt 都直接驗證共用 itinerary schema；本機結果包裝僅為 E 操作畫面提供一致的 tripId／狀態，不改 wire 契約或虛構 ledger。原 UUID、body、同旅行 C／E 互斥與帳號 429 由既有 TripEntry 協調；查詢使用旅行內原 requests endpoint，終局核對 UUID／旅行／operation／已知日及活動 ID／刪除狀態，committed 清除 body，rejected 保留以供明確續改。

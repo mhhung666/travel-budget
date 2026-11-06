@@ -1,5 +1,5 @@
 const en = {
-  add: 'Add day',
+  add: 'Add a day',
   edit: 'Edit day',
   remove: 'Delete day',
   title: 'Day title',
@@ -44,7 +44,7 @@ type Copy = typeof en;
 export const itineraryMessages: Record<'zh' | 'zh-CN' | 'en' | 'jp', Copy> = {
   en,
   zh: {
-    add: '新增行程日',
+    add: '新增一天',
     edit: '編輯行程日',
     remove: '刪除行程日',
     title: '行程日標題',
@@ -83,7 +83,7 @@ export const itineraryMessages: Record<'zh' | 'zh-CN' | 'en' | 'jp', Copy> = {
     clearPlace: '移除地點',
   },
   'zh-CN': {
-    add: '新增行程日',
+    add: '新增一天',
     edit: '编辑行程日',
     remove: '删除行程日',
     title: '行程日标题',
@@ -122,7 +122,7 @@ export const itineraryMessages: Record<'zh' | 'zh-CN' | 'en' | 'jp', Copy> = {
     clearPlace: '移除地点',
   },
   jp: {
-    add: '日程を追加',
+    add: '1日を追加',
     edit: '日程を編集',
     remove: '日程を削除',
     title: '日程タイトル',

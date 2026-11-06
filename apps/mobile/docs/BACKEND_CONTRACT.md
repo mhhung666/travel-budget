@@ -47,9 +47,9 @@ target 為嚴格互斥的 `{ date, expected_start_date, expected_end_date }` 或
 
 ## CD0 跨日相容契約
 
-行程讀取／edit context 新增可選 `endDayOffset`（−3650～3650 整數或 null）；缺值為未確認。activity create 省略存 null、update 省略保留原值、顯式 null 清除，不依時鐘次序猜測。編輯 context 可選 `capabilities.activityEndDayOffset: true` 為新欄位能力；缺能力的後端不可靜默降級新日期輸入。App 表單與版面接 CD2，目前舊表單只改文字亦不清除後端已確認日差。
+行程讀取／edit context 新增可選 `endDayOffset`（−3650～3650 整數或 null）；缺值為未確認。activity create 省略存 null、update 省略保留原值、顯式 null 清除，不依時鐘次序猜測。編輯 context 可選 `capabilities.activityEndDayOffset: true` 為新欄位能力；缺能力的後端不可靜默降級新日期輸入。CD2 App 表單／版面已接入；缺能力時停用新日期設定，文字更新省略新欄位、不清除後端已確認日差，拒絕靜默忽略日期變更。
 
-批次預覽／刪除命令可帶 `includeEndDayOffset: true` 才在 target 輸出此欄位，保護既有 strict decoder；原請求／終局 receipt／SQLite schema 與 UUID 不改寫。共用日期規則、migration、fixture 與各階段限制集中於 [共同設計](../../../docs/design/ITINERARY_PRESENTATION.md#cd0-實作與交接)。
+CD2 新批次預覽／刪除命令依能力帶 `includeEndDayOffset: true` 才在 target 輸出此欄位，保護既有 strict decoder；原請求／終局 receipt／SQLite schema 與 UUID 不改寫。共用日期規則、migration、fixture 與各階段限制集中於 [共同設計](../../../docs/design/ITINERARY_PRESENTATION.md#cd0-實作與交接)。
 
 ## BD2 活動批次刪除
 

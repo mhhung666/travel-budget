@@ -13,23 +13,34 @@ import {
   prepareActivity,
   restoreActivityFields,
   sameActivitySnapshot,
+  validActivityEndDate,
   type ActivityFields,
   type ActivityCommand,
 } from './activityForm';
-import { activityType, dayLabel } from './presentation';
+import { ActivityTimeFields } from './ActivityTimeFields';
+import { itineraryPresentationMessages } from '@/i18n/itineraryPresentationMessages';
+import { activityTiming, activityType, dayLabel } from './presentation';
 const definition: EditorDefinition<ActivityFields, ActivityCommand> = {
   messages: activityMessages,
-  rejection: (code, locale) => activityRejection(code, activityMessages[locale]),
+  rejection: (code, locale) =>
+    code === 'FEATURE_NOT_AVAILABLE'
+      ? itineraryPresentationMessages[locale].unsupported
+      : activityRejection(code, activityMessages[locale]),
   testId: 'itinerary-activity',
   editing: (t) => !!t.activityId,
   exists: (c, t) =>
     c.days.some(
       (d) => d.id === t.dayId && (!t.activityId || d.activities.some((a) => a.id === t.activityId))
     ),
-  fields: (c, t) =>
-    activityFields(
-      c.days.find((d) => d.id === t.dayId)?.activities.find((a) => a.id === t.activityId)
-    ),
+  fields: (c, t) => {
+    const day = c.days.find((d) => d.id === t.dayId);
+    return activityFields(
+      day?.activities.find((a) => a.id === t.activityId),
+      day,
+      !!c.capabilities?.activityEndDayOffset
+    );
+  },
+  valid: (c, f, t) => !!t.remove || validActivityEndDate(c, f, t.dayId!),
   prepare: (c, f, t) => prepareActivity(c, f, t.dayId!, t.activityId, t.remove),
   restore: (c, command) => restoreActivityFields(command, c),
   accepts: (c, t): c is ActivityCommand =>
@@ -94,20 +105,13 @@ function ActivityFieldsForm({
               }))}
             />
           )}
-          <Copy>{copy.timeHint}</Copy>
-          {(['time', 'endTime'] as const).map((key) => (
-            <TextField
-              key={key}
-              label={copy[key]}
-              value={fields[key]}
-              editable={!frozen}
-              autoCapitalize="none"
-              autoCorrect={false}
-              maxLength={5}
-              keyboardType="numbers-and-punctuation"
-              onChangeText={(v) => change(key, v)}
-            />
-          ))}
+          <ActivityTimeFields
+            fields={fields}
+            context={context}
+            dayId={target.dayId!}
+            frozen={frozen}
+            change={change}
+          />
           <TextField
             label={copy.locationName}
             value={fields.locationName}
@@ -163,7 +167,8 @@ type ContextProps = {
   target: EditorTarget;
 };
 function ActivityDetails({ context, target }: ContextProps) {
-  const copy = activityMessages[useAppLocale()],
+  const locale = useAppLocale(),
+    copy = activityMessages[locale],
     t = useMessages();
   const day = context.days.find((d) => d.id === target.dayId);
   const activity = day?.activities.find((a) => a.id === target.activityId);
@@ -181,8 +186,13 @@ function ActivityDetails({ context, target }: ContextProps) {
       {activity && (
         <>
           <DetailRow label={copy.type} value={activityType(activity.type, t)} />
-          <DetailRow label={copy.time} value={activity.time ?? '—'} />
-          <DetailRow label={copy.endTime} value={activity.endTime ?? '—'} />
+          <DetailRow
+            label={itineraryPresentationMessages[locale].summary}
+            value={
+              activityTiming(activity, day!, t, itineraryPresentationMessages[locale], context)
+                .summary
+            }
+          />
           <DetailRow label={copy.locationName} value={activity.locationName || '—'} />
           <DetailRow label={copy.place} value={activity.location?.name || '—'} />
           {activity.location && (
