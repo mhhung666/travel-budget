@@ -13,6 +13,7 @@ export type LeanActivity = {
   _id: { toString(): string };
   time?: string | null;
   endTime?: string | null;
+  endDayOffset?: number | null;
   title: string;
   type: ActivityDto['type'];
   location?: Location | null;
@@ -41,6 +42,7 @@ function toActivityDto(a: LeanActivity): ActivityDto {
     revision: a.revision,
     time: a.time ?? null,
     end_time: a.endTime ?? null,
+    end_day_offset: a.endDayOffset ?? null,
     title: a.title,
     type: a.type,
     location: a.location ?? null,

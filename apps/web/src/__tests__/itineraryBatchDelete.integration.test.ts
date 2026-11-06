@@ -387,4 +387,38 @@ describe.skipIf(!uri || !allowed)('BD1 isolated batch deletion transactions', ()
       ).status
     ).toBe(403);
   });
+  it('CD0 only opted-in previews carry dates; old strict decoders remain usable and date changes invalidate confirmation', async () => {
+    const oldPreview = await read(target([0]));
+    expect(oldPreview.targets[0]).not.toHaveProperty('endDayOffset');
+    const input = { ...target([0]), includeEndDayOffset: true };
+    const newPreview = await scope(() =>
+      previewActivityDeletion(db(), admin.toString(), trip.toString(), input)
+    );
+    expect(newPreview.targets[0].endDayOffset).toBeNull();
+    expect(newPreview.contextRevision).toBe(oldPreview.contextRevision);
+    const original = {
+      ...target([0]),
+      client_request_id: randomUUID(),
+      expectedContextRevision: oldPreview.contextRevision,
+    };
+    // Even legacy writers that change only the stored field are covered by the context hash.
+    await db()
+      .collection('itinerarydays')
+      .updateOne({ _id: dayId }, { $set: { 'activities.0.endDayOffset': 1 } });
+    expect(await write(original)).toMatchObject({ status: 'rejected', code: 'CONFLICT' });
+    const fresh = await scope(() =>
+      previewActivityDeletion(db(), admin.toString(), trip.toString(), input)
+    );
+    expect(fresh.targets[0].endDayOffset).toBe(1);
+    expect(await read(target([0]))).toMatchObject({ contextRevision: fresh.contextRevision });
+    expect((await read(target([0]))).targets[0]).not.toHaveProperty('endDayOffset');
+    const confirmed = {
+      ...input,
+      client_request_id: randomUUID(),
+      expectedContextRevision: fresh.contextRevision,
+    };
+    const result = await write(confirmed);
+    expect(result).toMatchObject({ status: 'committed' });
+    expect(await write(confirmed)).toEqual(result);
+  });
 });

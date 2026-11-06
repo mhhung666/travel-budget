@@ -55,7 +55,8 @@ async function buildActivitiesStorage(
   tripId: string,
   uploaderId: string,
   activities: (ActivityInput & { id?: string | null })[],
-  existingByKey: Map<string, AttachmentDoc>
+  existingByKey: Map<string, AttachmentDoc>,
+  existingActivities: LeanActivity[] = []
 ): Promise<{ storage: Record<string, unknown>[]; keptKeys: Set<string> } | null> {
   const resolvedByKey = await resolveItineraryAttachments(
     tripId,
@@ -64,6 +65,7 @@ async function buildActivitiesStorage(
     existingByKey
   );
   if (!resolvedByKey) return null;
+  const existingById = new Map(existingActivities.map((a) => [a._id.toString(), a]));
   const storage: Record<string, unknown>[] = [];
   const keptKeys = new Set<string>();
   for (const a of activities) {
@@ -74,6 +76,10 @@ async function buildActivitiesStorage(
       ...(a.id ? { _id: a.id } : {}),
       time: a.time ?? null,
       endTime: a.end_time ?? null,
+      endDayOffset:
+        a.end_day_offset !== undefined
+          ? a.end_day_offset
+          : ((a.id ? existingById.get(a.id)?.endDayOffset : null) ?? null),
       title: a.title,
       type: a.type,
       location: a.location ?? null,
@@ -209,7 +215,7 @@ export async function updateItineraryDayForActor(
     const validated = parsed.data;
     const currentDayQuery = ItineraryDay.findOne({ _id: dayId, trip: membership.tripId })
       .select(
-        'activities._id activities.revision activities.attachments updatedAt revision dayNumber'
+        'activities._id activities.revision activities.attachments activities.endDayOffset updatedAt revision dayNumber'
       )
       .lean<{
         activities?: LeanActivity[];
@@ -261,7 +267,8 @@ export async function updateItineraryDayForActor(
         membership.tripId,
         actorId,
         validated.activities,
-        existingByKey
+        existingByKey,
+        currentDay.activities
       );
       if (!built) {
         return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
@@ -412,7 +419,9 @@ export async function mutateItineraryActivityForActor(
     }
     const data = parsed.data;
     const currentQuery = ItineraryDay.findOne({ _id: dayId, trip: membership.tripId })
-      .select('activities._id activities.revision activities.attachments updatedAt revision')
+      .select(
+        'activities._id activities.revision activities.attachments activities.endDayOffset updatedAt revision'
+      )
       .lean<{ activities?: LeanActivity[]; updatedAt: Date; revision: number } | null>();
     const current = await (context ? currentQuery.setOptions(context.options()) : currentQuery);
     if (!current) return { success: false, error: 'NOT_FOUND', code: 'NOT_FOUND' };
@@ -443,8 +452,9 @@ export async function mutateItineraryActivityForActor(
       const built = await buildActivitiesStorage(
         membership.tripId,
         actorId,
-        [data.activity],
-        existingAttachments
+        [{ ...data.activity, ...(target ? { id: target._id.toString() } : {}) }],
+        existingAttachments,
+        target ? [target] : []
       );
       if (!built) return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
       if (data.operation === 'add') {

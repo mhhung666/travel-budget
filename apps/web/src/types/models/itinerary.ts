@@ -23,6 +23,8 @@ export interface Activity {
   time: string | null;
   /** "HH:mm" 24h 結束時間（住宿入退房 / 交通起迄）；null＝未指定。 */
   end_time: string | null;
+  /** Signed local day difference; missing/null means the end date is unconfirmed. */
+  end_day_offset?: number | null;
   title: string;
   type: ActivityType;
   /** 活動地點；未設為 null。 */

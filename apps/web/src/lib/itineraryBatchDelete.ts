@@ -72,6 +72,7 @@ function preview(
         title: a.title,
         time: a.time ?? null,
         endTime: a.endTime ?? null,
+        ...(input.includeEndDayOffset ? { endDayOffset: a.endDayOffset ?? null } : {}),
         locationName: a.locationName || a.location?.name || '',
       })),
     missingIds: input.targets.filter((t) => !byId.has(t.activityId)).map((t) => t.activityId),

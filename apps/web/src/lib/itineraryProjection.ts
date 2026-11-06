@@ -30,6 +30,7 @@ export function projectMobileItinerary(
           type: activity.type,
           time: activity.time,
           endTime: activity.end_time,
+          endDayOffset: activity.end_day_offset ?? null,
           location: activity.location,
           locationName: activity.location_name ?? '',
           note: activity.note,

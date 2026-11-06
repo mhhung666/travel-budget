@@ -487,3 +487,52 @@ it.each(['CONFLICT', 'NOT_FOUND', 'ACTIVITY_LIMIT'] as const)(
     expect((await h.store.get(scope, key))?.result).toMatchObject({ status: 'rejected', code });
   }
 );
+
+it.each([undefined, null, 0, 1, -1])(
+  'CD0 SQLite restart retries the exact frozen offset %s without defaults or a new UUID',
+  async (endDayOffset) => {
+    const h = await setup();
+    const activityId = 'd'.repeat(24);
+    const activity = {
+      title: 'Flight',
+      type: 'flight' as const,
+      time: '22:25',
+      endTime: '00:20',
+      location: null,
+      locationName: '',
+      note: '',
+      confirmationCode: '',
+      ...(endDayOffset !== undefined ? { endDayOffset } : {}),
+    };
+    const input = {
+      operation: 'itinerary.write' as const,
+      tripId,
+      body: {
+        operation: 'activity.update' as const,
+        dayId,
+        activityId,
+        expected_activity_revision: 3,
+        activity,
+      },
+    };
+    h.request.mockRejectedValueOnce(new ApiError('NETWORK'));
+    expect((await h.engine().confirm(scope, input)).kind).toBe('pending');
+    await h.restart();
+    const expected = { ...input.body, client_request_id: key };
+    expect((await h.store.get(scope, key))?.payload?.body).toEqual(expected);
+    h.request.mockImplementationOnce(async () => ({ status: 'not_found' }));
+    h.request.mockImplementationOnce(async (_a, _p, _s, options) => {
+      expect(options?.body).toEqual(expected);
+      expect(Object.hasOwn((options?.body as typeof expected).activity, 'endDayOffset')).toBe(
+        endDayOffset !== undefined
+      );
+      options?.beforeSend?.();
+      return {
+        ...terminal,
+        operation: 'activity.update',
+        result: { dayId, dayRevision: 5, activityId, activityRevision: 4, deleted: false },
+      };
+    });
+    expect((await h.engine().retry(scope, key)).kind).toBe('completed');
+  }
+);

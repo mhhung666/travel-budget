@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import mongoose, { mongo } from 'mongoose';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { itineraryWriteInput, type ItineraryWriteInput } from '@travel-budget/contracts';
@@ -679,6 +679,189 @@ describe.skipIf(!uri || !allowed)('2A isolated itinerary transactions and HTTP c
         })
       ).status
     ).toBe(404);
+  });
+  it.each([0, 1, 3, -1, null])(
+    'CD0 native writes/reads/replays explicit offset %s',
+    async (endDayOffset) => {
+      const day = await addDay();
+      const input = {
+        operation: 'activity.create',
+        client_request_id: randomUUID(),
+        dayId: day.dayId,
+        activity: { ...activity, time: '22:25', endTime: '00:20', endDayOffset },
+      };
+      const result = await write(input);
+      expect(result).toMatchObject({ status: 'committed' });
+      const ctx = await context();
+      expect(ctx.capabilities).toEqual({ activityEndDayOffset: true });
+      expect(ctx.days[0].activities[0]).toMatchObject({ endDayOffset });
+      expect(await write(input)).toEqual(result);
+      expect(await receipt(input.client_request_id)).toEqual(result);
+      expect(
+        await mongoose.connection.db!.collection('itinerarydays').countDocuments({ trip })
+      ).toBe(1);
+      expect(ctx.days[0].activities).toHaveLength(1);
+    }
+  );
+  it('CD0 omitted native/Web updates retain dates; explicit null clears; original frozen UUID remains replayable', async () => {
+    const day = await addDay();
+    const a = await addActivity(day.dayId);
+    const input = {
+      operation: 'activity.update',
+      client_request_id: randomUUID(),
+      dayId: day.dayId,
+      activityId: a.activityId,
+      expected_activity_revision: 0,
+      activity: { ...activity, endDayOffset: 1 },
+    };
+    expect(await write(input)).toMatchObject({ status: 'committed' });
+    const legacy = {
+      ...input,
+      client_request_id: randomUUID(),
+      expected_activity_revision: 1,
+      activity: { ...activity, title: 'Old App edit' },
+    };
+    const committed = await write(legacy);
+    expect(committed).toMatchObject({ status: 'committed' });
+    expect((await context()).days[0].activities[0].endDayOffset).toBe(1);
+    const webActivity = {
+      title: 'Old Web edit',
+      type: 'flight' as const,
+      time: '22:25',
+      end_time: '00:20',
+      location: null,
+      location_name: '',
+      note: '',
+      confirmation_code: '',
+    };
+    expect(
+      (
+        await mutateItineraryActivity(trip.toString(), day.dayId, {
+          operation: 'update',
+          activity_id: a.activityId!,
+          expected_activity_revision: 2,
+          activity: webActivity,
+        })
+      ).success
+    ).toBe(true);
+    expect((await context()).days[0].activities[0].endDayOffset).toBe(1);
+    // Whole-day writes retain only fields belonging to each stable ID, not by row position.
+    const b = await addActivity(day.dayId);
+    const ctx = await context();
+    expect(
+      (
+        await updateItineraryDay(trip.toString(), day.dayId, {
+          expected_revision: ctx.days[0].revision,
+          activities: [
+            { ...webActivity, id: b.activityId! },
+            { ...webActivity, id: a.activityId! },
+            { ...webActivity, id: null },
+          ],
+        })
+      ).success
+    ).toBe(true);
+    const after = (await context()).days[0].activities;
+    expect(after.find((x) => x.id === a.activityId)?.endDayOffset).toBe(1);
+    expect(after.filter((x) => x.id !== a.activityId).map((x) => x.endDayOffset)).toEqual([
+      null,
+      null,
+    ]);
+    const current = after.find((x) => x.id === a.activityId)!;
+    expect(
+      await write({
+        ...input,
+        client_request_id: randomUUID(),
+        expected_activity_revision: current.revision,
+        activity: { ...activity, endDayOffset: null },
+      })
+    ).toMatchObject({ status: 'committed' });
+    expect(
+      (await context()).days[0].activities.find((x) => x.id === a.activityId)?.endDayOffset
+    ).toBeNull();
+    expect(await write(legacy)).toEqual(committed);
+    await expect(
+      write({ ...legacy, activity: { ...legacy.activity, endDayOffset: null } })
+    ).rejects.toMatchObject({ code: 'IDEMPOTENCY_CONFLICT' });
+  });
+  it('CD0 a date edit invalidates stale activity and whole-day snapshots under concurrent Web/native writes', async () => {
+    const day = await addDay();
+    const a = await addActivity(day.dayId);
+    const ctx = await context();
+    const input = {
+      operation: 'activity.update',
+      client_request_id: randomUUID(),
+      dayId: day.dayId,
+      activityId: a.activityId,
+      expected_activity_revision: 0,
+      activity: { ...activity, endDayOffset: 1 },
+    };
+    const results = await Promise.all([
+      write(input),
+      write({
+        ...input,
+        client_request_id: randomUUID(),
+        activity: { ...activity, endDayOffset: -1 },
+      }),
+    ]);
+    expect(results.filter((x) => x.status === 'committed')).toHaveLength(1);
+    expect(results.filter((x) => x.status === 'rejected')).toMatchObject([{ code: 'CONFLICT' }]);
+    expect(
+      await updateItineraryDay(trip.toString(), day.dayId, {
+        expected_revision: ctx.days[0].revision,
+        title: 'Stale',
+      })
+    ).toMatchObject({ success: false, code: 'CONFLICT' });
+  });
+  it('CD0 replays an immutable pre-field receipt even when its activity is gone', async () => {
+    const input = {
+      operation: 'activity.update',
+      client_request_id: randomUUID(),
+      dayId: oid().toString(),
+      activityId: oid().toString(),
+      expected_activity_revision: 2,
+      activity,
+    };
+    const oldCanonical = (value: unknown): unknown => {
+      if (Array.isArray(value)) return value.map(oldCanonical);
+      if (!value || typeof value !== 'object') return value;
+      return Object.fromEntries(
+        Object.entries(value)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([k, v]) => [k, oldCanonical(v)])
+      );
+    };
+    const fingerprint = createHash('sha256')
+      .update(JSON.stringify(oldCanonical({ version: 2, tripId: trip.toString(), input })))
+      .digest('hex');
+    const terminal = {
+      status: 'committed',
+      operation: 'activity.update',
+      client_request_id: input.client_request_id,
+      tripId: trip.toString(),
+      result: {
+        dayId: input.dayId,
+        dayRevision: 6,
+        activityId: input.activityId,
+        activityRevision: 3,
+        deleted: false,
+      },
+    };
+    const oldReceipt = {
+      _id: `${admin}:${input.client_request_id}`,
+      trip,
+      fingerprint,
+      terminal,
+      createdAt: new Date('2026-10-01'),
+    };
+    await mongoose.connection
+      .db!.collection<{ _id: string } & mongo.Document>(ITINERARY_RECEIPTS)
+      .insertOne(oldReceipt);
+    expect(await write(input)).toEqual(terminal);
+    expect(
+      await mongoose.connection
+        .db!.collection(ITINERARY_RECEIPTS)
+        .findOne({ _id: oldReceipt._id } as mongo.Document)
+    ).toEqual(oldReceipt);
   });
 });
 

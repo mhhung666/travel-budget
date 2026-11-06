@@ -1,3 +1,4 @@
+import { MAX_ITINERARY_END_DAY_OFFSET } from '@travel-budget/contracts';
 import mongoose, { Schema, type InferSchemaType, type Model } from 'mongoose';
 
 /** 當日活動的類型。`transport` 僅保留給舊資料，新活動拆成航班與地面交通。 */
@@ -39,6 +40,14 @@ const ActivitySchema = new Schema({
   // "HH:mm" 24 小時制；null＝未指定時間（渲染時排在有時間的活動之後）
   time: { type: String, default: null },
   endTime: { type: String, default: null },
+  // Missing/nullable is deliberately unconfirmed, never guessed from time/endTime.
+  endDayOffset: {
+    type: Number,
+    default: null,
+    min: -MAX_ITINERARY_END_DAY_OFFSET,
+    max: MAX_ITINERARY_END_DAY_OFFSET,
+    validate: { validator: (value: number | null) => value === null || Number.isInteger(value) },
+  },
   title: { type: String, required: true },
   type: { type: String, enum: ACTIVITY_TYPES, default: 'other' },
   // 活動地點（城市/景點），結構同 ItineraryDay.location；null＝未設。

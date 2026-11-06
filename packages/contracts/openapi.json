@@ -15946,6 +15946,18 @@
                           }
                         ]
                       },
+                      "endDayOffset": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "minimum": -3650,
+                            "maximum": 3650
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
                       "endTime": {
                         "anyOf": [
                           {
@@ -16207,6 +16219,18 @@
                           }
                         ]
                       },
+                      "endDayOffset": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "minimum": -3650,
+                            "maximum": 3650
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
                       "endTime": {
                         "anyOf": [
                           {
@@ -16355,6 +16379,19 @@
               ],
               "additionalProperties": false
             }
+          },
+          "capabilities": {
+            "type": "object",
+            "properties": {
+              "activityEndDayOffset": {
+                "type": "boolean",
+                "const": true
+              }
+            },
+            "required": [
+              "activityEndDayOffset"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -16772,6 +16809,18 @@
                       }
                     ]
                   },
+                  "endDayOffset": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": -3650,
+                        "maximum": 3650
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "location": {
                     "anyOf": [
                       {
@@ -16919,6 +16968,18 @@
                       {
                         "type": "string",
                         "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "endDayOffset": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": -3650,
+                        "maximum": 3650
                       },
                       {
                         "type": "null"
@@ -17212,6 +17273,10 @@
       "ActivityDeletionInput": {
         "type": "object",
         "properties": {
+          "includeEndDayOffset": {
+            "type": "boolean",
+            "const": true
+          },
           "dayId": {
             "type": "string",
             "pattern": "^[a-f\\d]{24}$"
@@ -17261,6 +17326,10 @@
       "ActivityDeletionPreviewInput": {
         "type": "object",
         "properties": {
+          "includeEndDayOffset": {
+            "type": "boolean",
+            "const": true
+          },
           "dayId": {
             "type": "string",
             "pattern": "^[a-f\\d]{24}$"
@@ -17361,6 +17430,18 @@
                     {
                       "type": "string",
                       "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "endDayOffset": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -3650,
+                      "maximum": 3650
                     },
                     {
                       "type": "null"

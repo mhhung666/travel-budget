@@ -190,4 +190,8 @@ GET／POST `/api/v2/me/friends` 及 POST `/api/v2/me/friends/{friendshipId}` 提
 
 ## BD1 同日活動批次刪除
 
-管理員 `POST /api/v2/trips/:id/itinerary/activity-deletions/preview`、`POST .../activity-deletions` 及 `GET .../activity-deletions/:uuid` 已提供獨立嚴格契約，與 Web cookie actions 共用原子服務；目前 App 尚未接入。最多 15 個不同活動、所選 revision／日上下文核對、無副作用預覽／查詢與 actor／UUID 終局、資料最小化及未知結果恢復見 [共同設計](../../../docs/design/ITINERARY_BATCH_DELETE.md#bd1-實作與交接) 與 contracts OpenAPI。沿用 no-store／Vary Authorization，公開分享不增加端點或私人票券資料；單筆維護端點及既有 receipt 保持相容，無 migration。`test:mobile-api` 已加入可丟棄本機 replica-set 與真 HTTP 恢復案例，不取代 Web／iOS 實際操作。
+管理員 `POST /api/v2/trips/:id/itinerary/activity-deletions/preview`、`POST .../activity-deletions` 及 `GET .../activity-deletions/:uuid` 已提供獨立嚴格契約，與 Web cookie actions 共用原子服務；BD2 App 已接入。最多 15 個不同活動、所選 revision／日上下文核對、無副作用預覽／查詢與 actor／UUID 終局、資料最小化及未知結果恢復見 [共同設計](../../../docs/design/ITINERARY_BATCH_DELETE.md#bd1-實作與交接) 與 contracts OpenAPI。沿用 no-store／Vary Authorization，公開分享不增加端點或私人票券資料；單筆維護端點及既有 receipt 保持相容，無 migration。`test:mobile-api` 已加入可丟棄本機 replica-set 與真 HTTP 恢復案例，不取代 Web／iOS 實際操作。
+
+## CD0 跨日資料與相容
+
+v2 行程 read／edit context 與寫入新增可空 `endDayOffset`，編輯 context 宣告 `capabilities.activityEndDayOffset`；省略更新保留、明確 null 清除，沒有新 API 版本。Web 單筆／整日寫入共用相同保留規則。批次預覽只有 `includeEndDayOffset: true` 才輸出新 target 欄位，原 UUID／receipt 不改寫。共同範圍、migration、能力與後續畫面交接見 [唯一規格](../../../docs/design/ITINERARY_PRESENTATION.md#cd0-實作與交接)；本輪沒有開放跨日表單或延續提示。

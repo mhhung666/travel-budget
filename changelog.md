@@ -4,10 +4,11 @@
 
 ## Unreleased
 
-### 2026-11-06：行程跨日與兩端版面規劃
+### 2026-11-06：行程跨日共用後端與版面規劃
 
-- 建立 [共用規劃](docs/design/ITINERARY_PRESENTATION.md)，統一 Web／App 選日、日卡、活動列與表單配置；定義明確結束日、未知舊資料與延續提示，依共用後端 → Web → App → 提示／驗收交付。
-- App UI-M 併入新計畫，文件入口與路線同步；僅規劃，未改程式、契約或資料，既有裝置驗收與 BD3 暫緩狀態保留。
+- 建立 [共用規劃](docs/design/ITINERARY_PRESENTATION.md)，統一 Web／App 版面與跨日語意；CD0 新增有界可空日差、共用日期規則、v2 能力及相容預覽，舊 App／整日更新保留原值，UUID／歷史 receipt 不改寫。
+- 新增缺欄補 null 的可重跑 migration 及 60 項兩端／恢復／隔離交易回歸；完整測試、frozen install、check／build、Expo／三平台匯出與本機真 HTTP／DB 通過；Web 讀取快取更新仍保留 outbox，不猜測舊活動日期，未執行遠端 migration。
+- CD1–CD4 畫面、延續提示與聯合驗收未開始；既有 BD3 暫緩與裝置待驗保留。工程結果集中於共同設計，獨立審查另行執行。
 
 ### 2026-11-06：Web 日卡排版與命名
 

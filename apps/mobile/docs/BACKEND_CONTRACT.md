@@ -45,6 +45,12 @@ target 為嚴格互斥的 `{ date, expected_start_date, expected_end_date }` 或
 
 編輯 context 與影響摘要採同一授權 snapshot，按三個 collection 批次讀取、無逐日 N+1；查詢與寫入的完整游標使用 per-operation CSOT 共用 20 秒期限（包括重試與 commit），避免 MongoDB driver 7.2 在非 awaitData getMore 帶 maxTimeMS 的相容性錯誤。新寫入仍共用 trip fence，和既有 Web 管理、相片／支出關聯寫入協調。
 
+## CD0 跨日相容契約
+
+行程讀取／edit context 新增可選 `endDayOffset`（−3650～3650 整數或 null）；缺值為未確認。activity create 省略存 null、update 省略保留原值、顯式 null 清除，不依時鐘次序猜測。編輯 context 可選 `capabilities.activityEndDayOffset: true` 為新欄位能力；缺能力的後端不可靜默降級新日期輸入。App 表單與版面接 CD2，目前舊表單只改文字亦不清除後端已確認日差。
+
+批次預覽／刪除命令可帶 `includeEndDayOffset: true` 才在 target 輸出此欄位，保護既有 strict decoder；原請求／終局 receipt／SQLite schema 與 UUID 不改寫。共用日期規則、migration、fixture 與各階段限制集中於 [共同設計](../../../docs/design/ITINERARY_PRESENTATION.md#cd0-實作與交接)。
+
 ## BD2 活動批次刪除
 
 App 已接 BD1 的獨立 preview／submit／lookup 契約：`POST /trips/{id}/itinerary/activity-deletions/preview`、`POST .../activity-deletions`、`GET .../activity-deletions/{uuid}`。最多 15 個不同活動 ID、原選取 revision、確認上下文 hash 及固定 UUID；runtime 直接使用共用 `activityDeletion*` schemas，不改既有六種單筆 command。完整交易、票券保留、授權與相容規則只維護於 [共同設計](../../../docs/design/ITINERARY_BATCH_DELETE.md#共用後端與契約設計)。

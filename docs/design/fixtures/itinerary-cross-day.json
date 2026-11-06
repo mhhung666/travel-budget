@@ -1,0 +1,268 @@
+[
+  {
+    "name": "same-day",
+    "input": {
+      "startDate": "2026-01-12",
+      "dayNumber": 1,
+      "time": "09:00",
+      "endTime": "10:00",
+      "endDayOffset": 0
+    },
+    "expected": {
+      "startDate": "2026-01-12",
+      "endDate": "2026-01-12",
+      "endDayNumber": 1,
+      "endDayOffset": 0,
+      "endDateUnconfirmed": false,
+      "needsEndDateConfirmation": false,
+      "forwardCrossDay": false
+    }
+  },
+  {
+    "name": "overnight",
+    "input": {
+      "startDate": "2026-01-12",
+      "dayNumber": 1,
+      "time": "22:25",
+      "endTime": "00:20",
+      "endDayOffset": 1
+    },
+    "expected": {
+      "startDate": "2026-01-12",
+      "endDate": "2026-01-13",
+      "endDayNumber": 2,
+      "endDayOffset": 1,
+      "endDateUnconfirmed": false,
+      "needsEndDateConfirmation": false,
+      "forwardCrossDay": true
+    }
+  },
+  {
+    "name": "multiple-days",
+    "input": {
+      "startDate": "2026-01-12",
+      "dayNumber": 1,
+      "time": "09:00",
+      "endTime": "12:00",
+      "endDayOffset": 3
+    },
+    "expected": {
+      "startDate": "2026-01-12",
+      "endDate": "2026-01-15",
+      "endDayNumber": 4,
+      "endDayOffset": 3,
+      "endDateUnconfirmed": false,
+      "needsEndDateConfirmation": false,
+      "forwardCrossDay": true
+    }
+  },
+  {
+    "name": "earlier-local-date",
+    "input": {
+      "startDate": "2026-01-12",
+      "dayNumber": 1,
+      "time": "09:00",
+      "endTime": "07:00",
+      "endDayOffset": -1
+    },
+    "expected": {
+      "startDate": "2026-01-12",
+      "endDate": "2026-01-11",
+      "endDayNumber": 0,
+      "endDayOffset": -1,
+      "endDateUnconfirmed": false,
+      "needsEndDateConfirmation": false,
+      "forwardCrossDay": false
+    }
+  },
+  {
+    "name": "unknown-legacy",
+    "input": {
+      "startDate": "2026-01-12",
+      "dayNumber": 1,
+      "time": "22:25",
+      "endTime": "00:20",
+      "endDayOffset": null
+    },
+    "expected": {
+      "startDate": "2026-01-12",
+      "endDate": null,
+      "endDayNumber": null,
+      "endDayOffset": null,
+      "endDateUnconfirmed": true,
+      "needsEndDateConfirmation": true,
+      "forwardCrossDay": false
+    }
+  },
+  {
+    "name": "same-day-earlier-clock",
+    "input": {
+      "startDate": "2026-01-12",
+      "dayNumber": 1,
+      "time": "22:25",
+      "endTime": "00:20",
+      "endDayOffset": 0
+    },
+    "expected": {
+      "startDate": "2026-01-12",
+      "endDate": "2026-01-12",
+      "endDayNumber": 1,
+      "endDayOffset": 0,
+      "endDateUnconfirmed": false,
+      "needsEndDateConfirmation": false,
+      "forwardCrossDay": false
+    }
+  },
+  {
+    "name": "leap-day",
+    "input": {
+      "startDate": "2028-02-28",
+      "dayNumber": 2,
+      "time": "23:00",
+      "endTime": "00:20",
+      "endDayOffset": 1
+    },
+    "expected": {
+      "startDate": "2028-02-29",
+      "endDate": "2028-03-01",
+      "endDayNumber": 3,
+      "endDayOffset": 1,
+      "endDateUnconfirmed": false,
+      "needsEndDateConfirmation": false,
+      "forwardCrossDay": true
+    }
+  },
+  {
+    "name": "new-year",
+    "input": {
+      "startDate": "2026-12-31",
+      "dayNumber": 1,
+      "time": "23:00",
+      "endTime": "00:20",
+      "endDayOffset": 1
+    },
+    "expected": {
+      "startDate": "2026-12-31",
+      "endDate": "2027-01-01",
+      "endDayNumber": 2,
+      "endDayOffset": 1,
+      "endDateUnconfirmed": false,
+      "needsEndDateConfirmation": false,
+      "forwardCrossDay": true
+    }
+  },
+  {
+    "name": "missing-start-time",
+    "input": {
+      "startDate": "2026-01-12",
+      "dayNumber": 2,
+      "time": null,
+      "endTime": "10:00",
+      "endDayOffset": 2
+    },
+    "expected": {
+      "startDate": "2026-01-13",
+      "endDate": "2026-01-15",
+      "endDayNumber": 4,
+      "endDayOffset": 2,
+      "endDateUnconfirmed": false,
+      "needsEndDateConfirmation": false,
+      "forwardCrossDay": true
+    }
+  },
+  {
+    "name": "missing-end-time",
+    "input": {
+      "startDate": "2026-01-12",
+      "dayNumber": 1,
+      "time": "22:25",
+      "endTime": null,
+      "endDayOffset": 1
+    },
+    "expected": {
+      "startDate": "2026-01-12",
+      "endDate": "2026-01-13",
+      "endDayNumber": 2,
+      "endDayOffset": 1,
+      "endDateUnconfirmed": false,
+      "needsEndDateConfirmation": false,
+      "forwardCrossDay": true
+    }
+  },
+  {
+    "name": "undated-trip",
+    "input": {
+      "startDate": null,
+      "dayNumber": 4,
+      "time": "22:25",
+      "endTime": "00:20",
+      "endDayOffset": 2
+    },
+    "expected": {
+      "startDate": null,
+      "endDate": null,
+      "endDayNumber": 6,
+      "endDayOffset": 2,
+      "endDateUnconfirmed": false,
+      "needsEndDateConfirmation": false,
+      "forwardCrossDay": true
+    }
+  },
+  {
+    "name": "dst-date-only",
+    "input": {
+      "startDate": "2026-03-07",
+      "dayNumber": 1,
+      "time": "22:25",
+      "endTime": "00:20",
+      "endDayOffset": 2
+    },
+    "expected": {
+      "startDate": "2026-03-07",
+      "endDate": "2026-03-09",
+      "endDayNumber": 3,
+      "endDayOffset": 2,
+      "endDateUnconfirmed": false,
+      "needsEndDateConfirmation": false,
+      "forwardCrossDay": true
+    }
+  },
+  {
+    "name": "equal-clock",
+    "input": {
+      "startDate": "2026-01-12",
+      "dayNumber": 1,
+      "time": "09:00",
+      "endTime": "09:00",
+      "endDayOffset": 0
+    },
+    "expected": {
+      "startDate": "2026-01-12",
+      "endDate": "2026-01-12",
+      "endDayNumber": 1,
+      "endDayOffset": 0,
+      "endDateUnconfirmed": false,
+      "needsEndDateConfirmation": false,
+      "forwardCrossDay": false
+    }
+  },
+  {
+    "name": "unknown-dates-no-clock",
+    "input": {
+      "startDate": null,
+      "dayNumber": 5,
+      "time": null,
+      "endTime": null,
+      "endDayOffset": null
+    },
+    "expected": {
+      "startDate": null,
+      "endDate": null,
+      "endDayNumber": null,
+      "endDayOffset": null,
+      "endDateUnconfirmed": true,
+      "needsEndDateConfirmation": false,
+      "forwardCrossDay": false
+    }
+  }
+]

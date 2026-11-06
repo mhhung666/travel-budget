@@ -19,7 +19,7 @@ C／D 剩餘閱讀器等項目依既有決定暫緩；不是所有新功能驗�
 
 ## App 行程與通知
 
-下一輪功能規劃為 [行程共用版面與跨日活動](../../../docs/design/ITINERARY_PRESENTATION.md)：CD0 共用後端與相容規則 → CD1 Web → CD2 App 跨日與整體版面對齊 → CD3 兩端延續提示 → CD4 聯合驗收，均尚未開始。既有 App UI-M 併入 CD2，包含選日、日卡、工具列與活動列，不能只補日期文字；原行程階段 3／4 仍未啟動。
+下一輪功能規劃為 [行程共用版面與跨日活動](../../../docs/design/ITINERARY_PRESENTATION.md)：CD0 共用後端與相容規則 → CD1 Web → CD2 App 跨日與整體版面對齊 → CD3 兩端延續提示 → CD4 聯合驗收；CD0 共用資料／相容後端已實作，待獨立審查，CD1–CD4 未開始。既有 App UI-M 併入 CD2，包含選日、日卡、工具列與活動列，不能只補日期文字；原行程階段 3／4 仍未啟動。
 
 目前收尾：[行程活動多選刪除](../../../docs/design/ITINERARY_BATCH_DELETE.md)（2026-11-06）。BD1 Web／共用後端已實作並通過獨立程式審查，實際操作待驗；BD2 App 同日選取／確認／恢復已通過獨立程式審查與自動檢查，iPhone／iPad／VoiceOver 待驗，見 [交接](LOCAL_ACCEPTANCE.md#bd2-app-同日活動多選刪除)。依 [收尾清單](../../../docs/design/ITINERARY_BATCH_DELETE.md#本項目收尾) 核對提交後 CI、兩端操作與真網路恢復後結案。BD3 跨日暫緩、多選整天仍為未排程候選，均不阻擋本輪結案；原階段 3／4 保留，未自動啟動。
 

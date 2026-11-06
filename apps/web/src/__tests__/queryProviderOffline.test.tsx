@@ -172,7 +172,7 @@ describe('QueryProvider offline startup', () => {
           ? 'invalid json'
           : JSON.stringify({
               timestamp: kind === 'expired' ? 1 : Date.now(),
-              buster: kind === 'incompatible' ? 'old' : 'v14-ledger',
+              buster: kind === 'incompatible' ? 'old' : 'v15-itinerary-end-day',
               clientState: { mutations: [], queries: [] },
             })
       );
@@ -357,7 +357,7 @@ describe('QueryProvider offline startup', () => {
       persistKey,
       JSON.stringify({
         timestamp: Date.now(),
-        buster: 'v14-ledger',
+        buster: 'v15-itinerary-end-day',
         clientState: dehydrate(snapshot),
       })
     );
@@ -411,7 +411,7 @@ describe('QueryProvider offline startup', () => {
         persistKey,
         JSON.stringify({
           timestamp: Date.now(),
-          buster: 'v14-ledger',
+          buster: 'v15-itinerary-end-day',
           clientState: dehydrate(snapshot),
         })
       );
@@ -463,7 +463,7 @@ describe('QueryProvider offline startup', () => {
       persistKey,
       JSON.stringify({
         timestamp: Date.now(),
-        buster: 'v14-ledger',
+        buster: 'v15-itinerary-end-day',
         clientState: dehydrate(snapshot),
       })
     );
@@ -560,7 +560,7 @@ describe('QueryProvider offline startup', () => {
         persistKey,
         JSON.stringify({
           timestamp: now - (older ? 2000 : 0),
-          buster: 'v14-ledger',
+          buster: 'v15-itinerary-end-day',
           clientState: dehydrate(snapshot),
         })
       );
@@ -599,7 +599,7 @@ describe('QueryProvider offline startup', () => {
         persistKey,
         JSON.stringify({
           timestamp: Date.now(),
-          buster: 'v14-ledger',
+          buster: 'v15-itinerary-end-day',
           clientState: dehydrate(snapshot),
         })
       );

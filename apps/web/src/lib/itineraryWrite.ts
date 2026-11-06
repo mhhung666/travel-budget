@@ -167,6 +167,7 @@ export async function readItineraryEditContext(db: mongo.Db, actorId: string, tr
     const byId = new Map(dto.map((d) => [d.id, d]));
     return itineraryEditContextSchema.parse({
       ...itinerary,
+      capabilities: { activityEndDayOffset: true },
       days: itinerary.days.map((day) => ({
         ...day,
         revision: byId.get(day.id)!.revision,
@@ -258,6 +259,7 @@ async function applyCommand(
   const activity = {
     ...input.activity,
     end_time: input.activity.endTime,
+    end_day_offset: input.activity.endDayOffset,
     location_name: input.activity.locationName,
     confirmation_code: input.activity.confirmationCode,
     attachments: (target?.attachments ?? []).map(

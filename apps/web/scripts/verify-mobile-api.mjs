@@ -51,6 +51,7 @@ import {
   verifyLedgerAcceptanceHttp,
 } from './ledger-acceptance.mjs';
 import { verifyItineraryBatchDelete } from './verify-itinerary-batch-delete.mjs';
+import { verifyItineraryCrossDay } from './verify-itinerary-cross-day.mjs';
 import { createLocalMailbox } from './local-mailbox.mjs';
 
 const args = new Set(process.argv.slice(2));
@@ -3831,6 +3832,12 @@ try {
   const eCreator = await login('mobile-empty');
   const eJoiner = await login('mobile-b');
   await verifyItineraryBatchDelete({ db, request, owner: eCreator, member: eJoiner });
+  await verifyItineraryCrossDay({ db, request, owner: eCreator, member: eJoiner });
+  const crossDayTransactions = await exec('pnpm', ['exec', 'vitest', 'run', 'src/__tests__/itineraryWrite.integration.test.ts'], {
+    env: { ...process.env, MONGODB_MEMBER_TEST_URI: uri, MONGODB_MEMBER_TEST_ALLOW_WRITES: '1' }, maxBuffer: 1024 * 1024,
+  });
+  assert(crossDayTransactions.stdout.includes('passed'), 'CD0 itinerary transaction cases did not run');
+  pass('CD0 isolated native/Web single and whole-day preservation, concurrent date edits, UUID and legacy receipts');
   const batchTransactions = await exec('pnpm', ['exec', 'vitest', 'run', 'src/__tests__/itineraryBatchDelete.integration.test.ts'], {
     env: { ...process.env, MONGODB_MEMBER_TEST_URI: uri, MONGODB_MEMBER_TEST_ALLOW_WRITES: '1' }, maxBuffer: 1024 * 1024,
   });

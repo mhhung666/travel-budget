@@ -1,3 +1,4 @@
+import { itineraryEndDayOffsetSchema } from '@travel-budget/contracts';
 import { newPasswordSchema } from '@travel-budget/contracts';
 import { displayNameInputSchema } from '@travel-budget/contracts';
 import { expenseSplitInput, virtualMemberNameSchema } from '@travel-budget/contracts';
@@ -286,6 +287,7 @@ const timeOfDaySchema = z
 export const activitySchema = z.object({
   time: timeOfDaySchema,
   end_time: timeOfDaySchema,
+  end_day_offset: itineraryEndDayOffsetSchema.optional(),
   title: z.string().min(1, '活動標題不能為空').trim(),
   type: z
     .enum([

@@ -159,6 +159,47 @@ export const itineraryLocationSchema = z.object({
   country: z.string().optional(),
   country_code: z.string().optional(),
 });
+/** Signed local-calendar day difference, never inferred from clock order. */
+export const MAX_ITINERARY_END_DAY_OFFSET = 3650;
+export const itineraryEndDayOffsetSchema = z
+  .number()
+  .int()
+  .min(-MAX_ITINERARY_END_DAY_OFFSET)
+  .max(MAX_ITINERARY_END_DAY_OFFSET)
+  .nullable();
+
+/** Pure date-only semantics shared by both clients. No timezone or duration inference. */
+export function itineraryActivityTiming(input: {
+  startDate: string | null;
+  dayNumber: number;
+  time: string | null;
+  endTime: string | null;
+  endDayOffset?: number | null;
+}) {
+  const offset = itineraryEndDayOffsetSchema.parse(input.endDayOffset ?? null);
+  if (!Number.isInteger(input.dayNumber) || input.dayNumber < 1 || input.dayNumber > 3650)
+    throw new Error('Invalid itinerary day');
+  const start = input.startDate === null ? null : dateSchema.parse(input.startDate);
+  const dateAt = (day: number): string | null => {
+    if (start === null) return null;
+    const date = new Date(`${start}T00:00:00.000Z`);
+    date.setUTCDate(date.getUTCDate() + day - 1);
+    return dateSchema.parse(date.toISOString().slice(0, 10));
+  };
+  const endDayNumber = offset === null ? null : input.dayNumber + offset;
+  return {
+    startDate: dateAt(input.dayNumber),
+    endDate: endDayNumber === null ? null : dateAt(endDayNumber),
+    endDayNumber,
+    endDayOffset: offset,
+    endDateUnconfirmed: offset === null,
+    // Only a warning about missing information; never automatically choose tomorrow.
+    needsEndDateConfirmation:
+      offset === null && !!input.time && !!input.endTime && input.endTime < input.time,
+    forwardCrossDay: offset !== null && offset > 0,
+  };
+}
+
 export const itineraryActivitySchema = z.object({
   id: idSchema,
   title: z.string(),
@@ -177,6 +218,7 @@ export const itineraryActivitySchema = z.object({
     .string()
     .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
     .nullable(),
+  endDayOffset: itineraryEndDayOffsetSchema.optional(),
   endTime: z
     .string()
     .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
@@ -239,6 +281,8 @@ export const itineraryActivityInput = z
     type: itineraryActivitySchema.shape.type,
     time: itineraryActivitySchema.shape.time,
     endTime: itineraryActivitySchema.shape.endTime,
+    // Do not default: omission must survive persisted payload decoding and UUID hashing.
+    endDayOffset: itineraryEndDayOffsetSchema.optional(),
     location: itineraryWriteLocation.nullable(),
     locationName: z.string().trim().max(300),
     note: z.string().max(50000),
@@ -354,6 +398,7 @@ export const itineraryDeleteImpactSchema = z.object({
   revision: z.string().regex(/^[a-f0-9]{64}$/),
 });
 export const itineraryEditContextSchema = itinerarySchema.extend({
+  capabilities: z.object({ activityEndDayOffset: z.literal(true) }).optional(),
   days: z.array(
     itineraryDaySchema.extend({
       revision: itineraryRevisionSchema,
@@ -383,6 +428,8 @@ export const activityDeletionTargetsSchema = z
   );
 export const activityDeletionPreviewInput = z
   .object({
+    // Opt in: pre-CD0 App preview decoders are strict and reject new target fields.
+    includeEndDayOffset: z.literal(true).optional(),
     dayId: idSchema,
     targets: activityDeletionTargetsSchema,
   })
@@ -403,6 +450,7 @@ export const activityDeletionPreviewSchema = z
             title: z.string(),
             time: itineraryActivitySchema.shape.time,
             endTime: itineraryActivitySchema.shape.endTime,
+            endDayOffset: itineraryEndDayOffsetSchema.optional(),
             locationName: z.string(),
           })
           .strict()
