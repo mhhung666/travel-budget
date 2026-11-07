@@ -1504,6 +1504,12 @@
       "leave": "Leave and clear the selection?"
     },
     "addDayNotes": "Add day notes",
+    "continuation": {
+      "heading": "Continuing activities",
+      "source": "Continues from Day {n} · {title}",
+      "view": "View original activity",
+      "gone": "The original activity is no longer available. Refresh the itinerary."
+    },
     "timing": {
       "day": "Day {n}",
       "nextDay": "Next day",

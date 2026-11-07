@@ -9,6 +9,13 @@ import type { ActivityType } from '@/types';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@/components/ui/select';
 
 type Value = { time: string; endTime: string; endDayOffset: number | null; type: ActivityType };
 export default function ActivityTimeFields({
@@ -89,18 +96,17 @@ export default function ActivityTimeFields({
       </div>
       <div className="space-y-1">
         <Label htmlFor={`${id}-ends`}>{t('endsOn')}</Label>
-        <select
-          id={`${id}-ends`}
-          className="flex min-h-11 w-full rounded-md border bg-background px-3 py-2 text-sm"
-          value={mode}
-          disabled={!supported}
-          onChange={(e) => choose(e.target.value)}
-        >
-          <option value="0">{t('sameDay')}</option>
-          <option value="1">{t('nextDay')}</option>
-          <option value="other">{t(date ? 'otherDate' : 'otherDay')}</option>
-          <option value="unknown">{t('unconfirmed')}</option>
-        </select>
+        <Select value={mode} disabled={!supported} onValueChange={choose}>
+          <SelectTrigger id={`${id}-ends`} className="min-w-0">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="0">{t('sameDay')}</SelectItem>
+            <SelectItem value="1">{t('nextDay')}</SelectItem>
+            <SelectItem value="other">{t(date ? 'otherDate' : 'otherDay')}</SelectItem>
+            <SelectItem value="unknown">{t('unconfirmed')}</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
       {mode === 'other' && (
         <div className="space-y-1">

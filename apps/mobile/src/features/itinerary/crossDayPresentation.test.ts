@@ -83,12 +83,13 @@ it.each(fixtures)(
       itineraryPresentationMessages.en
     );
     expect(timing.summary).toContain(expected.startDate ?? `Day ${input.dayNumber}`);
-    expect(timing.summary).toContain(
-      expected.endDate ??
-        (expected.endDayNumber === null
-          ? itineraryPresentationMessages.en.unconfirmed
-          : `Day ${expected.endDayNumber}`)
-    );
+    if (input.endTime || (input.endDayOffset != null && input.endDayOffset !== 0))
+      expect(timing.summary).toContain(
+        expected.endDate ??
+          (expected.endDayNumber === null
+            ? itineraryPresentationMessages.en.unconfirmed
+            : `Day ${expected.endDayNumber}`)
+      );
     expect(timing.endDate).toBe(expected.endDate);
     if (!input.time && !input.endTime) expect(timing.summary).not.toContain('00:00');
   }
@@ -211,3 +212,18 @@ it('restores an old omitted update against the current known end date without re
     sameActivitySnapshot(context, { ...context, capabilities: undefined }, dayId, activityId)
   ).toBe(false);
 });
+
+it.each([undefined, null, 0])(
+  'keeps start-only entries as points, with no artificial end (%s)',
+  (offset) => {
+    const result = activityTiming(
+      { time: '09:00', endTime: null, endDayOffset: offset },
+      { dayNumber: 1, date: '2028-02-29' },
+      messages.en,
+      itineraryPresentationMessages.en
+    );
+    expect(result.compactStart).toBe('09:00');
+    expect(result.compactEnd).toBeNull();
+    expect(result.summary).toBe('2028-02-29 09:00');
+  }
+);

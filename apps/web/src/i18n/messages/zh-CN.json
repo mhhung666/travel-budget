@@ -1497,6 +1497,12 @@
       "leave": "离开并清除选择？"
     },
     "addDayNotes": "新增本日备注",
+    "continuation": {
+      "heading": "跨日延续",
+      "source": "接续 Day {n} · {title}",
+      "view": "查看原活动",
+      "gone": "原活动已不存在，请刷新行程。"
+    },
     "timing": {
       "day": "第 {n} 天",
       "nextDay": "次日",

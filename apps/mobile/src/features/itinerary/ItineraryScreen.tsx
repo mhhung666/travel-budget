@@ -1,24 +1,16 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { batchDeletionMessages } from '@/i18n/batchDeletionMessages';
 import { ActivityIndicator, FlatList, Text, View } from 'react-native';
-import type { ItineraryActivity, ItineraryLocation } from '@travel-budget/contracts';
+import type { ItineraryActivity } from '@travel-budget/contracts';
 import { ScreenFrame } from '@/components/frame';
 import { ScrollChrome } from '@/components/scrollChrome';
+import { ActivityDetails, LocationDetails, ReadableText } from './ActivityDetails';
+import { ActivityContinuations } from './ActivityContinuations';
 import { DaySelector } from './DaySelector';
 import { itineraryPresentationMessages } from '@/i18n/itineraryPresentationMessages';
 import { Disclosure } from '@/components/Disclosure';
-import {
-  Action,
-  Icon,
-  Copy,
-  DetailRow,
-  Notice,
-  Page,
-  Section,
-  Title,
-  usePalette,
-} from '@/components/ui';
+import { Action, Icon, Copy, Notice, Page, Section, Title, usePalette } from '@/components/ui';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { errorMessage, isAccessDenied } from '@/features/auth/errorMessage';
 import { useDraftCatalog } from '@/features/localDrafts/provider';
@@ -70,6 +62,7 @@ function ItineraryReader({
   tripId: string;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const dayHeading = useRef<Text>(null);
   const t = useMessages();
   const f = useDisplayFormat();
   const locale = useAppLocale();
@@ -162,6 +155,12 @@ function ItineraryReader({
                   {!day.content && (
                     <DayActions tripId={tripId} dayId={day.id} canEdit={canEdit} mode="notes" />
                   )}
+                  <ActivityContinuations
+                    days={days}
+                    targetDayId={day.id}
+                    trip={query.data}
+                    returnFocus={dayHeading}
+                  />
                   <View
                     testID="itinerary-activity-toolbar"
                     style={{
@@ -175,6 +174,8 @@ function ItineraryReader({
                     }}
                   >
                     <Text
+                      ref={dayHeading}
+                      accessible
                       accessibilityRole="header"
                       style={[typography.label, { color: p.text, fontWeight: '700', flexGrow: 1 }]}
                     >
@@ -258,26 +259,6 @@ function ItineraryReader({
     </ScreenFrame>
   );
 }
-function ReadableText({ children }: { children: string }) {
-  const p = usePalette();
-  return (
-    <Text selectable style={[typography.body, { color: p.text }]}>
-      {children}
-    </Text>
-  );
-}
-function LocationDetails({ location, locale }: { location: ItineraryLocation; locale: string }) {
-  const t = useMessages();
-  return (
-    <View style={{ gap: spacing.small }}>
-      <DetailRow label={t.itineraryLocation} value={locationName(location, '', locale)} />
-      {!!location.display_name && (
-        <DetailRow label={t.itineraryAddress} value={location.display_name} />
-      )}
-      <DetailRow label={t.itineraryCoordinates} value={`${location.lat}, ${location.lon}`} />
-    </View>
-  );
-}
 export function ActivityCard({
   activity,
   actions,
@@ -314,12 +295,18 @@ export function ActivityCard({
           gap: spacing.small,
         }}
       >
-        <View style={{ width: 76, gap: spacing.tiny }}>
-          <Text style={[typography.label, { color: p.muted, fontVariant: ['tabular-nums'] }]}>
-            {timing.start}
-          </Text>
-          <Text style={[typography.meta, { color: p.muted }]}>{timing.end}</Text>
-        </View>
+        {(timing.compactStart || timing.compactEnd) && (
+          <View testID="activity-clock" style={{ gap: spacing.tiny, flexShrink: 0 }}>
+            {timing.compactStart && (
+              <Text style={[typography.label, { color: p.muted, fontVariant: ['tabular-nums'] }]}>
+                {timing.compactStart}
+              </Text>
+            )}
+            {timing.compactEnd && (
+              <Text style={[typography.meta, { color: p.muted }]}>{timing.compactEnd}</Text>
+            )}
+          </View>
+        )}
         <View style={{ flex: 1, minWidth: 110, gap: spacing.tiny }}>
           <View style={{ flexDirection: 'row', gap: spacing.small, alignItems: 'flex-start' }}>
             <Icon name={activityIcon(activity.type)} color={p.primary} />
@@ -332,26 +319,14 @@ export function ActivityCard({
         </View>
         {actions}
       </View>
-      {timing.showSummary && <Copy>{timing.summary}</Copy>}
+      {timing.warning && <Copy>{copy.unconfirmed}</Copy>}
       {timing.outsideRange && <Notice tone="warning">{copy.outsideRange}</Notice>}
       <Disclosure
         testID={`itinerary-activity-${activity.id}`}
         title={t.itineraryDetails}
         accessibilityLabel={`${t.itineraryDetails} · ${timing.summary} · ${activity.title}`}
       >
-        <DetailRow label={copy.summary} value={timing.summary} />
-        {activity.location && <LocationDetails location={activity.location} locale={locale} />}
-        {!!activity.locationName && activity.locationName !== place && (
-          <DetailRow label={t.itineraryLocation} value={activity.locationName} />
-        )}
-        {!!activity.note && (
-          <Section title={t.itineraryNote}>
-            <ReadableText>{activity.note}</ReadableText>
-          </Section>
-        )}
-        {!!activity.confirmationCode && (
-          <DetailRow label={t.itineraryConfirmation} value={activity.confirmationCode} />
-        )}
+        <ActivityDetails activity={activity} day={day} trip={trip} />
       </Disclosure>
     </View>
   );

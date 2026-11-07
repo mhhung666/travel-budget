@@ -24,6 +24,8 @@ Server Actions 與 HTTP API 是兩個呼叫入口，部署初期同在現有 Nex
 
 行程 Query 使用 requestAs、AbortSignal 與 catalog 撤權世代守衛，403／404 納入 catalog 既有持久拒絕；畫面在 session／catalog／HTTP 拒絕任一成立時卸載私人閱讀器，晚到結果不能解除隱藏。沒有新 provider、SQLite 表、背景同步或票券儲存；本文／備註以原生可選取 Text 顯示，全部文字可換行。
 
+`ActivityContinuations` 在閱讀器共用 contracts 純投影，不進 FlatList 活動資料或批次頁；唯讀 Modal 以來源日／活動 ID 解讀最新 Query，與原列共用 `ActivityDetails`。關閉恢復原觸發項焦點及列表位置；來源消失清除詳情，換帳號／撤權沿閱讀器卸載。沒有新 Query、路由或持久化；四語來源摘要以 ICU 格式化。
+
 ## App 行程日維護與恢復
 
 `features/itinerary/ItineraryEditorScreen` 共用 2B／2C 的確認、未保存提醒、登入／catalog 守衛與提交狀態；`DayEditorScreen`／`ActivityEditorScreen` 提供各自欄位、快照與確認摘要，薄路由為 `trips/[id]/itinerary/day`／`activity`。按環境／帳號／登入世代／旅行／日／活動／模式重建；未確認輸入與已檢視 command 僅頁面記憶體，不因 refocus 重置。`dayForm`／`activityForm` 用共用 schema 驗證並組 command，最終授權、日期／版本／容量與關聯效果仍由 2A 後端決定。CD2 的 `ActivityTimeFields` 將日期選項與未確認輸入留在原表單記憶體，`activityForm` 只在能力成立時將有界日差放入確認 body；缺能力停用新欄位並以省略保留原值。`presentation.activityTiming` 依 API 來源日日期呼叫 contracts 的純 date-only 規則，供閱讀／詳情／衝突／批次摘要共用；不引入 Web 原始碼或時區引擎。活動只比對目標 revision；其他活動修改不觸發整日衝突，所屬日標題／日期變動仍要求重新確認。

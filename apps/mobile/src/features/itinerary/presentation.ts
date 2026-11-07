@@ -62,11 +62,19 @@ export function activityTiming(
     timing.endDayOffset === null
       ? `${copy.unconfirmed} ${endTime}`
       : `${transport ? copy.arrival : copy.end} ${endDate} ${endTime}`;
+  const point = !activity.endTime && (timing.endDayOffset === null || timing.endDayOffset === 0);
   return {
+    compactStart: activity.time || null,
+    compactEnd: activity.endTime
+      ? `${activity.endTime}${timing.endDayOffset ? ` ${timing.endDayOffset > 0 ? '+' : ''}${timing.endDayOffset}` : ''}`
+      : null,
+    warning: timing.needsEndDateConfirmation,
     start,
     end,
     endDate: timing.endDate,
-    summary: `${transport ? copy.departure : copy.start} ${startDate} ${start} → ${finish}`,
+    summary: point
+      ? `${startDate}${activity.time ? ` ${activity.time}` : ''}`
+      : `${transport ? copy.departure : copy.start} ${startDate} ${start} → ${finish}`,
     showSummary:
       (timing.endDayOffset !== null && timing.endDayOffset !== 0) ||
       timing.needsEndDateConfirmation,

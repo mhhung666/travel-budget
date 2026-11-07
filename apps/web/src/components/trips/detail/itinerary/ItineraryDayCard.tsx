@@ -1,5 +1,8 @@
 'use client';
 
+import type { ItineraryContinuation } from '@travel-budget/contracts';
+import { activityAnchorId } from '@/lib/itineraryContinuations';
+import { ActivityContinuations } from './ActivityContinuations';
 import { activityTimingLabels, activityTimingText } from '@/lib/activityTiming';
 import { ActivityBatchBar, useActivityBatchSelection } from './ActivityBatchDeletion';
 import {
@@ -39,6 +42,7 @@ import {
 
 interface ItineraryDayCardProps {
   day: ItineraryDay;
+  continuations?: readonly ItineraryContinuation[];
   /** 由旅程開始日與 day number 推算，不另外存入行程日。 */
   date?: string | null;
   outsideTripRange?: boolean;
@@ -69,6 +73,7 @@ interface ItineraryDayCardProps {
 
 export default function ItineraryDayCard({
   day,
+  continuations = [],
   date,
   outsideTripRange,
   tripStartDate,
@@ -99,8 +104,8 @@ export default function ItineraryDayCard({
   return (
     <Card className="shadow-sm hover:shadow-md transition-shadow">
       <CardHeader className="p-4 sm:p-6 pb-2 sm:pb-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex min-w-0 flex-1 basis-56 flex-wrap items-start gap-3">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+          <div className="flex min-w-0 flex-wrap items-start gap-3">
             <Badge variant="default" className="text-sm font-semibold h-7 px-3 shrink-0">
               Day {day.day_number}
             </Badge>
@@ -129,7 +134,7 @@ export default function ItineraryDayCard({
             </div>
           </div>
           {isAdmin && !selecting && (
-            <div className="ml-auto max-w-full">
+            <div className="min-w-0 max-w-36 justify-self-end">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -180,6 +185,7 @@ export default function ItineraryDayCard({
           </Button>
         ) : null}
 
+        <ActivityContinuations hints={continuations} />
         <div className="mt-4 flex flex-col border-t pt-3">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
             <h4 className="flex min-h-11 items-center gap-2 text-sm font-medium text-muted-foreground">
@@ -270,6 +276,7 @@ export default function ItineraryDayCard({
                   </span>
                 </label>
               );
+            const hasClock = !!(timing.compactStart || timing.compactEnd);
             const Icon = ACTIVITY_TYPE_ICON[activity.type] ?? MapPin;
             // 帶入旅行成就是個人紀錄，任何成員都能用；已帶入的只顯示獎章。
             const canImport =
@@ -277,14 +284,27 @@ export default function ItineraryDayCard({
             return (
               <div
                 key={activity.id}
-                className="grid grid-cols-[4.5rem_minmax(0,1fr)_auto] items-start gap-x-2 gap-y-1 border-b border-border/50 py-3 last:border-b-0 sm:grid-cols-[4.5rem_1.75rem_minmax(0,1fr)_auto] sm:gap-x-3"
+                id={activityAnchorId(day.id, activity.id)}
+                tabIndex={-1}
+                role="group"
+                aria-label={`${timing.summary} · ${activity.title}`}
+                className={`outline-none focus:ring-2 focus:ring-primary scroll-mt-[calc(var(--trip-space-header-height,0px)+5rem)] md:scroll-mt-[calc(var(--trip-space-header-height,0px)+9rem)] grid items-start gap-x-2 gap-y-1 border-b border-border/50 py-3 last:border-b-0 sm:gap-x-3 ${hasClock ? 'grid-cols-[max-content_minmax(0,1fr)_auto] sm:grid-cols-[max-content_1.75rem_minmax(0,1fr)_auto]' : 'grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[1.75rem_minmax(0,1fr)_auto]'}`}
               >
-                <div className="flex min-w-0 shrink-0 flex-col items-end pt-1 text-xs font-medium leading-tight tabular-nums text-muted-foreground">
-                  <span>{timing.start}</span>
-                  <span className="mt-1 max-w-full [overflow-wrap:anywhere] text-muted-foreground/70">
-                    {timing.end}
-                  </span>
-                </div>
+                {hasClock && (
+                  <div
+                    data-activity-clock
+                    className="flex min-w-0 shrink-0 flex-col items-end gap-1 pt-1 text-xs font-medium leading-tight tabular-nums text-muted-foreground"
+                  >
+                    {timing.compactStart && (
+                      <span className="whitespace-nowrap">{timing.compactStart}</span>
+                    )}
+                    {timing.compactEnd && (
+                      <span className="whitespace-nowrap text-muted-foreground/70">
+                        {timing.compactEnd}
+                      </span>
+                    )}
+                  </div>
+                )}
                 <span className="mt-0.5 hidden h-7 w-7 sm:flex shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
                   <Icon className="h-3.5 w-3.5" />
                 </span>
@@ -296,8 +316,8 @@ export default function ItineraryDayCard({
                     />
                     {activity.title}
                   </span>
-                  {timing.showSummary && (
-                    <p className="mt-1 text-xs text-muted-foreground">{timing.summary}</p>
+                  {timing.warning && (
+                    <p className="mt-1 text-xs text-muted-foreground">{tTime('unconfirmed')}</p>
                   )}
                   {timing.endDate &&
                     ((tripStartDate && timing.endDate < tripStartDate) ||
@@ -340,7 +360,9 @@ export default function ItineraryDayCard({
                     </div>
                   )}
                 </div>
-                <div className="col-start-3 row-start-1 flex flex-col items-center gap-1 sm:col-start-4">
+                <div
+                  className={`row-start-1 flex flex-col items-center gap-1 ${hasClock ? 'col-start-3 sm:col-start-4' : 'col-start-2 sm:col-start-3'}`}
+                >
                   {importedActivityIds.has(activity.id) && (
                     <span
                       className="flex h-7 w-7 shrink-0 items-center justify-center text-primary"

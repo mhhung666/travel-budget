@@ -1497,6 +1497,12 @@
       "leave": "移動して選択を解除しますか？"
     },
     "addDayNotes": "この日のメモを追加",
+    "continuation": {
+      "heading": "前の日から続く予定",
+      "source": "Day {n} から継続 · {title}",
+      "view": "元の予定を表示",
+      "gone": "元の予定が見つかりません。日程を更新してください。"
+    },
     "timing": {
       "day": "{n}日目",
       "nextDay": "翌日",

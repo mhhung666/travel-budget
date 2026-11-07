@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { projectItineraryContinuations, activityAnchorId } from '@/lib/itineraryContinuations';
 import TripContextOverview from '@/components/trips/detail/TripContextOverview';
 import { ItineraryDayCard, ItineraryDayNav } from '@/components/trips/detail/itinerary';
 import type { Activity, Checklist, ItineraryDay, Trip } from '@/types';
@@ -189,6 +190,34 @@ describe('itinerary day card actions', () => {
     return handlers;
   };
 
+  it.each([
+    { time: '22:25', end_time: '00:20', end_day_offset: 1, shown: ['22:25', '00:20 +1'] },
+    { time: '09:00', end_time: null, end_day_offset: 0, shown: ['09:00'] },
+    { time: null, end_time: '10:00', end_day_offset: 0, shown: ['10:00'] },
+    { time: null, end_time: null, end_day_offset: null, shown: [] },
+  ])(
+    'renders only supplied clocks with no repeated date paragraph: $shown',
+    ({ shown, ...fields }) => {
+      renderCard(false, new Set(), day(1, [activity({ ...fields, type: 'other' })]));
+      const row = document.getElementById(activityAnchorId('day-1', 'act-1'))!;
+      const clock = row.querySelector('[data-activity-clock]');
+      if (shown.length) expect(clock?.textContent).toBe(shown.join(''));
+      else {
+        expect(clock).toBeNull();
+        expect(row.className).not.toContain('max-content');
+      }
+      expect(row.textContent).not.toMatch(/unknown|時間未定|Departure|出發|→/);
+      expect(row.textContent).not.toContain('nextDay');
+    }
+  );
+  it('keeps day settings beside the heading in a bounded grid instead of a wrapped full row', () => {
+    renderCard(true);
+    const control = screen.getByRole('button', { name: 'dayActions' });
+    expect(control.parentElement?.className).toContain('max-w-36');
+    expect(control.parentElement?.parentElement?.className).toContain(
+      'grid-cols-[minmax(0,1fr)_auto]'
+    );
+  });
   it('offers notes and add activity on an empty day without the Markdown placeholder', async () => {
     const user = userEvent.setup();
     const empty = day(1);
@@ -243,4 +272,46 @@ describe('itinerary day card actions', () => {
     expect(screen.queryByRole('button', { name: /moreActions/ })).toBeNull();
     expect(screen.getByText('imported')).not.toBeNull();
   });
+});
+
+it('CD3 preserves actual activity counts and focuses the original row from a continuation-only day', () => {
+  const source = day(1, [
+    activity({ end_day_offset: 1, end_time: '00:20', title: 'Original flight' }),
+  ]);
+  const target = day(2);
+  const hints = projectItineraryContinuations([source, target]);
+  const renderDay = (d: ItineraryDay) => (
+    <ItineraryDayCard
+      key={d.id}
+      day={d}
+      continuations={hints.get(d.id)}
+      tripId="trip-1"
+      isAdmin={false}
+      importedActivityIds={new Set()}
+      photos={[]}
+      onSelectPhoto={vi.fn()}
+      onEdit={vi.fn()}
+      onDelete={vi.fn()}
+      onAddActivity={vi.fn()}
+      onEditActivity={vi.fn()}
+      onDeleteActivity={vi.fn()}
+      onImportActivity={vi.fn()}
+    />
+  );
+  render(
+    <>
+      {renderDay(source)}
+      {renderDay(target)}
+    </>
+  );
+  expect(screen.getByText('0')).toBeDefined();
+  expect(screen.getByText('1')).toBeDefined();
+  expect(screen.getByText('empty')).toBeDefined();
+  const original = document.getElementById(activityAnchorId(source.id, source.activities[0].id))!;
+  const scroll = vi.fn();
+  original.scrollIntoView = scroll;
+  fireEvent.click(screen.getByRole('button', { name: /view · source/ }));
+  expect(document.activeElement).toBe(original);
+  expect(original.className).toContain('focus:ring-2');
+  expect(scroll).toHaveBeenCalledOnce();
 });

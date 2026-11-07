@@ -24,6 +24,7 @@ const h = vi.hoisted(() => ({
     refresh: vi.fn(),
   },
 }));
+vi.mock('./ActivityContinuations', () => ({ ActivityContinuations: 'ActivityContinuations' }));
 vi.mock('./ActivityActions', () => ({ ActivityActions: 'ActivityActions' }));
 vi.mock('@/features/trips/queries', () => ({
   useTrip: () => ({ data: { role: 'admin' }, isError: false }),
@@ -31,6 +32,7 @@ vi.mock('@/features/trips/queries', () => ({
 vi.mock('./DayActions', () => ({ DayActions: 'DayActions' }));
 vi.mock('react', async (original) => ({
   ...(await original<typeof import('react')>()),
+  useRef: () => ({ current: null }),
   useState: () => [
     h.selected,
     (value: string) => {
@@ -233,8 +235,43 @@ it('CD2 keeps date relationships in the row and accessible details while keeping
   expect(details.props.title).toBe(messages.en.itineraryDetails);
   expect(details.props.accessibilityLabel).toContain('2028-03-01 00:20');
   expect(details.props.accessibilityLabel).toContain(activity.title);
-  expect(find(tree, 'children', 'Next day 00:20')).toBeDefined();
+  expect(find(tree, 'children', '00:20 +1')).toBeDefined();
   expect(
     find(tree, 'testID', `itinerary-activity-row-${activity.id}`).props.style
   ).not.toHaveProperty('borderRadius');
 });
+
+it('CD3 passes existing days to read-only hints without adding activity rows or changing selection', () => {
+  h.query.data!.days[0].activities[0].endDayOffset = 3;
+  h.selected = id(2);
+  const tree = screen();
+  expect(find(tree, 'testID', 'itinerary-list').props.data).toEqual([]);
+  // The reader header passes the component; its own tests cover modal interaction.
+  const header = find(tree, 'testID', 'itinerary-list').props.ListHeaderComponent;
+  const component = nodes(header).find((n) => n.props.targetDayId === id(2))!;
+  expect(component.props.days).toEqual(h.query.data!.days);
+  expect(h.selected).toBe(id(2));
+});
+
+it.each([
+  { time: '22:25', endTime: '00:20', endDayOffset: 1, shown: ['22:25', '00:20 +1'] },
+  { time: '09:00', endTime: null, endDayOffset: 0, shown: ['09:00'] },
+  { time: null, endTime: '10:00', endDayOffset: 0, shown: ['10:00'] },
+  { time: null, endTime: null, endDayOffset: null, shown: [] },
+])(
+  'shows only supplied clocks without reserving an empty column: $shown',
+  ({ shown, ...fields }) => {
+    const tree = expand(ActivityCard({ activity: { ...activity, ...fields } }));
+    const clock = find(tree, 'testID', 'activity-clock');
+    if (shown.length) {
+      expect(clock).toBeDefined();
+      for (const value of shown) expect(find(clock, 'children', value)).toBeDefined();
+      expect(clock.props.style).not.toHaveProperty('width');
+    } else expect(clock).toBeUndefined();
+    expect(
+      nodes(tree)
+        .filter((n) => n.type === 'Copy')
+        .some((n) => String(n.props.children).includes('→'))
+    ).toBe(false);
+  }
+);

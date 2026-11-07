@@ -13,4 +13,6 @@ pnpm contracts:check
 
 CI 比對完整輸出，阻止 schema／產物漂移；不要在 App 再維護一份 DTO 或 OpenAPI。Web `src/lib/mobile/contract.ts`、Mobile `src/api/contracts.ts` 只保留薄 adapter，Mobile 額外驗證憑證非空。
 
+行程日期 `itineraryActivityTiming` 與延續 `itineraryContinuations` 為兩端共用純函式；後者只從明確正日差投影到既有日卡，輸出來源識別／名稱／類型／結束時間白名單，不複製私人欄位，不新增 API payload 或持久化。
+
 套件直接輸出 TypeScript source，由 Next.js transpilePackages、Expo Metro 與 Node.js type stripping 處理，不另發產品版本。部署相容後端先於新 App；非 TWD 建立已固定開放，剩餘跨端核對仍見 B4，契約存在不代表已部署。

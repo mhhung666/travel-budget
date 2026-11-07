@@ -248,6 +248,69 @@ export type Itinerary = z.infer<typeof itinerarySchema>;
 export type ItineraryDay = z.infer<typeof itineraryDaySchema>;
 export type ItineraryActivity = z.infer<typeof itineraryActivitySchema>;
 export type ItineraryLocation = z.infer<typeof itineraryLocationSchema>;
+
+export type ItineraryContinuationSource = {
+  id: string;
+  dayNumber: number;
+  activities: readonly {
+    id: string;
+    title: string;
+    type: string;
+    endDayOffset?: number | null;
+    endTime: string | null;
+  }[];
+};
+export type ItineraryContinuation = {
+  sourceDayId: string;
+  sourceDayNumber: number;
+  activityId: string;
+  title: string;
+  type: string;
+  isEndDay: boolean;
+  endTime: string | null;
+};
+
+/** View-only projections onto existing days. Never copy private fields or create activity rows. */
+export function itineraryContinuations(days: readonly ItineraryContinuationSource[]) {
+  const result = new Map<string, ItineraryContinuation[]>();
+  const destinations = [...days].sort((a, b) => a.dayNumber - b.dayNumber);
+  for (const day of destinations) result.set(day.id, []);
+  for (const [sourceIndex, source] of destinations.entries()) {
+    for (const activity of source.activities) {
+      const offset = activity.endDayOffset;
+      if (
+        offset == null ||
+        !Number.isInteger(offset) ||
+        offset <= 0 ||
+        offset > MAX_ITINERARY_END_DAY_OFFSET
+      )
+        continue;
+      const endDay = source.dayNumber + offset;
+      for (let i = sourceIndex + 1; i < destinations.length; i++) {
+        const target = destinations[i];
+        if (target.dayNumber <= source.dayNumber) continue;
+        if (target.dayNumber > endDay) break;
+        result.get(target.id)!.push({
+          sourceDayId: source.id,
+          sourceDayNumber: source.dayNumber,
+          activityId: activity.id,
+          title: activity.title,
+          type: activity.type,
+          isEndDay: target.dayNumber === endDay,
+          endTime: activity.endTime,
+        });
+      }
+    }
+  }
+  // Stable ties retain source day and original activity order, never the row's display sort.
+  for (const hints of result.values()) {
+    hints.sort((a, b) => {
+      if (a.endTime && b.endTime) return a.endTime.localeCompare(b.endTime);
+      return a.endTime ? -1 : b.endTime ? 1 : 0;
+    });
+  }
+  return result;
+}
 // Online itinerary maintenance: freeze one confirmed command and UUID before sending.
 const itineraryRevisionSchema = z
   .number()

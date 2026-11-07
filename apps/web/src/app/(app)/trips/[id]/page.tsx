@@ -1,4 +1,5 @@
 'use client';
+import { projectItineraryContinuations } from '@/lib/itineraryContinuations';
 import { activityTimingLabels } from '@/lib/activityTiming';
 import { toDateOnly } from '@/lib/itineraryDayTarget';
 import dynamic from 'next/dynamic';
@@ -108,6 +109,7 @@ function ItineraryPageContent() {
 
   const itineraryQuery = useItinerary(tripId);
   const { data: days = [], isLoading: loading, refetch: refetchItinerary } = itineraryQuery;
+  const continuations = useMemo(() => projectItineraryContinuations(days), [days]);
   const tripQuery = useTrip(tripId);
   const { data: trip } = tripQuery;
   const { data: shell } = useTripShell(tripId);
@@ -567,6 +569,7 @@ function ItineraryPageContent() {
                   >
                     <ItineraryDayCard
                       day={day}
+                      continuations={continuations.get(day.id)}
                       date={date}
                       tripStartDate={toDateOnly(trip?.start_date)}
                       tripEndDate={toDateOnly(trip?.end_date)}

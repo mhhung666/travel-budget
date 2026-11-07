@@ -148,6 +148,10 @@ Web `getCurrentUser`／名稱版 `updateProfile` 與 Mobile `/api/v2/me/profile`
 
 Web TripList 與 Native list 模式共用 tripListOrder 的日曆日／封存置頂與穩定日期鍵；quickAdd 的群組、唯一候選決策也供 Native 全量 metadata 使用，同日結束以日曆日判斷。readMemberTrips 原批次帳本驗證及財務摘要保留，不新增逐趟查詢、索引或 migration。HTTP 明確篩選／排序後才切頁，舊無參數列表保留既有順序；完整契約及 reader 成本限制見 [T1](../../mobile/docs/BACKEND_CONTRACT.md#t1-旅行列表篩選與排序)。
 
+## 行程延續提示
+
+`lib/itineraryContinuations` 以白名單映射 Web／公開 DTO，再由 contracts 的純函式投影到既有日卡；`ActivityContinuations` 只呈現來源及抵達／結束資訊，經 batch 換日守衛後聚焦原活動列。投影不進 API、快取、選取、計數或匯出，不複製私人欄位或資料庫活動。
+
 ## 行程共用寫入（2A）
 
 Web `itinerary.actions.ts` 保留 cookie 身分／RPC，資料維護抽至 `lib/itineraryMaintenance.ts`；Native `lib/itineraryWrite.ts` 把共用效果與 actor:UUID receipt 包進同一管理員 trip fence 交易。create／update／delete helper 可明確接收已授權 transaction context，不開巢狀交易；附件 storage 僅在提交後清理，工作先同交易保存。既有 Web 舊輸入及附件／AI 路徑不變。Native edit-context／receipt 是 readonly snapshot，日／活動版本與刪除關聯摘要用於重新確認；契約／限制集中於 [2A](../../mobile/docs/BACKEND_CONTRACT.md#2a-行程維護服務與恢復契約)。

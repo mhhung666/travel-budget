@@ -1,4 +1,10 @@
+import { IntlMessageFormat } from 'intl-messageformat';
+
 const en = {
+  continuing: 'Continuing activities',
+  continuationSource: 'Continues from Day {n} · {title}',
+  viewOriginal: 'View original activity',
+  originalGone: 'The original activity is no longer available. Return to the itinerary.',
   daySettings: 'Day settings',
   editDay: 'Edit day information',
   deleteDay: 'Delete this day',
@@ -30,6 +36,10 @@ const en = {
 export const itineraryPresentationMessages: Record<'zh' | 'zh-CN' | 'en' | 'jp', typeof en> = {
   en,
   zh: {
+    continuing: '跨日延續',
+    continuationSource: '接續 Day {n} · {title}',
+    viewOriginal: '查看原活動',
+    originalGone: '原活動已不存在，請返回行程。',
     daySettings: '本日設定',
     editDay: '編輯本日資訊',
     deleteDay: '刪除這一天',
@@ -59,6 +69,10 @@ export const itineraryPresentationMessages: Record<'zh' | 'zh-CN' | 'en' | 'jp',
     summary: '起訖摘要',
   },
   'zh-CN': {
+    continuing: '跨日延续',
+    continuationSource: '接续 Day {n} · {title}',
+    viewOriginal: '查看原活动',
+    originalGone: '原活动已不存在，请返回行程。',
     daySettings: '本日设置',
     editDay: '编辑本日信息',
     deleteDay: '删除这一天',
@@ -88,6 +102,10 @@ export const itineraryPresentationMessages: Record<'zh' | 'zh-CN' | 'en' | 'jp',
     summary: '起止摘要',
   },
   jp: {
+    continuing: '前の日から続く予定',
+    continuationSource: 'Day {n} から継続 · {title}',
+    viewOriginal: '元の予定を表示',
+    originalGone: '元の予定が見つかりません。日程に戻ってください。',
     daySettings: 'この日の設定',
     editDay: 'この日の情報を編集',
     deleteDay: 'この日を削除',
@@ -117,3 +135,21 @@ export const itineraryPresentationMessages: Record<'zh' | 'zh-CN' | 'en' | 'jp',
     summary: '開始と終了',
   },
 };
+
+const continuationFormatters = new Map<string, IntlMessageFormat>();
+/** ICU keeps parameter placement in the translation, including literal user-supplied titles. */
+export function continuationSource(
+  locale: keyof typeof itineraryPresentationMessages,
+  n: number,
+  title: string
+) {
+  let formatter = continuationFormatters.get(locale);
+  if (!formatter) {
+    formatter = new IntlMessageFormat(
+      itineraryPresentationMessages[locale].continuationSource,
+      locale === 'jp' ? 'ja' : locale
+    );
+    continuationFormatters.set(locale, formatter);
+  }
+  return String(formatter.format({ n, title }));
+}

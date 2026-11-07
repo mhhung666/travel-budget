@@ -53,8 +53,14 @@ export function activityTimingText(
     timing.endDayOffset === null
       ? `${labels.unconfirmed} ${endTime}`
       : `${transport ? labels.arrival : labels.end} ${endDate} ${endTime}`;
-  const summary = `${transport ? labels.departure : labels.start} ${startDate} ${startTime} → ${finish}`;
+  const rangeSummary = `${transport ? labels.departure : labels.start} ${startDate} ${startTime} → ${finish}`;
+  const point = !activity.end_time && (timing.endDayOffset === null || timing.endDayOffset === 0);
+  const summary = point ? `${startDate}${activity.time ? ` ${activity.time}` : ''}` : rangeSummary;
   return {
+    compactStart: activity.time || null,
+    compactEnd: activity.end_time
+      ? `${activity.end_time}${timing.endDayOffset ? ` ${timing.endDayOffset > 0 ? '+' : ''}${timing.endDayOffset}` : ''}`
+      : null,
     start: startTime,
     end,
     summary,

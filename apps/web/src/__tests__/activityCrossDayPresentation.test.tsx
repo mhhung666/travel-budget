@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, expect, it, vi } from 'vitest';
+import userEvent from '@testing-library/user-event';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import en from '@/i18n/messages/en.json';
 import zh from '@/i18n/messages/zh.json';
@@ -18,6 +19,10 @@ vi.mock('next-intl', () => ({
 }));
 vi.mock('@/components/location/LocationAutocomplete', () => ({ default: () => null }));
 vi.mock('@/components/trips/detail/ReceiptAttachments', () => ({ TicketUploader: () => null }));
+beforeAll(() => {
+  Element.prototype.hasPointerCapture ??= () => false;
+  Element.prototype.scrollIntoView ??= () => {};
+});
 afterEach(cleanup);
 const activity: Activity = {
   id: 'a'.repeat(24),
@@ -133,14 +138,21 @@ function Editor({
     </>
   );
 }
-it('requires adopting the next-day suggestion; other dates support negative offsets and reject invalid/oversized input', () => {
+async function chooseEnd(label: string) {
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('combobox', { name: 'Ends on' }));
+  await user.click(await screen.findByRole('option', { name: label }));
+}
+it('requires adopting the next-day suggestion; other dates support negative offsets and reject invalid/oversized input', async () => {
   render(<Editor />);
-  expect(screen.getByRole('combobox')).toHaveValue('unknown');
+  expect(screen.getByRole('combobox')).toHaveTextContent(en.itinerary.timing.unconfirmed);
+  expect(screen.getByRole('combobox').tagName).toBe('BUTTON');
+  expect(screen.getByRole('combobox')).toHaveClass('min-h-11', 'border-input');
   expect(screen.getByText(/Departure 2028-02-29/)).toHaveTextContent('End date unconfirmed');
   fireEvent.click(screen.getByRole('button', { name: en.itinerary.timing.suggestNextDay }));
-  expect(screen.getByRole('combobox')).toHaveValue('1');
+  expect(screen.getByRole('combobox')).toHaveTextContent(en.itinerary.timing.nextDay);
   expect(screen.getByText(/Departure 2028-02-29/)).toHaveTextContent('2028-03-01');
-  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'other' } });
+  await chooseEnd(en.itinerary.timing.otherDate);
   const input = screen.getByLabelText('End date');
   fireEvent.change(input, { target: { value: '2028-02-28' } });
   expect(screen.getByRole('status')).toHaveTextContent('-1');
@@ -148,11 +160,11 @@ it('requires adopting the next-day suggestion; other dates support negative offs
   expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
   fireEvent.change(input, { target: { value: '2040-01-01' } });
   expect(screen.getByRole('alert')).toHaveTextContent(en.itinerary.timing.invalidDate);
-  fireEvent.change(screen.getByRole('combobox'), { target: { value: '0' } });
+  await chooseEnd(en.itinerary.timing.sameDay);
   expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
   expect(screen.getByRole('status')).toHaveTextContent('0');
 });
-it('supports relative negative days without inventing a date, and disables new controls without capability', () => {
+it('supports relative negative days without inventing a date, and disables new controls without capability', async () => {
   const ui = render(<Editor date={null} offset={3} />);
   expect(screen.getByLabelText('End day number')).toHaveValue(7);
   fireEvent.change(screen.getByLabelText('End day number'), { target: { value: '2' } });
@@ -227,9 +239,7 @@ it('blocks an invalid end date, submits the chosen offset, and retains the draft
       activity={activity}
     />
   );
-  fireEvent.change(screen.getByRole('combobox', { name: 'Ends on' }), {
-    target: { value: 'other' },
-  });
+  await chooseEnd(en.itinerary.timing.otherDate);
   fireEvent.change(screen.getByLabelText('End date'), { target: { value: '' } });
   expect(screen.getByRole('button', { name: 'save' })).toBeDisabled();
   fireEvent.change(screen.getByLabelText('End date'), { target: { value: '2028-02-28' } });
@@ -243,3 +253,32 @@ it('blocks an invalid end date, submits the chosen offset, and retains the draft
   expect(close).not.toHaveBeenCalled();
   expect(screen.getByLabelText('End date')).toHaveValue('2028-02-28');
 });
+
+it.each([undefined, null, 0])(
+  'treats a start-only activity as a point without inventing an unknown end (%s)',
+  (offset) => {
+    const text = activityTimingText(
+      { ...activity, end_time: null, end_day_offset: offset },
+      2,
+      '2028-02-29',
+      en.itinerary.timing
+    );
+    expect(text.compactStart).toBe('22:25');
+    expect(text.compactEnd).toBeNull();
+    expect(text.summary).toBe('2028-02-29 22:25');
+    expect(text.summary).not.toMatch(/→|Time not set|unconfirmed/);
+  }
+);
+it.each([1, 3, -1])(
+  'shows compact signed day offsets without losing the full date in confirmations (%s)',
+  (offset) => {
+    const text = activityTimingText(
+      { ...activity, end_day_offset: offset },
+      2,
+      '2028-02-29',
+      en.itinerary.timing
+    );
+    expect(text.compactEnd).toBe(`00:20 ${offset > 0 ? '+' : ''}${offset}`);
+    expect(text.summary).toContain(en.itinerary.timing.arrival);
+  }
+);
