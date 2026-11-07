@@ -1,5 +1,6 @@
 import { itineraryContinuations } from '@travel-budget/contracts';
 import type { ItineraryDay } from '@/types';
+import { sortActivities } from '@/lib/itineraryActivities';
 
 /** Whitelist presentation fields for both member and public reads. */
 export function projectItineraryContinuations(days: readonly ItineraryDay[]) {
@@ -7,7 +8,8 @@ export function projectItineraryContinuations(days: readonly ItineraryDay[]) {
     days.map((day) => ({
       id: day.id,
       dayNumber: day.day_number,
-      activities: day.activities.map((activity) => ({
+      // Match the native API input order before stable end-time sorting.
+      activities: sortActivities(day.activities).map((activity) => ({
         id: activity.id,
         title: activity.title,
         type: activity.type,

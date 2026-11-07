@@ -52,22 +52,32 @@ export default function ActivityFormDialog({
 }: ActivityFormDialogProps) {
   const t = useTranslations('itinerary.activities');
   const tCommon = useTranslations('common');
+  const tTarget = useTranslations('itinerary.dayTarget');
 
   const [draft, setDraft] = useState<ActivityDraft>(makeEmptyActivity());
   const [loading, setLoading] = useState(false);
   const [validTime, setValidTime] = useState(true);
+  // Keep the calendar basis fixed while editing; background refreshes require confirmation.
+  const [basis, setBasis] = useState({ date, dayNumber, endDate });
+  const [timeRevision, setTimeRevision] = useState(0);
+  const datesChanged =
+    basis.date !== date || basis.dayNumber !== dayNumber || basis.endDate !== endDate;
 
   useEffect(() => {
     if (open) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- 開啟對話框時重置/預填草稿，刻意的同步
       setDraft(activity ? dayActivitiesToDrafts([activity])[0] : makeEmptyActivity());
       setValidTime(true);
+      setBasis({ date, dayNumber, endDate });
+      setTimeRevision((revision) => revision + 1);
     }
+    // Date changes are acknowledged explicitly, never by resetting the draft.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, activity]);
 
   const handleSubmit = async () => {
     const [payload] = draftsToPayload([draft]); // 沒填標題會被濾掉 → undefined
-    if (!payload || !validTime) return;
+    if (!payload || !validTime || datesChanged) return;
     setLoading(true);
     try {
       await onSubmit(payload);
@@ -95,11 +105,30 @@ export default function ActivityFormDialog({
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto p-1">
+          {datesChanged && (
+            <div className="mb-3 space-y-2">
+              <p role="alert" className="text-sm text-destructive">
+                {tTarget('errors.datesChanged')}
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={loading || !validTime}
+                onClick={() => {
+                  setBasis({ date, dayNumber, endDate });
+                  setTimeRevision((revision) => revision + 1);
+                }}
+              >
+                {tTarget('confirmDates')}
+              </Button>
+            </div>
+          )}
           <ActivityCard
             key={draft.key}
-            date={date}
-            dayNumber={dayNumber}
-            endDate={endDate}
+            timeRevision={timeRevision}
+            date={basis.date}
+            dayNumber={basis.dayNumber}
+            endDate={basis.endDate}
             onValidityChange={setValidTime}
             tripId={tripId}
             activity={draft}
@@ -114,7 +143,7 @@ export default function ActivityFormDialog({
           <Button
             type="button"
             onClick={handleSubmit}
-            disabled={loading || !draft.title.trim() || !validTime}
+            disabled={loading || !draft.title.trim() || !validTime || datesChanged}
           >
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {tCommon('save')}

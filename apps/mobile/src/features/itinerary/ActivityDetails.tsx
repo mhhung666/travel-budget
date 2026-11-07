@@ -50,7 +50,7 @@ export function ActivityDetails({
     <View style={{ gap: spacing.small }}>
       <DetailRow label={copy.summary} value={timing.summary} />
       {activity.location && <LocationDetails location={activity.location} locale={locale} />}
-      {!!activity.locationName && activity.locationName !== place && (
+      {!!activity.locationName && (!activity.location || activity.locationName !== place) && (
         <DetailRow label={t.itineraryLocation} value={activity.locationName} />
       )}
       {!!activity.note && (

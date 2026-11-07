@@ -5,6 +5,7 @@ import { itineraryContinuations, type ItineraryContinuationSource } from '@trave
 import { ActivityContinuations } from '@/components/trips/detail/itinerary/ActivityContinuations';
 import { activityAnchorId, projectItineraryContinuations } from '@/lib/itineraryContinuations';
 import type { ItineraryDay } from '@/types';
+import { projectMobileItinerary } from '@/lib/itineraryProjection';
 import en from '@/i18n/messages/en.json';
 import zh from '@/i18n/messages/zh.json';
 import cn from '@/i18n/messages/zh-CN.json';
@@ -188,4 +189,50 @@ it('Web adapter passes only whitelisted public fields to the shared projection',
     })),
   }));
   expect(projectItineraryContinuations(web)).toEqual(itineraryContinuations(days));
+});
+
+it('matches native API order for tied end clocks and missing clocks, preserving source rows', () => {
+  const id = (n: number) => n.toString(16).padStart(24, '0');
+  const base = {
+    revision: 0,
+    type: 'flight' as const,
+    end_time: '00:20',
+    end_day_offset: 1,
+    location: null,
+    location_name: '',
+    note: '',
+    confirmation_code: '',
+    attachments: [],
+  };
+  const web: ItineraryDay[] = [1, 2].map((n) => ({
+    id: id(n),
+    trip_id: id(9),
+    revision: 0,
+    day_number: n,
+    title: 'Day',
+    content: '',
+    location: null,
+    created_at: '',
+    updated_at: '',
+    activities:
+      n === 1
+        ? [
+            { ...base, id: id(3), title: 'Late', time: '22:00' },
+            { ...base, id: id(4), title: 'Early', time: '20:00' },
+            { ...base, id: id(5), title: 'No clock late', time: '23:00', end_time: null },
+            { ...base, id: id(6), title: 'No clock early', time: '19:00', end_time: null },
+          ]
+        : [],
+  }));
+  const before = JSON.stringify(web);
+  const native = projectMobileItinerary(id(9), {}, web);
+  const projected = projectItineraryContinuations(web);
+  expect(projected).toEqual(itineraryContinuations(native.days));
+  expect(projected.get(id(2))!.map((h) => h.title)).toEqual([
+    'Early',
+    'Late',
+    'No clock early',
+    'No clock late',
+  ]);
+  expect(JSON.stringify(web)).toBe(before);
 });

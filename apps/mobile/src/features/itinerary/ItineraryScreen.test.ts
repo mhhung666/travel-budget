@@ -6,6 +6,7 @@ import { ApiError } from '@/api/client';
 import { colors } from '@/theme/tokens';
 import { ItineraryScreen, ActivityCard } from './ItineraryScreen';
 import { locationName } from './presentation';
+import { ActivityDetails, LocationDetails } from './ActivityDetails';
 vi.mock('expo-router', () => ({ router: { push: vi.fn() } }));
 const h = vi.hoisted(() => ({
   selected: null as string | null,
@@ -273,5 +274,25 @@ it.each([
         .filter((n) => n.type === 'Copy')
         .some((n) => String(n.props.children).includes('→'))
     ).toBe(false);
+  }
+);
+
+it.each(['en', 'zh', 'zh-CN', 'jp'] as const)(
+  'standalone details retain free-text locations in %s and deduplicate structured places',
+  (locale) => {
+    h.locale = locale;
+    const day = { dayNumber: 1, date: '2027-01-12' };
+    const details = ActivityDetails({ activity, day });
+    expect(find(details, 'value', activity.locationName)).toBeDefined();
+    const location = { name: activity.locationName, display_name: 'Address', lat: 1, lon: 2 };
+    const structured = ActivityDetails({ activity: { ...activity, location }, day });
+    expect(find(structured, 'value', activity.locationName)).toBeUndefined();
+    const locationDetails = LocationDetails({ location, locale });
+    expect(find(locationDetails, 'value', activity.locationName)).toBeDefined();
+    const additional = ActivityDetails({
+      activity: { ...activity, location, locationName: 'Meeting point' },
+      day,
+    });
+    expect(find(additional, 'value', 'Meeting point')).toBeDefined();
   }
 );

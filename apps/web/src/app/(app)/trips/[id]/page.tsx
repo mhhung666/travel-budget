@@ -645,7 +645,10 @@ function ItineraryPageContent() {
           onClose={() => setActivityDialog(null)}
           onSubmit={handleActivitySubmit}
           tripId={tripId}
-          dayNumber={activityDialog?.day.day_number}
+          dayNumber={
+            days.find((day) => day.id === activityDialog?.day.id)?.day_number ??
+            activityDialog?.day.day_number
+          }
           date={activityDialog ? datesByDayId.get(activityDialog.day.id) : null}
           endDate={toDateOnly(trip?.end_date)}
           activity={activityDialog?.activity ?? null}

@@ -40,7 +40,9 @@ export function ActivityCard({
   dayNumber,
   endDate,
   onValidityChange,
+  timeRevision,
 }: {
+  timeRevision?: number;
   date?: string | null;
   dayNumber?: number;
   endDate?: string | null;
@@ -56,6 +58,7 @@ export function ActivityCard({
   return (
     <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
       <ActivityTimeFields
+        key={timeRevision}
         value={activity}
         onChange={onChange}
         date={date}

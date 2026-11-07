@@ -282,3 +282,48 @@ it.each([1, 3, -1])(
     expect(text.summary).toContain(en.itinerary.timing.arrival);
   }
 );
+
+it('blocks refreshed calendar bases until acknowledged, then keeps displayed and submitted dates aligned', async () => {
+  const submit = vi.fn().mockRejectedValue(new Error('CONFLICT'));
+  const props = {
+    open: true,
+    onClose: vi.fn(),
+    onSubmit: submit,
+    tripId: day.trip_id,
+    dayNumber: 2,
+    activity,
+  };
+  const ui = render(<ActivityFormDialog {...props} date="2027-01-12" />);
+  await chooseEnd(en.itinerary.timing.otherDate);
+  fireEvent.change(screen.getByLabelText('End date'), { target: { value: '2027-01-13' } });
+  ui.rerender(<ActivityFormDialog {...props} date="2027-01-14" />);
+  expect(screen.getByRole('button', { name: 'save' })).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'save' }));
+  expect(submit).not.toHaveBeenCalled();
+  expect(screen.getByLabelText('End date')).toHaveValue('2027-01-13');
+  expect(screen.getByText(/Departure/)).toHaveTextContent('Arrival 2027-01-13');
+  fireEvent.click(screen.getByRole('button', { name: 'confirmDates' }));
+  // Confirmation retains the relative day choice and resets only the timing control.
+  await chooseEnd(en.itinerary.timing.otherDate);
+  expect(screen.getByLabelText('End date')).toHaveValue('2027-01-15');
+  expect(screen.getByText(/Departure/)).toHaveTextContent('Arrival 2027-01-15');
+  fireEvent.click(screen.getByRole('button', { name: 'save' }));
+  await waitFor(() =>
+    expect(submit).toHaveBeenCalledWith(
+      expect.objectContaining({ end_day_offset: 1, title: activity.title })
+    )
+  );
+});
+it('keeps invalid custom input blocked through a date refresh and requires it to be corrected', async () => {
+  const props = { open: true, onClose: vi.fn(), onSubmit: vi.fn(), tripId: day.trip_id, activity };
+  const ui = render(<ActivityFormDialog {...props} date="2027-01-12" />);
+  await chooseEnd(en.itinerary.timing.otherDate);
+  fireEvent.change(screen.getByLabelText('End date'), { target: { value: '' } });
+  ui.rerender(<ActivityFormDialog {...props} date={null} />);
+  expect(screen.getByRole('button', { name: 'save' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'confirmDates' })).toBeDisabled();
+  fireEvent.change(screen.getByLabelText('End date'), { target: { value: '2027-01-14' } });
+  fireEvent.click(screen.getByRole('button', { name: 'confirmDates' }));
+  expect(screen.getByLabelText('End day number')).toHaveValue(3);
+  expect(screen.getByRole('button', { name: 'save' })).toBeEnabled();
+});
