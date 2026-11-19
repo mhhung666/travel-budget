@@ -25,7 +25,9 @@ pnpm export:check
 
 `packages/contracts/src/index.ts` 是手機 API 的 schema 唯一來源，兩個應用透過 `@travel-budget/contracts` 引用。修改後執行 `pnpm contracts:generate` 更新 `packages/contracts/openapi.json`；`pnpm contracts:check` 驗證產物未過期。禁止複製另一份 schema 或 OpenAPI 到應用內。
 
-CI 保留 Web 的型別、lint、格式、完整測試、正式建置、真 MongoDB 金額／相簿整合測試與 replica set 的支出建立交易測試，以及 Mobile 的型別、lint、格式、行為測試、Expo 相容性和三平台匯出。CI 的資料庫是獨立測試服務；一般本機檢查不執行遠端 migration。
+CI 保留 Web 的型別、lint、格式、完整測試、正式建置、真 MongoDB 金額／相簿整合測試與 replica set 的成員操作與交易測試，以及 Mobile 的型別、lint、格式、行為測試、Expo 相容性和三平台匯出。CI 的資料庫是獨立測試服務；一般本機檢查不執行遠端 migration。
+
+本機與 CI 使用同一個 `pnpm --filter @travel-budget/web test:member-db` 入口；先將 `MONGODB_MEMBER_TEST_URI` 指向可丟棄的 replica set，並設定 `MONGODB_MEMBER_TEST_ALLOW_WRITES=1`。使用這組環境變數的新測試請加入 [測試清單](../apps/web/vitest.member-db.config.ts)。相簿與金額彙總測試有各自的資料庫設定。
 
 App 和後端獨立發布，既有已安裝 App 不會跟 repository 更新同步。原生契約為 `/api/v2`（`/api/v1` 已於 B5d-2 退役），契約更動保持 v2 向下相容；先部署相容後端，再發布需要該能力的 App。Native bundle 匯出不能取代 iOS／Android 模擬器與真機驗收。
 

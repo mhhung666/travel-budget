@@ -16,6 +16,7 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx,json,css}\"",
     "test": "vitest",
     "test:run": "vitest run",
+    "test:member-db": "vitest run --config vitest.member-db.config.ts",
     "test:mobile-api": "node scripts/verify-mobile-api.mjs",
     "dev:mobile-api": "node scripts/verify-mobile-api.mjs --serve",
     "test:offline-browser": "node scripts/verify-offline-expenses.mjs",
