@@ -37,7 +37,7 @@ const styles = StyleSheet.create({
   },
   activityHeader: { flexDirection: 'column', alignItems: 'stretch' },
   time: { fontSize: 8, color: '#24576a', marginBottom: 3 },
-  activityTitle: { flex: 1, fontSize: 10, color: '#142c3b' },
+  activityTitle: { fontSize: 10, color: '#142c3b' },
   activityDetail: { marginTop: 2 },
   paragraph: { marginBottom: 3, color: '#465566' },
   footer: {

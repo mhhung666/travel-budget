@@ -1,0 +1,8 @@
+[
+  {
+    "day": 1,
+    "revision": 4,
+    "activities": [{ "id": "6af6b42465402b4e4cf91907", "endDayOffset": 2 }]
+  },
+  { "day": 2, "revision": 0, "activities": [] }
+]

@@ -1,14 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import {
-  AccessibilityInfo,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { AccessibilityInfo, Modal, Platform, Pressable, ScrollView, View } from 'react-native';
+import { Text, type TextHandle } from '@/components/Text';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { usePalette } from '@/theme/usePalette';
 import { radius, sizing, spacing, typography } from '@/theme/tokens';
 import { Icon, type IconName } from './icons';
@@ -51,7 +44,7 @@ export function NavigationMenu({
   const p = usePalette();
   const [open, setOpen] = useState(false);
   const trigger = useRef<View>(null);
-  const heading = useRef<Text>(null);
+  const heading = useRef<TextHandle>(null);
   const opened = useRef(false);
   const selection = useRef<(() => void) | null>(null);
   const dismissed = () => {
@@ -107,6 +100,7 @@ export function NavigationMenu({
       </Pressable>
       <Modal
         visible={open}
+        presentationStyle="fullScreen"
         animationType="none"
         onRequestClose={close}
         onDismiss={dismissed}
@@ -115,91 +109,95 @@ export function NavigationMenu({
             AccessibilityInfo.sendAccessibilityEvent(heading.current, 'focus');
         }}
       >
-        <SafeAreaView
-          accessibilityViewIsModal
-          onAccessibilityEscape={close}
-          style={{ flex: 1, backgroundColor: p.background }}
-        >
-          <ScrollView contentContainerStyle={{ padding: spacing.medium, gap: spacing.compact }}>
-            <Text
-              ref={heading}
-              accessible
-              accessibilityRole="header"
-              style={[typography.section, { color: p.text }]}
-            >
-              {title}
-            </Text>
-            {!!context && <Text style={[typography.body, { color: p.muted }]}>{context}</Text>}
-            <View
-              style={{
-                borderWidth: sizing.border,
-                borderColor: p.border,
-                borderRadius: radius.card,
-                overflow: 'hidden',
-              }}
-            >
-              {choices.map((choice, index) => (
-                <Pressable
-                  key={choice.testID}
-                  testID={choice.testID}
-                  accessibilityRole="button"
-                  accessibilityLabel={choice.label}
-                  accessibilityState={{
-                    selected: !!choice.selected,
-                    ...(disabled ? { disabled: true } : {}),
-                  }}
-                  disabled={disabled}
-                  onPress={() => {
-                    if (disabled) return;
-                    // Dismiss before switching tabs: the old trigger must still be visible when
-                    // focus is restored, and the next screen must not sit beneath this modal.
-                    selection.current = choice.onPress;
-                    close();
-                  }}
-                  style={({ pressed }) => ({
-                    minHeight: sizing.navigationRow,
-                    padding: spacing.compact,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: spacing.small,
-                    borderTopWidth: index ? sizing.border : 0,
-                    borderTopColor: p.border,
-                    backgroundColor: pressed || choice.selected ? p.selected : p.surface,
-                  })}
-                >
-                  {!!choice.icon && <Icon name={choice.icon} color={p.primary} />}
-                  <Text
-                    style={[
-                      typography.body,
-                      {
-                        color: choice.destructive ? p.danger : p.text,
-                        flex: 1,
-                        fontWeight: choice.selected ? '700' : '500',
-                      },
-                    ]}
+        {/* Measure in the modal window, not in the screen behind it. */}
+        <SafeAreaProvider>
+          <SafeAreaView
+            edges={['top', 'bottom', 'left', 'right']}
+            accessibilityViewIsModal
+            onAccessibilityEscape={close}
+            style={{ flex: 1, backgroundColor: p.background }}
+          >
+            <ScrollView contentContainerStyle={{ padding: spacing.medium, gap: spacing.compact }}>
+              <Text
+                ref={heading}
+                accessible
+                accessibilityRole="header"
+                style={[typography.section, { color: p.text }]}
+              >
+                {title}
+              </Text>
+              {!!context && <Text style={[typography.body, { color: p.muted }]}>{context}</Text>}
+              <View
+                style={{
+                  borderWidth: sizing.border,
+                  borderColor: p.border,
+                  borderRadius: radius.card,
+                  overflow: 'hidden',
+                }}
+              >
+                {choices.map((choice, index) => (
+                  <Pressable
+                    key={choice.testID}
+                    testID={choice.testID}
+                    accessibilityRole="button"
+                    accessibilityLabel={choice.label}
+                    accessibilityState={{
+                      selected: !!choice.selected,
+                      ...(disabled ? { disabled: true } : {}),
+                    }}
+                    disabled={disabled}
+                    onPress={() => {
+                      if (disabled) return;
+                      // Dismiss before switching tabs: the old trigger must still be visible when
+                      // focus is restored, and the next screen must not sit beneath this modal.
+                      selection.current = choice.onPress;
+                      close();
+                    }}
+                    style={({ pressed }) => ({
+                      minHeight: sizing.navigationRow,
+                      padding: spacing.compact,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: spacing.small,
+                      borderTopWidth: index ? sizing.border : 0,
+                      borderTopColor: p.border,
+                      backgroundColor: pressed || choice.selected ? p.selected : p.surface,
+                    })}
                   >
-                    {choice.label}
-                  </Text>
-                  {choice.selected && <Icon name="check" color={p.primary} />}
-                </Pressable>
-              ))}
-            </View>
-            <Pressable
-              testID={`${testID}-close`}
-              accessibilityRole="button"
-              accessibilityLabel={closeLabel}
-              onPress={close}
-              style={({ pressed }) => ({
-                minHeight: sizing.touch,
-                padding: spacing.compact,
-                borderRadius: radius.control,
-                backgroundColor: pressed ? p.selected : p.surface,
-              })}
-            >
-              <Text style={[typography.body, { color: p.primary }]}>{closeLabel}</Text>
-            </Pressable>
-          </ScrollView>
-        </SafeAreaView>
+                    {!!choice.icon && <Icon name={choice.icon} color={p.primary} />}
+                    <Text
+                      style={[
+                        typography.body,
+                        {
+                          color: choice.destructive ? p.danger : p.text,
+                          flex: 1,
+                          fontWeight: choice.selected ? '700' : '500',
+                        },
+                      ]}
+                    >
+                      {choice.label}
+                    </Text>
+                    {choice.selected && <Icon name="check" color={p.primary} />}
+                  </Pressable>
+                ))}
+              </View>
+              <Pressable
+                testID={`${testID}-close`}
+                accessibilityRole="button"
+                accessibilityLabel={closeLabel}
+                onPress={close}
+                style={({ pressed }) => ({
+                  minHeight: sizing.touch,
+                  padding: spacing.compact,
+                  borderRadius: radius.control,
+                  backgroundColor: pressed ? p.selected : p.surface,
+                })}
+              >
+                <Text style={[typography.body, { color: p.primary }]}>{closeLabel}</Text>
+              </Pressable>
+            </ScrollView>
+          </SafeAreaView>
+        </SafeAreaProvider>
       </Modal>
     </>
   );

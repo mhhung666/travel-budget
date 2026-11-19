@@ -335,12 +335,17 @@ it('reviews activity deletion and ticket effects before sending a revision-bound
   });
 });
 it('keeps private input and blocks repeat submission after an uncertain result, then handles a recovered rejection', async () => {
-  h.confirm.mockResolvedValue({ kind: 'pending', clientRequestId: 'original' });
+  h.confirm.mockResolvedValue({
+    kind: 'pending',
+    clientRequestId: 'original',
+    error: new ApiError('CANCELLED'),
+  });
   await mount();
   await review();
   button(copy.confirm).props.onPress();
   await settle();
   expect(find('children', copy.pending)).toBeDefined();
+  expect(find('children', messages.en.genericError)).toBeDefined();
   expect(button(copy.title)).toBeUndefined();
   h.records.data = [
     {
@@ -352,10 +357,52 @@ it('keeps private input and blocks repeat submission after an uncertain result, 
   ];
   render();
   expect(find('children', copy.limit)).toBeDefined();
+  expect(find('children', messages.en.genericError)).toBeUndefined();
+  h.records.data = [];
+  expect(find('children', copy.limit)).toBeDefined();
+  expect(find('children', copy.pending)).toBeUndefined();
   button(copy.reload).props.onPress();
   await settle();
   expect(button(copy.rebase)).toBeDefined();
   expect(button(copy.title).props.value).toBe('Breakfast');
+});
+it('replaces a background submission error with the saved status when the original receipt is recovered', async () => {
+  h.confirm.mockResolvedValue({
+    kind: 'pending',
+    clientRequestId: 'original',
+    error: new ApiError('CANCELLED'),
+  });
+  await mount();
+  await review();
+  button(copy.confirm).props.onPress();
+  await settle();
+  expect(find('children', messages.en.genericError)).toBeDefined();
+  expect(find('children', copy.pending)).toBeDefined();
+
+  const committed = (clientRequestId: string) => ({
+    clientRequestId,
+    tripId,
+    operation: 'itinerary.write',
+    status: 'completed',
+    result: { status: 'committed', operation: 'itinerary.write' },
+  });
+  h.records.data = [committed('unrelated')];
+  expect(find('children', copy.saved)).toBeUndefined();
+  expect(find('children', copy.pending)).toBeDefined();
+
+  h.records.data = [committed('unrelated'), committed('original')];
+  expect(find('children', copy.saved)).toBeDefined();
+  expect(find('children', messages.en.genericError)).toBeUndefined();
+  expect(find('children', copy.pending)).toBeUndefined();
+
+  // The user can dismiss the completed operation from the operation list.
+  h.records.data = [committed('unrelated')];
+  h.records.isError = true;
+  expect(find('children', copy.saved)).toBeDefined();
+  expect(find('children', messages.en.recoveryLoadFailed)).toBeUndefined();
+  expect(find('children', copy.pending)).toBeUndefined();
+  expect(button(copy.confirm)).toBeUndefined();
+  expect(h.confirm).toHaveBeenCalledOnce();
 });
 it('restores the exact rejected activity form from its journal entry without sending anything', async () => {
   props = { tripId, dayId, activityId, source: 'old' };

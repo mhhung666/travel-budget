@@ -1,5 +1,6 @@
 import { useRef, useEffect } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
+import { Text } from '@/components/Text';
 import type { ItineraryDay } from '@travel-budget/contracts';
 import { NavigationMenu } from '@/components/NavigationMenu';
 import { usePalette } from '@/components/ui';

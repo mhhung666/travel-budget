@@ -54,6 +54,11 @@ it('renders a long itinerary with fixed page numbers', async () => {
       const page = await document.getPage(number);
       const items = (await page.getTextContent()).items.filter((item) => 'str' in item);
       const pageText = items.map((item) => item.str).join('');
+      for (let i = 0; i < items.length; i++) {
+        if (!items[i].str.startsWith('ACTIVITY_')) continue;
+        const detail = items.slice(i + 1).find((item) => item.str.startsWith('Other'));
+        if (detail) expect(items[i].transform[5] - detail.transform[5]).toBeGreaterThan(7);
+      }
       expect(pageText).toContain(`${number} / ${document.numPages}`);
       const viewport = page.getViewport({ scale: 1 });
       for (const item of items) {

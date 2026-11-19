@@ -4,13 +4,13 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   TextInput,
   View,
   type Insets,
   type TextInputProps,
   type ViewStyle,
 } from 'react-native';
+import { Text } from '@/components/Text';
 import {
   Children,
   useEffect,

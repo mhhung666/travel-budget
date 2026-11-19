@@ -49,7 +49,10 @@ vi.mock('react-native', () => ({
   },
   useWindowDimensions: () => ({ width: h.width, height: 844, fontScale: h.fontScale }),
 }));
-vi.mock('react-native-safe-area-context', () => ({ SafeAreaView: 'SafeAreaView' }));
+vi.mock('react-native-safe-area-context', () => ({
+  SafeAreaProvider: 'SafeAreaProvider',
+  SafeAreaView: 'SafeAreaView',
+}));
 vi.mock('@/theme/usePalette', () => ({ usePalette: () => colors.light }));
 vi.mock('./icons', () => ({ Icon: 'Icon' }));
 
@@ -128,6 +131,13 @@ it('keeps every choice, selection and full context in a scrollable modal and res
   expect(find(tree, 'testID', 'menu').props.accessibilityState).toEqual({ expanded: true });
   const modal = nodes(tree).find((e) => e.type === 'Modal')!;
   expect(modal.props.visible).toBe(true);
+  expect(modal.props.presentationStyle).toBe('fullScreen');
+  const provider = modal.props.children as Element;
+  expect(provider.type).toBe('SafeAreaProvider');
+  const boundary = provider.props.children as Element;
+  expect(boundary.type).toBe('SafeAreaView');
+  expect(boundary.props.edges).toEqual(['top', 'bottom', 'left', 'right']);
+  expect((boundary.props.children as Element).type).toBe('ScrollView');
   (modal.props.onShow as () => void)();
   expect(h.focus).toHaveBeenCalledWith(heading, 'focus');
   expect(find(tree, 'testID', 'expenses').props.accessibilityState).toEqual({ selected: true });

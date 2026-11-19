@@ -10,6 +10,7 @@ import { ActivityDetails, LocationDetails } from './ActivityDetails';
 vi.mock('expo-router', () => ({ router: { push: vi.fn() } }));
 const h = vi.hoisted(() => ({
   selected: null as string | null,
+  fontScale: 1,
   locale: 'en' as keyof typeof messages,
   visible: true,
   online: true,
@@ -41,9 +42,11 @@ vi.mock('react', async (original) => ({
     },
   ],
 }));
-vi.mock('react-native', () =>
-  Object.fromEntries(['FlatList', 'View', 'Text', 'ActivityIndicator'].map((n) => [n, n]))
-);
+vi.mock('react-native', () => ({
+  ...Object.fromEntries(['FlatList', 'View', 'Text', 'ActivityIndicator'].map((n) => [n, n])),
+  Platform: { OS: 'ios' },
+  useWindowDimensions: () => ({ fontScale: h.fontScale }),
+}));
 vi.mock('@/components/ui', () => ({
   ...Object.fromEntries(
     ['Icon', 'Action', 'Card', 'Copy', 'DetailRow', 'Notice', 'Page', 'Section', 'Title'].map(
@@ -149,6 +152,7 @@ const find = (tree: ReactNode, field: string, value: unknown) =>
   nodes(tree).find((n) => n.props[field] === value)!;
 beforeEach(() => {
   h.selected = null;
+  h.fontScale = 1;
   h.visible = true;
   h.online = true;
   h.status = 'signedIn';
@@ -253,6 +257,27 @@ it('CD3 passes existing days to read-only hints without adding activity rows or 
   expect(component.props.days).toEqual(h.query.data!.days);
   expect(h.selected).toBe(id(2));
 });
+
+it.each(['en', 'zh', 'zh-CN', 'jp'] as const)(
+  'keeps the selected day and list identity during live text-size changes in %s',
+  (locale) => {
+    h.locale = locale;
+    const initial = screen();
+    const selector = nodes(initial).find((n) => n.props.selectedId === id(1))!;
+    (selector.props.select as (id: string) => void)(id(2));
+    const selectedList = find(screen(), 'testID', 'itinerary-list');
+    for (const fontScale of [3.1, 1, 3.1]) {
+      h.fontScale = fontScale;
+      const tree = screen();
+      const list = find(tree, 'testID', 'itinerary-list');
+      expect(list.key).toBe(selectedList.key);
+      expect(list.props.data).toBe(selectedList.props.data);
+      expect(nodes(tree).find((n) => n.props.selectedId === id(2))).toBeDefined();
+      expect(h.selected).toBe(id(2));
+    }
+    expect(h.query.refresh).not.toHaveBeenCalled();
+  }
+);
 
 it.each([
   { time: '22:25', endTime: '00:20', endDayOffset: 1, shown: ['22:25', '00:20 +1'] },

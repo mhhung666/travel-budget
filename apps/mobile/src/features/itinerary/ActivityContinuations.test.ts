@@ -3,7 +3,7 @@ import { isValidElement, type ReactElement, type ReactNode } from 'react';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { itineraryContinuations, type ItineraryDay } from '@travel-budget/contracts';
-import type { Text } from 'react-native';
+import { Text, type TextHandle } from '@/components/Text';
 import { messages } from '@/i18n/messages';
 import {
   itineraryPresentationMessages,
@@ -18,6 +18,7 @@ const h = vi.hoisted(() => ({
   i: 0,
   r: 0,
   os: 'ios',
+  fontScale: 1,
   focus: vi.fn(),
 }));
 vi.mock('react', async (original) => ({
@@ -45,8 +46,12 @@ vi.mock('react-native', () => ({
       return h.os;
     },
   },
+  useWindowDimensions: () => ({ fontScale: h.fontScale }),
 }));
-vi.mock('react-native-safe-area-context', () => ({ SafeAreaView: 'SafeAreaView' }));
+vi.mock('react-native-safe-area-context', () => ({
+  SafeAreaProvider: 'SafeAreaProvider',
+  SafeAreaView: 'SafeAreaView',
+}));
 vi.mock('@/components/ui', () => ({
   ...Object.fromEntries(['Action', 'Copy', 'Notice'].map((n) => [n, n])),
   usePalette: () => colors.light,
@@ -94,7 +99,7 @@ const render = () => {
   return ActivityContinuations({
     days: currentDays,
     targetDayId,
-    returnFocus: { current: returnFocus.current as unknown as Text },
+    returnFocus: { current: returnFocus.current as unknown as TextHandle },
   });
 };
 const find = (tree: ReactNode, key: string, value: unknown) =>
@@ -109,6 +114,7 @@ beforeEach(() => {
   h.refs = [];
   h.locale = 'en';
   h.os = 'ios';
+  h.fontScale = 1;
   h.focus.mockClear();
   currentDays = structuredClone(days);
   targetDayId = days[2].id;
@@ -168,7 +174,7 @@ it('open source details use current data after edits and explain deletion withou
 it('modal focuses its heading and supports accessibility escape / platform back', () => {
   const tree = open(),
     modal = find(tree, 'visible', true),
-    heading = nodes(tree).find((n) => n.type === 'Text' && n.props.children === 'Flight')!;
+    heading = nodes(tree).find((n) => n.type === Text && n.props.children === 'Flight')!;
   const nativeHeading = { focus: vi.fn() };
   (heading.props.ref as { current: unknown }).current = nativeHeading;
   (modal.props.onShow as () => void)();
@@ -178,6 +184,50 @@ it('modal focuses its heading and supports accessibility escape / platform back'
   open();
   (find(render(), 'visible', true).props.onRequestClose as () => void)();
   expect(find(render(), 'visible', false)).toBeDefined();
+});
+
+it.each([1, 3.1])('owns the modal safe area around all scrollable details at scale %s', (scale) => {
+  h.fontScale = scale;
+  const tree = open();
+  const modal = find(tree, 'visible', true);
+  expect(modal.props.presentationStyle).toBe('fullScreen');
+  const provider = modal.props.children as Node;
+  expect(provider.type).toBe('SafeAreaProvider');
+  // Measure the modal's native surface, without freezing startup/window insets.
+  expect(provider.props.initialMetrics).toBeUndefined();
+  expect(provider.key).toBeNull();
+  const safeArea = provider.props.children as Node;
+  expect(safeArea.type).toBe('SafeAreaView');
+  expect(safeArea.props.edges).toEqual(['top', 'bottom', 'left', 'right']);
+  expect(safeArea.props.style).toMatchObject({ flex: 1 });
+  const scroll = safeArea.props.children as Node;
+  expect(scroll.type).toBe('ScrollView');
+  expect(nodes(scroll).find((n) => n.props.accessibilityRole === 'header')).toBeDefined();
+  expect(find(scroll, 'activity', currentDays[0].activities[0])).toBeDefined();
+  (find(scroll, 'testID', 'continuation-close').props.onPress as () => void)();
+  expect(find(render(), 'visible', false)).toBeDefined();
+  expect(targetDayId).toBe(days[2].id);
+});
+
+it('refreshes only the modal heading paragraph on live scaling and retains the original close target', () => {
+  const trigger = { focus: vi.fn() };
+  const closed = render();
+  (hint(closed).props.ref as (node: unknown) => void)(trigger);
+  const tree = open();
+  const initialHeading = nodes(tree).find((n) => n.type === Text && n.props.children === 'Flight')!;
+  const initialText = Text(initialHeading.props);
+  h.fontScale = 3.1;
+  const enlarged = render();
+  expect(find(enlarged, 'visible', true)).toBeDefined();
+  expect(find(enlarged, 'activity', currentDays[0].activities[0])).toBeDefined();
+  const heading = nodes(enlarged).find((n) => n.type === Text && n.props.children === 'Flight')!;
+  expect(Text(heading.props).key).not.toBe(initialText.key);
+  expect(heading.props.ref).toBe(initialHeading.props.ref);
+  (find(enlarged, 'testID', 'continuation-close').props.onPress as () => void)();
+  const after = render();
+  (find(after, 'visible', false).props.onDismiss as () => void)();
+  expect(h.focus).toHaveBeenLastCalledWith(trigger, 'focus');
+  expect(targetDayId).toBe(days[2].id);
 });
 const fixtures = JSON.parse(
   readFileSync(

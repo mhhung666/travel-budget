@@ -1,0 +1,9 @@
+Chrome, isolated local server, English; focus sampled from document.activeElement.
+Escape {"id":"itinerary-add-activity-6af7cd9c75eafe744659199d","text":"Add activity","label":null,"tag":"BUTTON"}
+next Tab {"id":"radix-_r_9_","text":"Day settings","label":"Day settings","tag":"BUTTON"}
+Cancel {"id":"itinerary-add-activity-6af7cd9c75eafe744659199d","text":"Add activity","label":null,"tag":"BUTTON"}
+next Tab {"id":"radix-_r_9_","text":"Day settings","label":"Day settings","tag":"BUTTON"}
+Save {"id":"itinerary-add-activity-6af7cd9c75eafe744659199d","text":"Add activity","label":null,"tag":"BUTTON"}
+next Tab {"id":"radix-_r_2d_","text":"","label":"More actions for this activity · 2028-02-29 · CD4 focus verification","tag":"BUTTON"}
+Edit Escape {"id":"radix-_r_5_","text":"","label":"More actions for this activity · Departure 2028-02-28 22:25 → Arrival 2028-03-01 00:20 · CD4 Flight","tag":"BUTTON"}
+next Tab {"id":"radix-_r_7_","text":"Day settings","label":"Day settings","tag":"BUTTON"}

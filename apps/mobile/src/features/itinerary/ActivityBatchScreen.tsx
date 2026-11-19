@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Alert, AppState, FlatList, Pressable, Text, View } from 'react-native';
+import { Alert, AppState, FlatList, Pressable, View } from 'react-native';
+import { Text } from '@/components/Text';
 import { router, useNavigation } from 'expo-router';
 import { usePreventRemove } from 'expo-router/react-navigation';
 import { onlineManager } from '@tanstack/react-query';

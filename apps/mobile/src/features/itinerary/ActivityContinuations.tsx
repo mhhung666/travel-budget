@@ -1,14 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
-import {
-  AccessibilityInfo,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { AccessibilityInfo, Modal, Platform, Pressable, ScrollView, View } from 'react-native';
+import { Text, type TextHandle } from '@/components/Text';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { itineraryContinuations, type ItineraryDay } from '@travel-budget/contracts';
 import { Action, Copy, Notice, usePalette } from '@/components/ui';
 import { useAppLocale, useMessages } from '@/i18n/useMessages';
@@ -19,7 +12,7 @@ import {
 import { spacing, sizing, typography } from '@/theme/tokens';
 import { ActivityDetails } from './ActivityDetails';
 
-function focus(control: View | Text | null) {
+function focus(control: View | TextHandle | null) {
   if (!control) return;
   if (Platform.OS === 'web') control.focus();
   else AccessibilityInfo.sendAccessibilityEvent(control, 'focus');
@@ -33,7 +26,7 @@ export function ActivityContinuations({
 }: {
   days: readonly ItineraryDay[];
   targetDayId: string;
-  returnFocus: RefObject<Text | null>;
+  returnFocus: RefObject<TextHandle | null>;
   trip?: { startDate: string | null; endDate: string | null };
 }) {
   const locale = useAppLocale();
@@ -47,7 +40,7 @@ export function ActivityContinuations({
   const [source, setSource] = useState<{ dayId: string; activityId: string } | null>(null);
   const sourceDay = days.find((day) => day.id === source?.dayId);
   const activity = sourceDay?.activities.find((item) => item.id === source?.activityId);
-  const heading = useRef<Text>(null);
+  const heading = useRef<TextHandle>(null);
   const triggers = useRef(new Map<string, View>());
   const returnKey = useRef<string | null>(null);
   const opened = useRef(false);
@@ -99,50 +92,55 @@ export function ActivityContinuations({
       ))}
       <Modal
         visible={source !== null}
+        presentationStyle="fullScreen"
         animationType="none"
         onRequestClose={close}
         onDismiss={restore}
         onShow={() => focus(heading.current)}
       >
-        <SafeAreaView
-          accessibilityViewIsModal
-          onAccessibilityEscape={close}
-          style={{ flex: 1, backgroundColor: p.background }}
-        >
-          <ScrollView
-            contentContainerStyle={{
-              padding: spacing.medium,
-              gap: spacing.medium,
-              maxWidth: 640,
-              width: '100%',
-              alignSelf: 'center',
-            }}
+        {/* Modal content has a separate native root from the reader's safe-area provider. */}
+        <SafeAreaProvider>
+          <SafeAreaView
+            edges={['top', 'bottom', 'left', 'right']}
+            accessibilityViewIsModal
+            onAccessibilityEscape={close}
+            style={{ flex: 1, backgroundColor: p.background }}
           >
-            <Text
-              ref={heading}
-              accessible
-              accessibilityRole="header"
-              style={[typography.section, { color: p.text }]}
+            <ScrollView
+              contentContainerStyle={{
+                padding: spacing.medium,
+                gap: spacing.medium,
+                maxWidth: 640,
+                width: '100%',
+                alignSelf: 'center',
+              }}
             >
-              {activity?.title ?? copy.originalGone}
-            </Text>
-            {source &&
-              (activity && sourceDay ? (
-                <>
-                  <Copy>{continuationSource(locale, sourceDay.dayNumber, activity.title)}</Copy>
-                  <ActivityDetails activity={activity} day={sourceDay} trip={trip} />
-                </>
-              ) : (
-                <Notice tone="warning">{copy.originalGone}</Notice>
-              ))}
-            <Action
-              testID="continuation-close"
-              label={t.closeNavigation}
-              variant="secondary"
-              onPress={close}
-            />
-          </ScrollView>
-        </SafeAreaView>
+              <Text
+                ref={heading}
+                accessible
+                accessibilityRole="header"
+                style={[typography.section, { color: p.text }]}
+              >
+                {activity?.title ?? copy.originalGone}
+              </Text>
+              {source &&
+                (activity && sourceDay ? (
+                  <>
+                    <Copy>{continuationSource(locale, sourceDay.dayNumber, activity.title)}</Copy>
+                    <ActivityDetails activity={activity} day={sourceDay} trip={trip} />
+                  </>
+                ) : (
+                  <Notice tone="warning">{copy.originalGone}</Notice>
+                ))}
+              <Action
+                testID="continuation-close"
+                label={t.closeNavigation}
+                variant="secondary"
+                onPress={close}
+              />
+            </ScrollView>
+          </SafeAreaView>
+        </SafeAreaProvider>
       </Modal>
     </View>
   );

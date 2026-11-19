@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import userEvent from '@testing-library/user-event';
 
 /**
  * 空白引導要配合權限（docs/archive/history/UX_IMPROVEMENTS.md）。
@@ -12,6 +13,7 @@ const state = vi.hoisted(() => ({
   role: 'admin' as string | null,
   days: [] as import('@/types').ItineraryDay[],
   createDay: vi.fn(),
+  mutateActivity: vi.fn(),
 }));
 
 vi.mock('next/navigation', () => ({ useParams: () => ({ id: 'trip' }) }));
@@ -55,7 +57,7 @@ vi.mock('@/hooks/queries', () => {
     useItineraryMutations: () => ({
       update: { isPending: false, mutateAsync: vi.fn() },
       remove: { isPending: false, mutateAsync: vi.fn() },
-      mutateActivity: { isPending: false, mutateAsync: vi.fn() },
+      mutateActivity: { isPending: false, mutateAsync: state.mutateActivity },
       create: { isPending: false, mutateAsync: state.createDay },
     }),
     useChecklistMutations: mutations,
@@ -67,7 +69,7 @@ vi.mock('@/components/common/ClientQueryBoundary', () => ({
   ClientQueryBoundary: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 vi.mock('@/components/trips/detail/TripContextOverview', () => ({ default: () => null }));
-vi.mock('@/components/trips/DeferredDialogs', () => ({
+vi.mock('@/components/trips/DeferredDialogs', async () => ({
   EditTripDialog: () => null,
   ItineraryDayDialog: ({
     open,
@@ -88,12 +90,14 @@ vi.mock('@/components/trips/DeferredDialogs', () => ({
         submit-day
       </button>
     ) : null,
-  ActivityFormDialog: () => null,
+  ActivityFormDialog: (await import('@/components/trips/detail/itinerary/ActivityFormDialog'))
+    .default,
   ItineraryImportDialog: () => null,
   NewChecklistSheet: () => null,
   NoteEditDialog: () => null,
   PlanNoteSheet: () => null,
 }));
+vi.mock('@/components/location/LocationAutocomplete', () => ({ default: () => null }));
 vi.mock('@/components/collections/DeferredDialogs', () => ({
   FlightRecordDialog: () => null,
   StayRecordDialog: () => null,
@@ -132,18 +136,133 @@ beforeEach(() => {
   state.role = 'admin';
   state.days = [];
   state.createDay.mockReset();
+  state.mutateActivity.mockReset();
 });
 afterEach(cleanup);
 
 /** 頁面內部仍會呼叫 useQueryClient，給一個乾淨的 client 就夠。 */
 function renderPage(Page: () => React.ReactNode) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  const content = () => (
     <QueryClientProvider client={client}>
       <Page />
     </QueryClientProvider>
   );
+  const view = render(content());
+  return { ...view, refresh: () => view.rerender(content()) };
 }
+
+it.each(['Escape', 'close', 'cancel', 'save', 'edit', 'removed'])(
+  'returns focus to the activity entry after closing with %s',
+  async (action) => {
+    state.days = [1, 2].map((dayNumber) => ({
+      id: `day-${dayNumber}`,
+      trip_id: 'trip',
+      day_number: dayNumber,
+      title: `Day title ${dayNumber}`,
+      content: '',
+      revision: 0,
+      location: null,
+      created_at: '',
+      updated_at: '',
+      activities:
+        dayNumber === 1
+          ? []
+          : [
+              {
+                id: 'meal',
+                revision: 0,
+                title: 'Dinner',
+                type: 'food',
+                time: '19:00',
+                end_time: null,
+                location: null,
+                note: '',
+                confirmation_code: '',
+                attachments: [],
+              },
+            ],
+    }));
+    Element.prototype.hasPointerCapture ??= () => false;
+    Element.prototype.scrollIntoView ??= () => {};
+    const user = userEvent.setup();
+    const view = renderPage(ItineraryPage);
+    const editing = action === 'edit' || action === 'removed';
+    const trigger = editing
+      ? screen.getByRole('button', { name: /moreActions.*Dinner/ })
+      : screen.getAllByRole('button', { name: 'add' })[1];
+    trigger.focus();
+    await user.keyboard('{Enter}');
+    if (editing) await user.click(screen.getByRole('menuitem', { name: 'edit' }));
+    await screen.findByRole('heading', { name: editing ? 'editInDay' : 'addToDay' });
+    if (action === 'removed') {
+      state.days[1] = { ...state.days[1], activities: [] };
+      view.refresh();
+    }
+    if (action === 'cancel' || action === 'close') {
+      await user.click(screen.getByRole('button', { name: action }));
+    } else if (action === 'save') {
+      fireEvent.change(screen.getByPlaceholderText('titlePlaceholder'), {
+        target: { value: 'Walk' },
+      });
+      await user.click(screen.getByRole('button', { name: 'save' }));
+      expect(state.mutateActivity).toHaveBeenCalledOnce();
+    } else {
+      await user.keyboard('{Escape}');
+    }
+    const target =
+      action === 'removed' ? screen.getByRole('heading', { name: 'Day title 2' }) : trigger;
+    await waitFor(() => expect(target).toHaveFocus());
+  }
+);
+
+it.each([
+  { offset: 1, time: '22:25', end: '00:20', expected: '2026-01-02 00:20' },
+  { offset: -1, time: '22:25', end: '00:20', expected: '2025-12-31 00:20' },
+  { offset: null, time: '22:25', end: '00:20', expected: 'unconfirmed 00:20' },
+  { offset: 1, time: null, end: null, expected: '2026-01-02 unknown' },
+])(
+  'single activity deletion describes its end date ($offset, $time)',
+  async ({ offset, time, end, expected }) => {
+    Element.prototype.hasPointerCapture ??= () => false;
+    Element.prototype.scrollIntoView ??= () => {};
+    state.days = [
+      {
+        id: 'day',
+        trip_id: 'trip',
+        day_number: 1,
+        title: 'Departure',
+        content: '',
+        revision: 0,
+        location: null,
+        created_at: '',
+        updated_at: '',
+        activities: [
+          {
+            id: 'flight',
+            revision: 0,
+            title: 'Overnight flight',
+            type: 'flight',
+            time,
+            end_time: end,
+            end_day_offset: offset,
+            location: null,
+            note: '',
+            confirmation_code: '',
+            attachments: [],
+          },
+        ],
+      },
+    ];
+    const user = userEvent.setup();
+    renderPage(ItineraryPage);
+    await user.click(screen.getByRole('button', { name: /moreActions.*Overnight flight/ }));
+    await user.click(await screen.findByRole('menuitem', { name: 'remove' }));
+    const confirmation = screen.getByRole('alertdialog');
+    expect(confirmation).toHaveTextContent(`departure 2026-01-01 ${time ?? 'unknown'}`);
+    expect(confirmation).toHaveTextContent(expected);
+  }
+);
 
 describe('empty states follow what the viewer may actually do', () => {
   it.each(cases)('$name tells an editor how to start', ({ Page, editorRole, addLabel }) => {

@@ -210,6 +210,7 @@ export default function ItineraryDayCard({
                   </Button>
                 )}
                 <Button
+                  id={`itinerary-add-activity-${day.id}`}
                   className="h-auto min-h-11 max-w-full gap-2 whitespace-normal rounded-lg px-3 py-2"
                   onClick={() => onAddActivity(day)}
                 >
@@ -376,6 +377,7 @@ export default function ItineraryDayCard({
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
+                          data-itinerary-activity-menu
                           variant="ghost"
                           size="icon"
                           className="h-11 w-11 shrink-0 text-muted-foreground"

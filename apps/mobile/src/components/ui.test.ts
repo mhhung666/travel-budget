@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createElement, isValidElement, type ReactElement, type ReactNode } from 'react';
 import { Action, Badge, Card, Chip, Notice, Page, TextField } from './ui';
 import { PageHeader } from './screen';
+import { Text } from './Text';
 import { Icon } from './icons';
 import { colors, sizing } from '@/theme/tokens';
 
@@ -116,7 +117,7 @@ describe('Action', () => {
         accessibilityState: { disabled: true, busy: !!flags.busy },
       });
       expect(style(element)).toMatchObject({ backgroundColor: colors.light.disabled });
-      expect(style(find(content(element), 'Text')).color).toBe(colors.light.onDisabled);
+      expect(style(find(content(element), Text)).color).toBe(colors.light.onDisabled);
       if (flags.busy) expect(find(content(element), Icon).props.name).toBe('spinner');
     }
   );
@@ -128,7 +129,7 @@ describe('Action', () => {
       Action({ label: '刪除', secondary: true, variant: 'danger', icon: 'alert', onPress })
     );
     expect(style(danger).backgroundColor).toBe(colors.light.dangerFill);
-    expect(style(find(content(danger, true), 'Text')).color).toBe(colors.light.danger);
+    expect(style(find(content(danger, true), Text)).color).toBe(colors.light.danger);
     expect(find(content(danger, true), Icon).props.color).toBe(colors.light.danger);
     press(danger);
     expect(onPress).toHaveBeenCalledOnce();
@@ -152,11 +153,11 @@ describe('Notice announcements', () => {
     let important = false;
     const component = () => Notice({ children: message, tone: important ? 'danger' : 'info' });
     let element = render(component);
-    expect(find(element, 'Text').props.role).toBeUndefined();
+    expect(find(element, Text).props.role).toBeUndefined();
     expect(h.announce).not.toHaveBeenCalled();
     important = true;
     element = render(component);
-    expect(find(element, 'Text').props).toMatchObject({
+    expect(find(element, Text).props).toMatchObject({
       role: 'alert',
       accessibilityLiveRegion: 'polite',
     });
@@ -174,14 +175,14 @@ describe('Notice announcements', () => {
       const element = render(() =>
         Notice({ children: '失敗', tone: 'danger', announce: 'assertive' })
       );
-      expect(find(element, 'Text').props.accessibilityLiveRegion).toBe('assertive');
+      expect(find(element, Text).props.accessibilityLiveRegion).toBe('assertive');
       expect(h.announce).not.toHaveBeenCalled();
     }
   );
   it('supports a short progress summary and quiet autosave/countdown updates', () => {
     let children = '正在保存草稿';
     const component = () => Notice({ children, role: 'status', announce: 'none' });
-    expect(find(render(component), 'Text').props.role).toBe('status');
+    expect(find(render(component), Text).props.role).toBe('status');
     children = '草稿已存本機，尚未入帳';
     render(component);
     expect(h.announce).not.toHaveBeenCalled();
@@ -296,7 +297,7 @@ describe('selectable and decorative components', () => {
       );
       expect(find(chip, Icon).props.name).toBe('check');
       expect(style(chip).minHeight).toBeGreaterThanOrEqual(sizing.touch);
-      expect(style(find(chip, 'Text')).flexShrink).toBe(1);
+      expect(style(find(chip, Text)).flexShrink).toBe(1);
       press(chip);
       expect(onPress).not.toHaveBeenCalled();
     }
@@ -315,7 +316,7 @@ describe('selectable and decorative components', () => {
       pointerEvents: 'none',
     });
     const badge = render(() => Badge({ label: '已入帳', tone: 'success' }));
-    expect(style(find(badge, 'Text')).color).toBe(colors.light.success);
+    expect(style(find(badge, Text)).color).toBe(colors.light.success);
   });
   it('keeps scroll and keyboard dismissal behavior for forms', () => {
     const page = render(() => Page({ form: true, children: '表單' }));

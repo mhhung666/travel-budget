@@ -28,6 +28,10 @@ export type EditorTarget = {
   remove?: boolean;
   source?: string;
 };
+type Submission =
+  | { status: 'pending'; requestId: string | null; warning: string }
+  | { status: 'committed' }
+  | { status: 'rejected'; code: string };
 export type EditorDefinition<F extends Record<string, string>, C extends ItineraryWriteInput> = {
   messages: typeof itineraryMessages;
   testId: string;
@@ -97,9 +101,7 @@ function ItineraryEditor<F extends Record<string, string>, C extends ItineraryWr
   const [prepared, setPrepared] = useState<C | null>(null);
   const [error, setError] = useState('');
   const [forbidden, setForbidden] = useState(false);
-  const [done, setDone] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [requestId, setRequestId] = useState<string | null>(null);
+  const [lastSubmission, setSubmission] = useState<Submission | null>(null);
   const sameOwner = () =>
     !!scope &&
     manager.getSignInVersion() === version &&
@@ -109,12 +111,22 @@ function ItineraryEditor<F extends Record<string, string>, C extends ItineraryWr
   const current = () => mounted.current && sameOwner();
   const visible = sameOwner() && !!scope && catalog.isVisible(scope, tripId);
   const pending = records.data?.find((r) => r.tripId === tripId && r.status === 'pending');
-  const terminal = requestId
-    ? records.data?.find((r) => r.clientRequestId === requestId)?.result
+  const requestId = lastSubmission?.status === 'pending' ? lastSubmission.requestId : null;
+  const receipt = requestId
+    ? records.data?.find((r) => r.tripId === tripId && r.clientRequestId === requestId)?.result
     : null;
-  const completed = done || terminal?.status === 'committed';
+  const recovered: Submission | null =
+    receipt?.status === 'committed'
+      ? { status: 'committed' }
+      : receipt?.status === 'rejected'
+        ? { status: 'rejected', code: receipt.code }
+        : null;
+  // Keep the confirmed outcome if the user later dismisses its receipt from the operation list.
+  if (recovered) setSubmission(recovered);
+  const submission = recovered ?? lastSubmission;
+  const completed = submission?.status === 'committed';
   const dirty = !!fields && JSON.stringify(fields) !== JSON.stringify(initial);
-  const frozen = busy || !!pending || submitted || done;
+  const frozen = busy || !!pending || !!submission;
   const missing = !!context && !definition.exists(context, target);
   const ready =
     visible &&
@@ -139,7 +151,7 @@ function ItineraryEditor<F extends Record<string, string>, C extends ItineraryWr
       mounted.current = false;
     };
   }, []);
-  usePreventRemove(visible && (busy || (dirty && !submitted && !done)), ({ data }) => {
+  usePreventRemove(visible && (busy || (dirty && !submission)), ({ data }) => {
     if (!current() || flight.current) return;
     Alert.alert(t.leaveFormTitle, copy.unsaved, [
       { text: t.stayForm, style: 'cancel' },
@@ -224,9 +236,7 @@ function ItineraryEditor<F extends Record<string, string>, C extends ItineraryWr
     setPrepared(null);
     setFields(restored);
     setInitial(definition.fields(data, target));
-    setSubmitted(false);
-    setRequestId(null);
-    setDone(false);
+    setSubmission(null);
   }
   // Capture the mount's owner. Refocus/reconnect must never reset unsaved fields.
   const [initialize] = useState(() => () => run(load));
@@ -270,8 +280,7 @@ function ItineraryEditor<F extends Record<string, string>, C extends ItineraryWr
       if (result.kind === 'completed') {
         setPrepared(null);
         if (result.result.status === 'committed') {
-          setSubmitted(true);
-          setDone(true);
+          setSubmission({ status: 'committed' });
         } else if (result.result.status === 'rejected') {
           setError(rejection(result.result.code));
           // Keep the input; re-reading/rebasing must be an explicit user action.
@@ -279,10 +288,12 @@ function ItineraryEditor<F extends Record<string, string>, C extends ItineraryWr
           if (current()) setLatest(data);
         }
       } else if (result.kind === 'pending') {
-        setRequestId(result.clientRequestId ?? null);
-        setSubmitted(true);
+        setSubmission({
+          status: 'pending',
+          requestId: result.clientRequestId ?? null,
+          warning: result.error ? errorMessage(result.error, t) : '',
+        });
         setPrepared(null);
-        setError(result.error ? errorMessage(result.error, t) : '');
       } else if (result.kind === 'not-sent') {
         setError(result.error instanceof ApiError ? errorMessage(result.error, t) : copy.storage);
       } else setError(t.operationBlocked);
@@ -310,17 +321,22 @@ function ItineraryEditor<F extends Record<string, string>, C extends ItineraryWr
     >
       {!online && <Notice tone="warning">{t.offline}</Notice>}
       {!!error && <Notice tone="warning">{error}</Notice>}
-      {(records.isError || records.isPending) && (
+      {!completed && (records.isError || records.isPending) && (
         <Notice tone="warning">{records.isError ? t.recoveryLoadFailed : t.loading}</Notice>
       )}
-      {records.isError && <Action label={t.retry} onPress={() => void records.refetch()} />}
+      {!completed && records.isError && (
+        <Action label={t.retry} onPress={() => void records.refetch()} />
+      )}
       {completed && <Notice tone="success">{copy.saved}</Notice>}
-      {(pending || (submitted && !completed)) && (
+      {!completed && (pending || submission) && (
         <Card>
+          {submission?.status === 'pending' && !!submission.warning && (
+            <Notice tone="warning">{submission.warning}</Notice>
+          )}
           <Notice tone="warning">
-            {terminal?.status === 'rejected' ? rejection(terminal.code) : copy.pending}
+            {submission?.status === 'rejected' ? rejection(submission.code) : copy.pending}
           </Notice>
-          {terminal?.status === 'rejected' && (
+          {submission?.status === 'rejected' && (
             <Action
               label={copy.reload}
               disabled={busy || !online}
@@ -329,8 +345,7 @@ function ItineraryEditor<F extends Record<string, string>, C extends ItineraryWr
                   const data = await read();
                   if (!current()) return;
                   setLatest(data);
-                  setSubmitted(false);
-                  setRequestId(null);
+                  setSubmission(null);
                 })
               }
             />
@@ -367,7 +382,7 @@ function ItineraryEditor<F extends Record<string, string>, C extends ItineraryWr
           )}
         </Card>
       )}
-      {fields && context && !forbidden && !pending && !done && !submitted && (
+      {fields && context && !forbidden && !pending && !submission && (
         <>
           <Fields
             fields={fields}

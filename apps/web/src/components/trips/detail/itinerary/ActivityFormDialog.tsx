@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/button';
 interface ActivityFormDialogProps {
   open: boolean;
   onClose: () => void;
+  onCloseAutoFocus?: (event: Event) => void;
   /** 送出單一活動 payload；由父層呼叫單筆 mutateItineraryActivity。 */
   onSubmit: (activity: ActivityPayload) => Promise<void>;
   tripId: string;
@@ -43,6 +44,7 @@ interface ActivityFormDialogProps {
 export default function ActivityFormDialog({
   open,
   onClose,
+  onCloseAutoFocus,
   onSubmit,
   tripId,
   dayNumber,
@@ -91,7 +93,10 @@ export default function ActivityFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
-      <DialogContent className="flex max-h-[90vh] flex-col sm:max-w-[560px]">
+      <DialogContent
+        className="flex max-h-[90vh] flex-col sm:max-w-[560px]"
+        onCloseAutoFocus={onCloseAutoFocus}
+      >
         <DialogHeader>
           <DialogTitle>
             {activity

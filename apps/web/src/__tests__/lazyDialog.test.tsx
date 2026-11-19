@@ -87,6 +87,33 @@ it('supports onOpenChange dismissal while a chunk is pending', () => {
   expect(change).toHaveBeenCalledWith(false);
 });
 
+it('can return focus to the entry when a loading dialog is dismissed', async () => {
+  const View = lazyDialog(() => new Promise<{ default: typeof Form }>(() => {}));
+  function Entry() {
+    const [open, setOpen] = useState(false);
+    return (
+      <>
+        <button id="launch" onClick={() => setOpen(true)}>
+          Open form
+        </button>
+        <View
+          open={open}
+          onClose={() => setOpen(false)}
+          onFallbackCloseAutoFocus={(event) => {
+            event.preventDefault();
+            document.getElementById('launch')?.focus();
+          }}
+        />
+      </>
+    );
+  }
+  render(<Entry />);
+  const launch = screen.getByRole('button', { name: 'Open form' });
+  fireEvent.click(launch);
+  fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+  await waitFor(() => expect(launch).toHaveFocus());
+});
+
 it('keeps manual fields usable and retry non-submitting when an optional panel fails', async () => {
   const log = vi.spyOn(console, 'error').mockImplementation(() => {});
   try {

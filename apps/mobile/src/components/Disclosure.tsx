@@ -1,5 +1,6 @@
 import { useState, type PropsWithChildren } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { Text } from '@/components/Text';
 import { Icon, usePalette } from './ui';
 import { sizing, spacing, typography } from '@/theme/tokens';
 

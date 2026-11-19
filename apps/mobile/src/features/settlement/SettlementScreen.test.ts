@@ -40,9 +40,11 @@ vi.mock('@/features/expenses/useTripMembers', () => ({
     denied: false,
   }),
 }));
-vi.mock('react-native', () =>
-  Object.fromEntries(['Text', 'View', 'Pressable', 'ActivityIndicator'].map((n) => [n, n]))
-);
+vi.mock('react-native', () => ({
+  ...Object.fromEntries(['Text', 'View', 'Pressable', 'ActivityIndicator'].map((n) => [n, n])),
+  Platform: { OS: 'ios' },
+  useWindowDimensions: () => ({ fontScale: 1 }),
+}));
 vi.mock('expo-router', () => ({ router: { push: h.push } }));
 vi.mock('@/features/navigation/TripContext', () => ({ TripContext: 'TripContext' }));
 vi.mock('@/components/ui', async () => {

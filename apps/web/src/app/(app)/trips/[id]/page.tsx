@@ -1,13 +1,13 @@
 'use client';
-import { projectItineraryContinuations } from '@/lib/itineraryContinuations';
-import { activityTimingLabels } from '@/lib/activityTiming';
+import { activityAnchorId, projectItineraryContinuations } from '@/lib/itineraryContinuations';
+import { activityTimingLabels, activityTimingText } from '@/lib/activityTiming';
 import { toDateOnly } from '@/lib/itineraryDayTarget';
 import dynamic from 'next/dynamic';
 import { ActivityBatchDeletionProvider } from '@/components/trips/detail/itinerary/ActivityBatchDeletion';
 import { ClientQueryBoundary } from '@/components/common/ClientQueryBoundary';
 import { QueryStatus } from '@/components/common/QueryStatus';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { useQueryClient } from '@tanstack/react-query';
@@ -185,6 +185,8 @@ function ItineraryPageContent() {
     day: ItineraryDay;
     activity?: Activity;
   } | null>(null);
+  const activityReturnFocus = useRef<{ dayId: string; activityId?: string } | null>(null);
+  const itineraryContent = useRef<HTMLDivElement>(null);
   const [deletingDay, setDeletingDay] = useState<ItineraryDay | null>(null);
   // 待確認刪除的單筆活動；null＝關閉確認框。
   const [deletingActivity, setDeletingActivity] = useState<{
@@ -322,12 +324,39 @@ function ItineraryPageContent() {
 
   // 卡片上的「新增活動」捷徑：開輕量單一活動對話框（不開整天編輯）。
   const handleAddActivity = (day: ItineraryDay) => {
+    activityReturnFocus.current = null;
     setActivityDialog({ day });
   };
 
   // 活動列上的「編輯」捷徑：同一個輕量對話框，預填該筆活動。
   const handleEditActivity = (day: ItineraryDay, activity: Activity) => {
+    activityReturnFocus.current = null;
     setActivityDialog({ day, activity });
+  };
+
+  const closeActivityDialog = () => {
+    if (!activityDialog) return;
+    activityReturnFocus.current = {
+      dayId: activityDialog.day.id,
+      activityId: activityDialog.activity?.id,
+    };
+    setActivityDialog(null);
+  };
+
+  const restoreActivityFocus = (event: Event) => {
+    event.preventDefault();
+    // A loading dialog can unmount when the form loads. Restore only on an actual close.
+    const target = activityReturnFocus.current;
+    if (!target) return;
+    activityReturnFocus.current = null;
+    const { dayId, activityId } = target;
+    const button = activityId
+      ? document
+          .getElementById(activityAnchorId(dayId, activityId))
+          ?.querySelector('[data-itinerary-activity-menu]')
+      : document.getElementById(`itinerary-add-activity-${dayId}`);
+    const fallback = document.getElementById(`batch-day-${dayId}`) ?? itineraryContent.current;
+    (button instanceof HTMLElement ? button : fallback)?.focus();
   };
 
   // 單筆活動寫入；保留開啟表單時的活動 snapshot，避免舊草稿覆蓋。
@@ -447,7 +476,11 @@ function ItineraryPageContent() {
       dates={datesByDayId}
       isAdmin={isAdmin}
     >
-      <div className="container mx-auto max-w-4xl py-4 px-4 sm:px-6">
+      <div
+        ref={itineraryContent}
+        tabIndex={-1}
+        className="container mx-auto max-w-4xl py-4 px-4 sm:px-6"
+      >
         <QueryStatus query={tripQuery} />
         {phase === 'preTrip' && <QueryStatus query={checklistQuery} />}
         {phase === 'postTrip' && <QueryStatus query={settlementQuery} />}
@@ -642,7 +675,9 @@ function ItineraryPageContent() {
         {/* 卡片捷徑：手機友善的單一活動新增/編輯（不開整天編輯） */}
         <ActivityFormDialog
           open={!!activityDialog}
-          onClose={() => setActivityDialog(null)}
+          onClose={closeActivityDialog}
+          onCloseAutoFocus={restoreActivityFocus}
+          onFallbackCloseAutoFocus={restoreActivityFocus}
           onSubmit={handleActivitySubmit}
           tripId={tripId}
           dayNumber={
@@ -680,12 +715,19 @@ function ItineraryPageContent() {
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>{tAct('removeConfirm')}</AlertDialogTitle>
-              <AlertDialogDescription>
+              <AlertDialogDescription className="whitespace-pre-line [overflow-wrap:anywhere]">
                 {deletingActivity &&
-                  tAct('removeConfirmMessage', {
+                  `${tAct('removeConfirmMessage', {
                     title: deletingActivity.activity.title,
                     dayNumber: deletingActivity.day.day_number,
-                  })}
+                  })}\n${
+                    activityTimingText(
+                      deletingActivity.activity,
+                      deletingActivity.day.day_number,
+                      datesByDayId.get(deletingActivity.day.id),
+                      activityTimingLabels(tTime)
+                    ).summary
+                  }`}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

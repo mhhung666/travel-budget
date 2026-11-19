@@ -9,12 +9,18 @@ import { ErrorState } from './ErrorState';
 type CloseControl = { open: boolean; onClose: () => void };
 type DialogControl = CloseControl | { open: boolean; onOpenChange: (open: boolean) => void };
 
-function LoadingDialog({ open, onClose, onRetry }: CloseControl & { onRetry?: () => void }) {
+function LoadingDialog({
+  open,
+  onClose,
+  onRetry,
+  onCloseAutoFocus,
+}: CloseControl & { onRetry?: () => void; onCloseAutoFocus?: (event: Event) => void }) {
   const t = useTranslations('common');
   return (
     <ResponsiveFormSheet
       open={open}
       onOpenChange={(next) => !next && onClose()}
+      onCloseAutoFocus={onCloseAutoFocus}
       title={t(onRetry ? 'errorTitle' : 'loading')}
       description={t('loading')}
     >
@@ -53,14 +59,16 @@ class ChunkBoundary extends Component<
 export function lazyDialog<P extends DialogControl>(
   load: () => Promise<{ default: ComponentType<P> }>
 ) {
-  return function LazyDialog(props: P & { preload?: boolean }) {
+  return function LazyDialog(
+    props: P & { preload?: boolean; onFallbackCloseAutoFocus?: (event: Event) => void }
+  ) {
     const [activated, setActivated] = useState(false);
     const [entry, setEntry] = useState(() => ({ View: lazy(load), attempt: 0 }));
     const requested = props.open || props.preload;
     if (requested && !activated) setActivated(true);
     if (!activated && !requested) return null;
     const onClose = () => ('onClose' in props ? props.onClose() : props.onOpenChange(false));
-    const control = { open: props.open, onClose };
+    const control = { open: props.open, onClose, onCloseAutoFocus: props.onFallbackCloseAutoFocus };
     const retry = () => setEntry((prev) => ({ View: lazy(load), attempt: prev.attempt + 1 }));
     return (
       <ChunkBoundary key={entry.attempt} fallback={<LoadingDialog {...control} onRetry={retry} />}>

@@ -1,4 +1,5 @@
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '@/components/Text';
 import type { ItineraryActivity, ItineraryLocation } from '@travel-budget/contracts';
 import { DetailRow, Section, usePalette } from '@/components/ui';
 import { useMessages, useAppLocale } from '@/i18n/useMessages';

@@ -1,0 +1,29 @@
+{
+  "date": "2026-11-07",
+  "baseline": "e99e8d1a",
+  "databaseScope": "disposable loopback replica set",
+  "dayNumbers": [1, 2, 3, 4, 6],
+  "activityCount": 7,
+  "flight": [
+    {
+      "id": "6aeeb107431d3361876bebe9",
+      "endDayOffset": 2,
+      "revision": 4
+    }
+  ],
+  "receipts": [
+    {
+      "requestId": "90815f08-88ef-4b80-bfcc-fd1cbf1c3f46",
+      "operation": "activity.update",
+      "status": "committed",
+      "result": {
+        "activityId": "6aeeb107431d3361876bebe9",
+        "dayId": "6aeeb107431d3361876bebef"
+      }
+    }
+  ],
+  "webReadback": "2026-01-14 00:20; +2; two continuation buttons",
+  "limitations": [
+    "Fixture activity named leap-day uses the Jan 12 trip date; actual leap-day is automated fixture coverage only."
+  ]
+}

@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { batchDeletionMessages } from '@/i18n/batchDeletionMessages';
-import { ActivityIndicator, FlatList, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, View } from 'react-native';
+import { Text, type TextHandle } from '@/components/Text';
 import type { ItineraryActivity } from '@travel-budget/contracts';
 import { ScreenFrame } from '@/components/frame';
 import { ScrollChrome } from '@/components/scrollChrome';
@@ -62,7 +63,7 @@ function ItineraryReader({
   tripId: string;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const dayHeading = useRef<Text>(null);
+  const dayHeading = useRef<TextHandle>(null);
   const t = useMessages();
   const f = useDisplayFormat();
   const locale = useAppLocale();

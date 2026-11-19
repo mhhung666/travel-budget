@@ -1,6 +1,7 @@
 import { Tabs, router, useLocalSearchParams, usePathname } from 'expo-router';
 import { useEffect, useRef, type ComponentProps } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { Text } from '@/components/Text';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NavigationMenu } from '@/components/NavigationMenu';
 import { ScrollChromeProvider } from '@/components/scrollChrome';

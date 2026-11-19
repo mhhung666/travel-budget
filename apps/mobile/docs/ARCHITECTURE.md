@@ -24,7 +24,9 @@ Server Actions 與 HTTP API 是兩個呼叫入口，部署初期同在現有 Nex
 
 行程 Query 使用 requestAs、AbortSignal 與 catalog 撤權世代守衛，403／404 納入 catalog 既有持久拒絕；畫面在 session／catalog／HTTP 拒絕任一成立時卸載私人閱讀器，晚到結果不能解除隱藏。沒有新 provider、SQLite 表、背景同步或票券儲存；本文／備註以原生可選取 Text 顯示，全部文字可換行。
 
-`ActivityContinuations` 在閱讀器共用 contracts 純投影，不進 FlatList 活動資料或批次頁；唯讀 Modal 以來源日／活動 ID 解讀最新 Query，與原列共用 `ActivityDetails`。關閉恢復原觸發項焦點及列表位置；來源消失清除詳情，換帳號／撤權沿閱讀器卸載。沒有新 Query、路由或持久化；四語來源摘要以 ICU 格式化。
+`ActivityContinuations` 在閱讀器共用 contracts 純投影，不進 FlatList 活動資料或批次頁；唯讀全螢幕 Modal 以來源日／活動 ID 解讀最新 Query，與原列共用 `ActivityDetails`。Modal 內建立自己的 `SafeAreaProvider`，四邊安全區包住含標題、內容及關閉按鈕的 ScrollView，依原生彈窗邊界更新，不套用固定狀態列高度或啟動快照。關閉恢復原觸發項焦點及列表位置；來源消失清除詳情，換帳號／撤權沿閱讀器卸載。沒有新 Query、路由或持久化；四語來源摘要以 ICU 格式化。
+
+共用 UI、導覽及行程文字透過 `components/Text` 訂閱系統字級；iOS 熱切換時只替換底層原生文字節點，促使重新量測。控制項、選日／FlatList、詳情 Modal、表單及 provider 不以字級重建；原生 ref、文字樣式與無障礙屬性仍往下傳，不限制縮放。已在 iOS 模擬器複驗字級切換，涵蓋範圍見 [CD4 驗收進度](../../../docs/design/ITINERARY_PRESENTATION.md#cd4-驗收進度)。
 
 ## App 行程日維護與恢復
 
