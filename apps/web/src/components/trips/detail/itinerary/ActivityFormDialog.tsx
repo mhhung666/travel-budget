@@ -94,10 +94,10 @@ export default function ActivityFormDialog({
   return (
     <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
       <DialogContent
-        className="flex max-h-[90vh] flex-col sm:max-w-[560px]"
+        className="flex max-h-[90dvh] flex-col gap-2 overflow-y-auto p-3 sm:max-w-[560px] sm:gap-4 sm:p-6"
         onCloseAutoFocus={onCloseAutoFocus}
       >
-        <DialogHeader>
+        <DialogHeader className="pr-12 text-left">
           <DialogTitle>
             {activity
               ? dayNumber
@@ -109,7 +109,7 @@ export default function ActivityFormDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto p-1">
+        <div className="min-h-16 flex-1 overflow-y-auto p-1">
           {datesChanged && (
             <div className="mb-3 space-y-2">
               <p role="alert" className="text-sm text-destructive">
@@ -141,7 +141,7 @@ export default function ActivityFormDialog({
           />
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-col gap-2 sm:gap-0">
           <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
             {tCommon('cancel')}
           </Button>

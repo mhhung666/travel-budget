@@ -17,7 +17,7 @@ import {
   expenseOutboxQueryKey,
   type ExpenseOutbox,
 } from '@/lib/expenseOutbox';
-import { createQueryPersister, getQueryPersistKey } from '@/lib/queryPersister';
+import { createQueryPersister, getQueryPersistKey, PERSIST_BUSTER } from '@/lib/queryPersister';
 import type { TripShell } from '@/types';
 import { buildOptimisticExpense } from '@/lib/optimisticExpense';
 
@@ -92,6 +92,30 @@ afterEach(() => {
 });
 
 describe('QueryProvider offline startup', () => {
+  it('keeps the offline itinerary but revalidates a fresh disk snapshot on reload', async () => {
+    const snapshot = new QueryClient();
+    const key = tripKeys.itinerary('trip');
+    const beforeDelete = [{ id: 'day', activities: [{ id: 'removed' }] }];
+    snapshot.setQueryData(key, beforeDelete);
+    snapshot.setQueryData(shellKey, { id: 'trip' });
+    storage.set(
+      persistKey,
+      JSON.stringify({
+        timestamp: Date.now(),
+        buster: PERSIST_BUSTER,
+        clientState: dehydrate(snapshot),
+      })
+    );
+    const restored = await createQueryPersister(scope).restoreClient();
+    const queries = restored?.clientState.queries;
+    expect(queries?.find((q) => q.queryKey[2] === 'itinerary')?.state).toMatchObject({
+      data: beforeDelete,
+      isInvalidated: true,
+    });
+    expect(queries?.find((q) => q.queryKey[2] === 'shell')?.state.isInvalidated).toBe(false);
+    snapshot.clear();
+  });
+
   it('does not acknowledge or send until IndexedDB commits, and survives immediate reload without a cache snapshot', async () => {
     const browserOnline = vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false);
     let release!: () => void;

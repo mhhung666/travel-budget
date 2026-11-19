@@ -143,6 +143,9 @@ export function createQueryPersister(cacheScope: string) {
       // then include every durable pending entry once. Rejected drafts contribute no totals.
       for (const query of client.clientState.queries) {
         if (query.queryKey[0] !== 'trip') continue;
+        // A reload can precede the throttled disk flush after an itinerary write.
+        // Keep the offline snapshot available and revalidate it when online.
+        if (query.queryKey[2] === 'itinerary') query.state.isInvalidated = true;
         const tripEntries = Object.values(entries).filter(
           (entry) => entry.vars.tripId === query.queryKey[1]
         );

@@ -383,6 +383,7 @@ function ItineraryPageContent() {
 
   // 活動列上的「刪除」：先開確認框避免誤按，確認後才真的移除。
   const handleDeleteActivity = (day: ItineraryDay, activity: Activity) => {
+    activityReturnFocus.current = { dayId: day.id, activityId: activity.id };
     setDeletingActivity({ day, activity });
   };
 
@@ -399,6 +400,7 @@ function ItineraryPageContent() {
         },
       });
       toast({ title: tAct('removedFromDay', { dayNumber: day.day_number }) });
+      activityReturnFocus.current = { dayId: day.id };
       setDeletingActivity(null);
     } catch {
       // The mutation reports the translated error; keep the original snapshot.
@@ -710,9 +712,12 @@ function ItineraryPageContent() {
         {/* 單筆活動刪除確認 */}
         <AlertDialog
           open={!!deletingActivity}
-          onOpenChange={(open) => !open && setDeletingActivity(null)}
+          onOpenChange={(open) => !open && !mutateActivity.isPending && setDeletingActivity(null)}
         >
-          <AlertDialogContent>
+          <AlertDialogContent
+            className="max-h-[85dvh] overflow-y-auto"
+            onCloseAutoFocus={restoreActivityFocus}
+          >
             <AlertDialogHeader>
               <AlertDialogTitle>{tAct('removeConfirm')}</AlertDialogTitle>
               <AlertDialogDescription className="whitespace-pre-line [overflow-wrap:anywhere]">
@@ -730,8 +735,10 @@ function ItineraryPageContent() {
                   }`}
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
+            <AlertDialogFooter className="flex-col gap-2 sm:gap-0">
+              <AlertDialogCancel className="mt-0" disabled={mutateActivity.isPending}>
+                {tCommon('cancel')}
+              </AlertDialogCancel>
               <AlertDialogAction
                 onClick={(event) => {
                   event.preventDefault();

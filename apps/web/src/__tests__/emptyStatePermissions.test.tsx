@@ -152,37 +152,41 @@ function renderPage(Page: () => React.ReactNode) {
   return { ...view, refresh: () => view.rerender(content()) };
 }
 
+function setupActivityDays() {
+  state.days = [1, 2].map((dayNumber) => ({
+    id: `day-${dayNumber}`,
+    trip_id: 'trip',
+    day_number: dayNumber,
+    title: `Day title ${dayNumber}`,
+    content: '',
+    revision: 0,
+    location: null,
+    created_at: '',
+    updated_at: '',
+    activities:
+      dayNumber === 1
+        ? []
+        : [
+            {
+              id: 'meal',
+              revision: 0,
+              title: 'Dinner',
+              type: 'food',
+              time: '19:00',
+              end_time: null,
+              location: null,
+              note: '',
+              confirmation_code: '',
+              attachments: [],
+            },
+          ],
+  }));
+}
+
 it.each(['Escape', 'close', 'cancel', 'save', 'edit', 'removed'])(
   'returns focus to the activity entry after closing with %s',
   async (action) => {
-    state.days = [1, 2].map((dayNumber) => ({
-      id: `day-${dayNumber}`,
-      trip_id: 'trip',
-      day_number: dayNumber,
-      title: `Day title ${dayNumber}`,
-      content: '',
-      revision: 0,
-      location: null,
-      created_at: '',
-      updated_at: '',
-      activities:
-        dayNumber === 1
-          ? []
-          : [
-              {
-                id: 'meal',
-                revision: 0,
-                title: 'Dinner',
-                type: 'food',
-                time: '19:00',
-                end_time: null,
-                location: null,
-                note: '',
-                confirmation_code: '',
-                attachments: [],
-              },
-            ],
-    }));
+    setupActivityDays();
     Element.prototype.hasPointerCapture ??= () => false;
     Element.prototype.scrollIntoView ??= () => {};
     const user = userEvent.setup();
@@ -213,6 +217,26 @@ it.each(['Escape', 'close', 'cancel', 'save', 'edit', 'removed'])(
     const target =
       action === 'removed' ? screen.getByRole('heading', { name: 'Day title 2' }) : trigger;
     await waitFor(() => expect(target).toHaveFocus());
+  }
+);
+
+it.each(['Escape', 'cancel', 'confirm'])(
+  'returns focus to a usable day control after closing activity deletion with %s',
+  async (action) => {
+    setupActivityDays();
+    Element.prototype.hasPointerCapture ??= () => false;
+    Element.prototype.scrollIntoView ??= () => {};
+    const user = userEvent.setup();
+    renderPage(ItineraryPage);
+    const menu = screen.getByRole('button', { name: /moreActions.*Dinner/ });
+    const add = screen.getAllByRole('button', { name: 'add' })[1];
+    menu.focus();
+    await user.keyboard('{Enter}');
+    await user.click(await screen.findByRole('menuitem', { name: 'remove' }));
+    if (action === 'Escape') await user.keyboard('{Escape}');
+    else await user.click(screen.getByRole('button', { name: action }));
+    await waitFor(() => expect(action === 'confirm' ? add : menu).toHaveFocus());
+    expect(state.mutateActivity).toHaveBeenCalledTimes(action === 'confirm' ? 1 : 0);
   }
 );
 
