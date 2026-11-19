@@ -74,6 +74,12 @@ Expo 的建議版本清單會隨同 SDK patch 更新，交付時須重新執行�
 
 官方參考：[development builds](https://docs.expo.dev/develop/development-builds/introduction/)、[本機編譯](https://docs.expo.dev/guides/local-app-development/)、[環境變數](https://docs.expo.dev/guides/environment-variables/)、[runtime versions](https://docs.expo.dev/eas-update/runtime-versions/)。
 
+原生交付重新排期時，依下列條件逐項核對：
+
+- 開發包與正式包使用各自的識別碼、資料容器及 API／Web 網域；檢查實際 bundle 的目的位址。用隔離後端驗證登入、SecureStore 恢復、SQLite 草稿冷啟動、換帳號與單次入帳。
+- 帳號恢復須驗外部測試信箱、合法使用者可恢復及配額隔離。帳號刪除須有 App 與 Web 入口，處理唯一管理員、共享結算與結果不明的寫入；本人重新驗證後可查詢結果，離線裝置重新連線時清理該帳號資料。
+- 對外試用前驗無 Metro 冷啟動、同識別碼舊包升級、JWT 到期、斷網重送及 Web／App 帳務一致，核對隱私、支援與資料刪除入口。iPhone／Android 真機跑完整記帳與還款，涵蓋四語、大字級及閱讀器；保留平板支援時也驗 iPad。
+
 ## 基本登入與旅行冒煙驗收
 
 優先使用 [本機驗收流程](LOCAL_ACCEPTANCE.md) 的 `test:mobile-api`／`dev:mobile-api`，自動建立隔離 MongoDB 與測試帳號。以下步驟適用於另有既定測試後端的情況。

@@ -10,7 +10,7 @@
 | [開發規範](DEVELOPMENT.md)                                               | 環境、指令、既有規則、測試與發布        |
 | [後端契約](BACKEND_CONTRACT.md)                                          | 單一後端、現行 v2 API、認證與離線契約   |
 | [本機驗收](LOCAL_ACCEPTANCE.md)                                          | 隔離後端、測試帳號、模擬器與真機操作表  |
-| [開發路線](ROADMAP.md)                                                   | 僅未完成、暫緩與尚未排入工作            |
+| [開發路線](ROADMAP.md)                                                   | 目前優先、接續與暫緩工作                |
 | [共同設計：我的旅行](../../../docs/design/MY_TRIPS.md)                   | Web／Mobile 列表設計、實作與待驗證項目  |
 | [行程共用版面與跨日活動](../../../docs/design/ITINERARY_PRESENTATION.md) | Web／App 統一配置、跨日日期與分階段交付 |
 | [新旅行：基準幣別選擇](../../../docs/design/BASE_CURRENCY_CREATION.md)   | Web／App 搜尋單選與已開放基準幣別       |

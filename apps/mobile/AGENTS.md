@@ -31,8 +31,8 @@ Instructions for coding agents working in `apps/mobile`. Also follow the reposit
   `pnpm exec expo install`; preserve Expo / React Native / React compatibility.
 - New user-facing strings must support `zh`, `zh-CN`, `en`, and `jp`. Map device `ja` to `jp`.
   Use semantic color tokens and respect safe areas, text scaling, and accessible labels.
-- Preserve existing TWD base amounts, cent rounding, stable split allocation, date-only values,
-  member/public data boundaries, and server validation. Do not invent another settlement algorithm.
+- Preserve each trip's fixed ledger currency (TWD for legacy records), cent rounding, stable split
+  allocation, date-only values, member/public data boundaries, and server validation. Do not invent another settlement algorithm.
 - AI produces drafts only; the user confirms before existing write workflows run.
 - Never store tokens in query caches or plain preferences. Refresh credentials belong in
   SecureStore. `EXPO_PUBLIC_*` is public bundle data; no database, R2, AI, or signing secrets.

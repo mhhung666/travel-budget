@@ -9,8 +9,8 @@
 | [AI 維護與測試](AI.md)                                                   | 三種 AI 功能的現況、設定、測試方式與評測入口 |
 | [架構摘要](ARCHITECTURE.md)                                              | 核心資料流、程式入口與維護原則               |
 | [共同設計：我的旅行](../../../docs/design/MY_TRIPS.md)                   | Web／Mobile 列表設計、實作與待驗證項目       |
-| [行程共用版面與跨日活動](../../../docs/design/ITINERARY_PRESENTATION.md) | Web／App 統一配置、跨日日期與分階段交付      |
-| [新旅行：基準幣別選擇](../../../docs/design/BASE_CURRENCY_CREATION.md)   | BC1 Web 搜尋單選與跨端開放規劃               |
+| [行程共用版面與跨日活動](../../../docs/design/ITINERARY_PRESENTATION.md) | Web／App 統一配置、跨日日期與驗收            |
+| [新旅行：基準幣別選擇](../../../docs/design/BASE_CURRENCY_CREATION.md)   | 新旅行幣別搜尋、建立與恢復                   |
 | [手機 API](MOBILE_API.md)                                                | 原生 `/api/v2` 的認證、資料邊界與驗證        |
 | [共用 OpenAPI](../../../packages/contracts/openapi.json)                 | Web／手機共用的 API 契約產物                 |
 | [專案 README](../README.md)                                              | 安裝、環境設定與開發指令                     |
@@ -25,13 +25,10 @@
 
 ## 待驗與未排程事項
 
-[行程活動多選刪除](../../../docs/design/ITINERARY_BATCH_DELETE.md)：BD1 Web 同日選取／確認、整批原子刪除與原 UUID 恢復已實作並通過獨立程式審查，Web／PWA 操作待驗；BD2 App 已實作並通過獨立程式審查，iOS 操作待驗。依共同設計的 [收尾清單](../../../docs/design/ITINERARY_BATCH_DELETE.md#本項目收尾) 結案；BD3 跨日暫緩，整天多選未排程，均不屬於本輪結案條件。
+跨端驗收依 [開發路線](../../mobile/docs/ROADMAP.md) 排序。各項結果與待驗案例見 [跨日活動 CD4](../../../docs/design/ITINERARY_PRESENTATION.md#cd4-驗收進度)、[同日多選收尾](../../../docs/design/ITINERARY_BATCH_DELETE.md#本項目收尾)、[我的旅行 UX-T3](../../../docs/design/MY_TRIPS.md#ux-t3-待驗證) 與 [跨端帳務 B4](../../mobile/docs/LOCAL_ACCEPTANCE.md#b4-固定帳務案例)。
 
-| 項目               | 剩餘工作                                                                                                                                                                                         |
+| Web 專項           | 剩餘工作                                                                                                                                                                                         |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 行程版面／跨日 | CD0–CD3 已實作；CD4 聯合驗收局部通過。Web 待補表單配置、鍵盤操作與實際 AI 草稿，見 [CD4 驗收進度](../../../docs/design/ITINERARY_PRESENTATION.md#cd4-驗收進度)。 |
-| UX-T3              | 真 Web 窄版／桌面、iOS／閱讀器、同資料畫面與使用者任務驗證；以共同設計為準                                                                                                                       |
-| 基準幣別 B4        | Web／Mobile 精確帳務、舊資料／PWA 恢復、公開／匯出跨端核對；非 TWD 建立已依使用者確認固定開放，見 [B4](../../mobile/docs/LOCAL_ACCEPTANCE.md#b4-固定帳務案例)                                    |
 | 相簿               | 真 PUT／CORS、iPhone／Android 大檔／慢網、公開副本及正式 cron；18 張當時近期照片未查重、二次掃除未確認。正式 storedHash 回填未執行，接入新上傳／感知比對／歷史合併／關頁續傳／bytes 百分比未排程 |
 | 行程日期／PDF      | 日期 replica-set 並行、真機瀏覽器／讀屏；PDF 的 iOS Safari、Android Chrome、PWA 開啟／儲存、首次字型慢網與手機效能。整天改期、自訂月曆、批次新增未排程                                           |
 | 帳號／附件外部服務 | 共用 M／G 已實作；R2、外部郵件／通知與原生操作待驗見 [Mobile 驗收](../../mobile/docs/LOCAL_ACCEPTANCE.md)。E2 匿名配額風險仍待 F2                                                                |

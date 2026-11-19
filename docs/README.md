@@ -6,7 +6,7 @@
 | [開發規範](DEVELOPMENT.md)                                 | Workspace 指令、環境、版本與部署          |
 | [共同設計：我的旅行](design/MY_TRIPS.md)                   | Web／Mobile 列表設計、實作現況與共同驗證  |
 | [行程共用版面與跨日活動](design/ITINERARY_PRESENTATION.md) | Web／App 統一配置、跨日日期與分階段交付   |
-| [新旅行：基準幣別選擇](design/BASE_CURRENCY_CREATION.md)   | Web／App 共同 UI／UX、搜尋單選及開放條件  |
+| [新旅行：基準幣別選擇](design/BASE_CURRENCY_CREATION.md)   | Web／App 搜尋單選、後端能力與建立後限制   |
 | [行程活動多選刪除](design/ITINERARY_BATCH_DELETE.md)       | 同日選取／確認／恢復、Web／App 實作與待驗 |
 | [Web／後端](../apps/web/docs/README.md)                    | 功能、架構、AI 與 API                     |
 | [Mobile](../apps/mobile/docs/README.md)                    | 功能、開發、驗收與路線                    |
@@ -22,7 +22,7 @@
 | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | 現行開發規則    | 根／App README、AGENTS／CLAUDE、DEVELOPMENT、採用中的 ADR                                                                                     | 保留必要規則／指令，不因功能已完成而歸檔                                        |
 | 功能／架構／API | 各 App FEATURES／ARCHITECTURE、Mobile BACKEND_CONTRACT、Web MOBILE_API、contracts README／OpenAPI                                             | 保留實作契約；程式是最終依據，不另存逐輪版本                                    |
-| 未完成工作      | Mobile ROADMAP／LOCAL_ACCEPTANCE、Web 文件入口待驗表、[共同設計](design/MY_TRIPS.md)                                                          | 實作、審查、裝置、部署分開標狀態                                                |
+| 未完成工作      | [Mobile 路線](../apps/mobile/docs/ROADMAP.md) 排序，驗收結果記在各項連結的規格或操作文件                                                      | 實作、審查、裝置、部署分開標狀態                                                |
 | 操作與來源      | [相簿維運](../apps/web/docs/PHOTO_AUDIT.md)、AI 維護、原始碼旁 README、字型授權                                                               | 長度以安全重跑所需為準，不移走仍在用的命令與限制                                |
 | 已完成成果      | [跨端 archive](archive/README.md)、[Mobile archive](../apps/mobile/docs/archive/README.md)、[Web archive](../apps/web/docs/archive/README.md) | 合併成果／驗證／限制；歷史原型、截圖、量測與已取代 ADR 同步歸檔，詳細過程查 Git |
 

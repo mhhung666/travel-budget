@@ -2,7 +2,7 @@
 
 旅行記帳的 iOS／Android 用戶端，使用 Expo、React Native、Expo Router 與 TypeScript。位於 `travel-budget` repository 的 `apps/mobile`，與 `apps/web` 共用同一套業務後端及 `@travel-budget/contracts` API 契約。
 
-**已實作**：帳號與「我的」、旅行／成員管理、一般／封存列表及快捷記帳，多幣別／四種分攤、支出維護、預算／搜尋分析、結算／還款、私人收據與本機草稿／恢復。功能與限制以 [FEATURES](docs/FEATURES.md) 為準；D 離線佇列仍限 TWD 均分，非 TWD 建立預設關閉。需使用相容的 `apps/web` 後端；裝置、外部服務與部署狀態見 [驗收](docs/LOCAL_ACCEPTANCE.md)，未完成項目不計通過。
+**已實作**：帳號與「我的」、旅行／成員管理、一般／封存列表及快捷記帳，多幣別／四種分攤、支出維護、預算／搜尋分析、結算／還款、私人收據與本機草稿／恢復。功能與限制以 [FEATURES](docs/FEATURES.md) 為準；新旅行可搜尋後端支援的基準幣別，建立後固定。離線自動送出限 TWD 基準、TWD 原幣且均分，其他情況可先存草稿。需使用相容的 `apps/web` 後端；裝置、外部服務與部署狀態見 [驗收](docs/LOCAL_ACCEPTANCE.md)，未完成項目不計通過。
 
 ## 開始開發
 
