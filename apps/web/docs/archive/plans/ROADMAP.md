@@ -33,4 +33,4 @@
 
 - 將候選拆成獨立規格，確認 schema/migration、權限、公開資料、i18n、離線與測試影響。
 - 航空或會籍規則必須重新查證官方來源與生效日期，不直接把本文件當規格。
-- 完成後從本檔移除；現況補到 `FEATURES.md`，變更重點記入根目錄 `changelog.md`。
+- 完成後從本檔移除；現況補到 `FEATURES.md`，變更重點記入`docs/changelog.md`。

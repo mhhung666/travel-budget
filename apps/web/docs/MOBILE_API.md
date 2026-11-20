@@ -2,7 +2,7 @@
 
 原生 API 使用 `/api/v2`，auth／me 與帳務／旅行管理沿用同一 bearer session、授權服務、交易與資料庫。B5 已退役全部 32 個 `/api/v1` 會員 route，未知舊路徑回 404，不轉送其他契約；OpenAPI 只發布 v2。歷史 TWD 解碼／receipt 與帳號隔離保留，退役決策見 [B5 摘要](../../mobile/docs/archive/README.md#b5-v1-退役與-v2-整併2026-10-09)。
 
-非 TWD 建立預設開啟，不需設定環境變數；B4 其餘跨端待驗見 [固定案例](../../mobile/docs/LOCAL_ACCEPTANCE.md#b4-固定帳務案例)。Web 已使用新版帳本 adapter，公開路徑與瀏覽器恢復見 [B2 架構](ARCHITECTURE.md#b2-web-帳本與恢復)。
+非 TWD 建立固定開放，不需設定環境變數；B4 其餘跨端待驗見 [固定案例](../../mobile/docs/LOCAL_ACCEPTANCE.md#b4-固定帳務案例)。Web 已使用新版帳本 adapter，公開路徑與瀏覽器恢復見 [B2 架構](ARCHITECTURE.md#b2-web-帳本與恢復)。
 
 ## App 行程閱讀
 
@@ -23,15 +23,15 @@
 
 G1c 另提供成員管理 context／角色、移除、本人退出及旅行刪除，與僅管理員可讀的虛擬認領連結。共用交易／cascade／版本及最小退出 receipt 的狹義授權例外見 [G1c 契約](../../mobile/docs/BACKEND_CONTRACT.md#g1c-權限與危險操作)；Web 認領憑證流程沿用既有實作，手機只複製／分享能力連結。
 
-原生入口為 `/api/v2`（下列路徑皆相對於它）：登入、更新憑證、登出、目前使用者、旅行列表、旅行摘要、支出清單／明細與結算，以及線上新增支出所需的成員資料、均分預覽、冪等新增與結果查詢。金額回應另帶上節的 `ledger`，金額輸入另帶 `base_currency` 及明確原幣／匯率；以下欄位說明沿用原 DTO。這不代表遠端環境已部署。契約以 [packages/contracts/src/index.ts](../../../packages/contracts/src/index.ts) 的 Zod schema 為單一來源；Web 與手機透過 `@travel-budget/contracts` 匯入，Web 的 `src/lib/mobile/contract.ts` 只保留薄 adapter。共用產物見 [OpenAPI](../../../packages/contracts/openapi.json)，在 repository 根目錄執行 `pnpm contracts:generate` 產生、`pnpm contracts:check` 檢查同步。
+下文路徑皆相對於 `/api/v2`。完整端點、欄位及回應變體見 [產生的 OpenAPI](../../../packages/contracts/openapi.json)，修改與驗證方式見 [共用契約](../../../packages/contracts/README.md)。本頁記錄 Web 後端的授權、交易與相容行為；App 收到失敗或結果未知時的處理見 [Mobile 串接](../../mobile/docs/BACKEND_CONTRACT.md)。
 
 - Web Server Actions 與手機 HTTP handler 在後端共用 `credentials.ts`、`tripListRead.ts` 及既有權限／金額摘要；HTTP handler 不呼叫依賴 cookie 的 Server Action，手機 bundle 不匯入這些後端模組。
 - 手機 access JWT 15 分鐘、裝置 session 絕對期限 30 天；JWT key、issuer、audience 與 Web cookie 隔離。每次授權查詢 session 撤銷／期限與目前密碼 fingerprint。
 - refresh token 僅存雜湊，輪替採原子 compare-and-swap；有效舊 token 重放會撤銷該 session。原生端須合併併發 refresh，refresh 回應遺失時可能需要重新登入。
 - 登出使用 refresh token，因此 access token 過期仍能撤銷；登出不影響其他裝置或原有 Web cookie。密碼變更／重設會讓手機 session 失效。
 - 登入每帳號每 15 分鐘時段最多 10 次，429 提供 Retry-After。此限制不是全面的流量防護；部署時仍沿用平台流量管理。
-- 成員 API 只接受 bearer，拒絕 Web cookie 或 public share code。回應白名單不包含其他人的預算、分享碼、收據／檔案 key。`budgetTotal` 只屬於 viewer。
-- 日期為 `YYYY-MM-DD`，`date` query 表示手機當地日期。金額由現有服務算到分，以 TWD 回傳；`myBalance` 正為應收、負為應付。
+- 旅行成員讀取介面只接受 bearer，拒絕 Web cookie 或 public share code。一般旅行摘要與帳務列表的白名單不含其他人的預算、分享碼或檔案 key；邀請與私人收據各有專用授權端點。`budgetTotal` 只屬於 viewer。
+- 日期為 `YYYY-MM-DD`，`date` query 表示手機當地日期。金額由現有服務算到分，以旅行的帳本基準幣別回傳；`myBalance` 正為應收、負為應付。
 - 旅行列表共用 Web 全列表讀取，HTTP 每頁 20 筆；DB 計算未改為游標分頁。省略參數保留正在旅行優先、已封存最後；T1 新增明確 archive／sort 與全量 metadata，見 [契約](../../mobile/docs/BACKEND_CONTRACT.md#t1-旅行列表篩選與排序)。T3b 支援 quick-add 的 preferred_trip_id：只依完整授權名單在同群前移、排序後分頁，metadata.preferredTripId 回應原參數，不變更唯一性；無效 scope／封存偏好不會授權或暴露其他旅行。分頁非快照，資料變更後從第一頁重讀。
 - 支出清單 `GET /trips/:id/expenses?cursor=` 每頁 20 筆，依 `date`、`createdAt`、`_id` 降冪；游標 `<date ms>.<createdAt ms>.<id>` 編碼最後一筆的實際儲存值，查詢以 `$or` 取其後的資料（沿用 `{trip, date, createdAt}` 索引，不新增索引或 migration；以 `_id` 破同分需記憶體排序），同日同時間也不會漏筆或重複。無效或重複的游標回 400。分頁非快照，下拉更新從第一頁重讀。
 - 明細 `GET /trips/:id/expenses/:expenseId` 以旅行加支出 id 查詢，其他旅行的支出回 404。清單與明細重用 `toExpenseDto` 的到分取整與分攤正規化，再映射為明確白名單 DTO：只 populate 顯示名稱與 isVirtual，投影排除附件、標籤、行程關聯與送達狀態，不輸出登入帳號、Email 或分享碼。類別未知歸為 `other`；付款人或分攤成員參照已不存在時 id 為 `null`、名稱為空；授權清單／明細新增可選 `payerIsVirtual`、明細分攤可選 `isVirtual`（解析到的使用者旗標），不改 Web／public DTO 或 receipt，舊回應缺旗標仍可讀；不代表目前旅行成員資格。缺少原幣欄位的歷史資料以 TWD 金額、`TWD`、匯率 1 補齊。
@@ -42,20 +42,16 @@ G1c 另提供成員管理 context／角色、移除、本人退出及旅行刪�
 ### 線上新增支出
 
 - **共用服務**：Web Server Action（cookie）與 HTTP（bearer）都呼叫 `lib/expenseCreate.ts` 的 `createExpenseForActor`。兩個入口只負責驗證登入、解析旅行、解析輸入與各自的快取／排程（`after` 以參數注入，服務不 import `next/*`）；成員檢查與 `withTripWrite` 交易、成員／分攤／金額驗證、收據驗證、與支出同一交易提交的冪等 receipt，以及通知／活動／outbox 副作用只有一套。提交後的副作用失敗只記錄，不會把已入帳的支出回報成失敗（原本傳統通知路徑的 `revalidatePath` 沒有隔離，已一併修正）；重播在交易前後都不重複任何副作用。
-- `GET /trips/:id/expense-options` → `{ members: [{ id, displayName }], categories }`。成員依加入時間排序（同刻依儲存順序）、含虛擬成員、略過已不存在的帳號，不含登入名稱；順序與 Web 成員清單（`getMembers`）相同，並固定為均分尾差的順序。
-- `POST /trips/:id/expenses/preview`，body `{ amount, member_ids }`（TWD、至多兩位小數、至多 1,000,000,000.00、成員不可重複）→ `{ amount, splits: [{ userId, displayName, shareAmount }] }`。呼叫 Web 表單使用的 `computeSplits('equal')`，結果一律依 options 順序、與請求順序無關：100 元三人為 33.34／33.33／33.33，0.01 元三人為 0.01／0／0，加總恆等於金額。唯讀：不寫資料、不保留交易，也不代表日後一定能寫入；不屬於旅行的成員回 400。
-- `POST /trips/:id/expenses` 的欄位沿用 Web 輸入名稱：`client_request_id`（UUID，必填）、`payer_id`、`original_amount`、`currency`（只接受 `TWD`）、`exchange_rate`（只接受 `1`）、`description`（trim 後 1–200 字）、`category`、`date`（真實日曆日）、`splits[{ user_id, share_amount }]`（1–100 位、成員不可重複、至多兩位小數、可為 0；付款人可不在其中）。請求為 snake_case、回應為 camelCase DTO：這是為了與 Web 共用輸入驗證而刻意的不對稱。附件、標籤、行程關聯等未支援欄位一律 400，不被忽略。金額須為正值；金額與每份分攤至多兩位小數、不超過單筆上限 1,000,000,000.00（共用取整從約 8.8e12 起不再原樣保留分格上的值，上限留有餘裕），超過回 400 並不寫入；到分為安全整數。成功與重播都回 200 `{ data }`，內容與支出明細相同（白名單 DTO）。
-- 不信任預覽或按鈕：服務內會再驗證付款人與分攤成員屬於旅行、加總等於金額（容差一分並把尾差分配掉）、日期為真實日曆日（V8 會把 `2026-02-31` 悄悄滾成 3 月 3 日，不能只靠格式檢查）、成員不重複、金額與每份分攤不超過單筆上限（換算後溢位也拒絕）、原始金額到分為安全整數。這些檢查同樣套用在 Web 新增。
-- `GET /trips/:id/expense-requests/:clientRequestId` → `{ status: 'committed', expense }` 或 `{ status: 'not_found' }`，只查本人在此旅行的結果。`not_found` 只代表沒有 receipt，不代表同 key 的請求不在執行，應以原 key 與原內容重試。支出之後被刪除仍是 `committed`（回傳提交當時的內容，不會重新建立）。
-- 狀態碼：200 已入帳（含重播）。**任何 4xx 都代表此請求沒有寫入**：400 輸入或成員／金額驗證錯誤、401、404（非成員、失去資格、分享碼、不存在；授權先於讀取 body）、409 `IDEMPOTENCY_CONFLICT`（同 key 不同內容，須查明原請求，不要換 key）、413（8 KiB）、415。429 `BUSY` 表示交易因競爭而中止、尚未提交，附 `Retry-After`，以同 key 重試。**5xx、逾時與斷線代表結果不確定**：以 `expense-requests` 查詢，或以同 key 同內容重試。回應的 `requestId` 只是診斷編號，不能取代 `client_request_id`。
+- 先讀該旅行的 `expense-options` 取得成員、幣別與支援模式，再以原幣金額、匯率、基準幣及按 ID 選取的成員預覽。均分、固定金額、百分比與份數共用後端計算；預覽不寫入，提交時仍須重驗名冊、授權、分攤與金額。
+- 確認新增時，服務驗證真實日曆日、到分精度、金額上限與成員資格。支出與冪等收據在同一交易保存。成功提交或重播回傳原結果；已提交的支出後來遭刪除，也不能靠重播重新建立。
+- 若寫入回應遺失，以原 UUID 查詢 `expense-requests`。已提交與終局拒絕都有明確結果；`not_found` 只表示尚未讀到收據。身分、傳輸或無法解碼的錯誤不能證明先前操作失敗，429 須遵守等待期限。診斷用的 `requestId` 與操作 UUID 分開。
+
 - 重播前仍重新授權：失去成員資格者不能重播也不能查詢。比對的是請求內容與提交時的指紋，不依目前成員或預覽重算。receipt 與支出同一交易提交，不隨支出刪除、不設 TTL；`client_request_id` 不分大小寫，但 receipt 的 `_id` 與指紋維持升級前的格式（key 保持送出時的大小寫、指紋為 schema 解析後輸入的 SHA-256），所以舊紀錄無須遷移、也可回滾；重播與查詢先找以送出的拼法儲存的 receipt，找不到再在同一旅行、同一操作者的 receipt 範圍內不分大小寫比對（索引範圍只含該操作者在該旅行的紀錄，不隨整個 collection 變慢），所以同一個 UUID 的任何拼法（全小寫、全大寫、任意混合）都對應同一筆結果；指紋以 receipt 儲存的拼法重算，舊版本寫入的紀錄因此仍可比對。
 - 同時刻同旅行的寫入透過 `withTripWrite` 的 trip fence 序列化；八個併發的相同請求只提交一次並得到相同結果。
 
 新增 `20261002100000-mobile-session-expiry.js` 為 session／登入限制紀錄建立 TTL 索引。此次實作不執行遠端 migration；正式環境沿用既有 migration 流程。即使 TTL 尚未清理，授權仍會檢查 expiresAt。
 
-測試在 `apps/web` 執行：`pnpm exec vitest run src/__tests__/mobileSession.test.ts src/__tests__/mobileTrips.test.ts src/__tests__/mobileHttp.test.ts src/__tests__/mobileExpenses.test.ts src/__tests__/mobileSettlement.test.ts src/__tests__/settlementRead.test.ts src/__tests__/mobileExpenseWrite.test.ts src/__tests__/expenseCreateRequest.test.ts src/__tests__/expenseAmountRange.test.ts src/__tests__/expense.actions.test.ts`。這組單元測試使用隔離的 model mocks；`expense.actions.test.ts` 同時鎖定 Web 新增沒有行為退步。`mobileReadApi.integration.test.ts` 在獨立測試 MongoDB 上驗證游標分頁、與 Web 讀取一致、歷史／外幣／虛擬成員資料與授權，需 `MONGODB_QUEUE_TEST_URI` 與 `MONGODB_QUEUE_TEST_ALLOW_WRITES=1`（CI 的真 MongoDB 工作已包含），未設定時略過。新增支出需要交易，`mobileExpenseWrite.integration.test.ts` 因此要在**單節點 replica set** 上執行，沿用其他 trip writer 整合測試的 `MONGODB_MEMBER_TEST_URI`（例如 `mongodb://127.0.0.1:27017/?directConnection=true`）與 `MONGODB_MEMBER_TEST_ALLOW_WRITES=1`，CI 的 `expense-writes` 工作會啟動 replica set 並同時執行 `tripWriters.integration.test.ts`。它驗證預覽到新增的固定順序均分、與 Web 的互讀一致、八個併發相同請求只提交一次且副作用不重複（含不同大小寫與十六種不同拼法、Web 與手機兩個入口混合）、同 key 不同內容 409、刪除或失去成員資格後的重播／查詢、以獨立建出的舊格式 receipt 與本版寫入的 receipt，在小寫、大寫與兩種混合拼法的每一種組合下的重播／查詢／409／刪除後不復活，以及以 explain 確認不分大小寫的查詢只掃該操作者在該旅行的索引範圍、單筆上限內的金額從預覽到儲存與結算逐分一致、超過上限的請求不留資料、回滾（receipt 或支出寫入失敗不留任何資料）與無效輸入不留 receipt。另可執行 `pnpm test:mobile-api`，以可丟棄的 Docker MongoDB 與 Next.js 開發伺服器驗證實際 HTTP／資料庫流程（資料庫現為單節點 replica set，涵蓋上述新增流程並以獨立計算的預期值核對儲存結果，另模擬回應遺失：伺服器仍提交、以 key 查得、重送不重複）；`pnpm dev:mobile-api` 保留環境與測試帳號供裝置連線，已開著的舊環境不是 replica set，需重啟才能使用新增 API。手機 SecureStore 與 iOS／Android 真機串接仍需操作驗收，詳見 [本機驗收流程](../../mobile/docs/LOCAL_ACCEPTANCE.md)。
-
-手機畫面已使用上述新增端點，提供 TWD 均分預覽、確認與 SQLite 待確認恢復；現況與裝置驗收見 [手機功能](../../mobile/docs/FEATURES.md) 與 [本機驗收](../../mobile/docs/LOCAL_ACCEPTANCE.md)。D 的離線均分確認／前景待送佇列已實作；尚無附件上傳、非均分新增／金額編輯、推播或帳號刪除 API。
+從 repository 根執行 `pnpm --filter @travel-budget/web test:mobile-api` 以隔離的資料庫及實際 HTTP 驗證；`dev:mobile-api` 保留環境供裝置操作。交易測試設定見 [Workspace 驗證](../../../docs/DEVELOPMENT.md#契約與驗證)，裝置與故障重跑見 [本機驗收](../../mobile/docs/LOCAL_ACCEPTANCE.md)。
 
 `dev:mobile-api` 的獨立 loopback 控制通道供 Maestro 撤銷／到期隔離帳號的 session，採每次執行的隨機憑證並隨環境關閉。它只在測試腳本內存在，不加入 Next.js routes 或共用契約，也不隨 `--lan` 對外開放。
 
@@ -101,19 +97,15 @@ migration `20261006100000-mutation-requests.js` 使用既有 Trip hashCode 唯�
 
 ## G2b 外幣新增
 
-expense-options 在同一 Trip 讀取補設定／支援 ISO 清單，preview 新形狀接原額／精確 TWD-per-unit 匯率，沿用 computeSplits 的原幣分角及 TWD 尾差；新增 adapter 放寬 currency／rate 後仍委派既有 createExpenseForActor。舊 TWD preview／body 和舊 receipt 指紋不改；原 UUID 重播不重取任何設定或匯率。輸入、上限及 SQLite 相容語意見 [G2b 契約](../../mobile/docs/BACKEND_CONTRACT.md#g2b-原幣預覽與新增)，本節補充先前 TWD 首片描述。
-
-既有 mobileExpenseWrite.integration 加精確外幣預覽→DB／receipt、零 TWD、小／大匯率及換算上限、併發去重／改設定後重播、原匯率 409 與回滾。test:mobile-api 在自建旅行核對真 socket 丟回應、原 UUID 恢復只一筆支出／receipt、精確匯率、超額及撤權。新草稿／手機 UI 的原生操作另由其他人驗收；不新增 migration 或远端設定。
+後端預覽與新增均保留原幣、完整匯率與旅行基準；每單位原幣對應多少基準幣即為匯率。重播查原收據，不套用之後更動的旅行設定或參考報價。[原幣新增與草稿相容](../../mobile/docs/BACKEND_CONTRACT.md#g2b-原幣預覽與新增)
 
 ## G2c 外幣編輯
 
-expenseMaintenance 的 context 在同一 snapshot 帶回幣別選項／精確歷史匯率及 additive recalculate，equal 保留舊 App 的 TWD 語意；PATCH 成對的 currency／exchange_rate 可明確重算外幣，省略仍為原 TWD body／指紋。backend 逐人核對既存 canonical 原幣均分與新請求的 computeSplits、換算上限；非均分或缺歷史資料保持基本編輯，所有 metadata 模式仍保留附件／標籤／行程。完整限制集中於 [G2c 契約](../../mobile/docs/BACKEND_CONTRACT.md#g2c-原幣均分編輯)。
-
-expenseMaintenance.integration 覆蓋 JPY 小數、零 TWD、小／大 rate／換算上限、並發 UUID、副作用／receipt 去重、Web 衝突、撤權及交易回滾；test:mobile-api 在 G2b 自建隔離旅行核對真 PATCH 丟回應、原 UUID 查回／重播、DB／明細精確值及明確轉 TWD。沒有 migration 或遠端操作，iOS 另由其他人驗收。
+編輯 context 帶回原額、匯率、幣別選項與可重算能力。基本資料更新保留原帳；重新均分時，服務核對目前名冊、歷史份額、原幣／匯率與換算上限。四模式重新分攤有獨立的能力判斷。[原幣均分編輯](../../mobile/docs/BACKEND_CONTRACT.md#g2c-原幣均分編輯)
 
 ## G3a-1 進階分攤預覽
 
-v2 preview 已透過 `computeLedgerSplits` 共用 Web 的均分／固定原幣金額／百分比／份數；JSON number／null 嚴格輸入、穩定成員尾差與雙單位份額由共用契約驗證。`expense-options.splitPreviewModes` 只宣告預覽能力，舊均分 body／回應與全域 capabilities 保持相容。完整欄位、精度、容差及不保存歷史模式的決策集中在 [G3a-1 契約](../../mobile/docs/BACKEND_CONTRACT.md#g3a-1-進階分攤預覽)。寫入核對已於 G3a-2 接上（見下節）；手機 UI 尚待 G3b，不新增 migration、不開非 TWD 新建。
+v2 preview 已透過 `computeLedgerSplits` 共用 Web 的均分／固定原幣金額／百分比／份數；JSON number／null 嚴格輸入、穩定成員尾差與雙單位份額由共用契約驗證。`expense-options.splitPreviewModes` 只宣告預覽能力，舊均分 body／回應與全域 capabilities 保持相容。完整欄位、精度、容差及不保存歷史模式的決策集中在 [G3a-1 契約](../../mobile/docs/BACKEND_CONTRACT.md#g3a-1-進階分攤預覽)。App 的新增與編輯表單已接入四種模式；寫入核對見下節。
 
 `advancedExpensePreview.test.ts` 核對契約、v2 route、Web 同值、邊界與授權；`expenseSplit.test.ts` 保留獨立數值 fixtures。`test:mobile-api` 在自建隔離 DB／HTTP 核對四模式、原幣份額、逆序及錯誤，並確認預覽不寫入。
 

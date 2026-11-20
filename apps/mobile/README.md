@@ -2,7 +2,7 @@
 
 旅行記帳的 iOS／Android 用戶端，使用 Expo、React Native、Expo Router 與 TypeScript。位於 `travel-budget` repository 的 `apps/mobile`，與 `apps/web` 共用同一套業務後端及 `@travel-budget/contracts` API 契約。
 
-**已實作**：帳號與「我的」、旅行／成員管理、一般／封存列表及快捷記帳，多幣別／四種分攤、支出維護、預算／搜尋分析、結算／還款、私人收據與本機草稿／恢復。功能與限制以 [FEATURES](docs/FEATURES.md) 為準；新旅行可搜尋後端支援的基準幣別，建立後固定。離線自動送出限 TWD 基準、TWD 原幣且均分，其他情況可先存草稿。需使用相容的 `apps/web` 後端；裝置、外部服務與部署狀態見 [驗收](docs/LOCAL_ACCEPTANCE.md)，未完成項目不計通過。
+App 涵蓋旅行與成員管理、行程日／活動維護、多幣別記帳與四種分攤、預算、還款、收據及離線草稿。完整操作與限制見 [Mobile 現有功能](docs/FEATURES.md)，和網站的差異見 [跨端產品設計](../../docs/design/README.md)。
 
 ## 開始開發
 
@@ -43,4 +43,4 @@ pnpm contracts:check
 
 目前採單一 repository、兩個獨立發布的應用，見 [整併決策](../../docs/decisions/0001-monorepo.md)。手機產品版本以本目錄 `package.json.version` 為唯一來源，根目錄 package 只協調 workspace。原始 [獨立專案決策](docs/archive/decisions/0001-project-boundaries.md) 已被取代。
 
-此骨架依 Expo 官方 default template 的穩定套件組合建立，保留模板授權於 [LICENSE](LICENSE)。圖示仍為模板素材，上架前須替換；產品其餘程式的正式授權由專案擁有者決定。
+App 起始於 Expo 官方 default template，保留模板授權於 [LICENSE](LICENSE)。圖示仍為模板素材，上架前須替換；產品其餘程式的正式授權由專案擁有者決定。

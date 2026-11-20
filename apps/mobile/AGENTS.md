@@ -6,7 +6,7 @@ Instructions for coding agents working in `apps/mobile`. Also follow the reposit
 
 - Follow the root version, commit, and documentation rules; Mobile releases independently.
 - This application's `package.json.version` is its product version source.
-- Update the root [changelog.md](../../changelog.md) for every development task; keep entries brief.
+- Update the [project changelog](../../docs/changelog.md) for every development task; keep entries brief.
 
 ## Mobile project scope
 

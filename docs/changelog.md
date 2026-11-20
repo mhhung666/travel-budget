@@ -4,9 +4,15 @@
 
 ## Unreleased
 
+### 2026-11-20：整理 Web／Mobile 產品與開發文件
+
+- 新增 [跨端產品設計](design/README.md)，按使用者任務對照 Web／PWA 與原生 App，串起四份功能專規、平台差異與驗收證據。
+- 重整兩端功能與 v2 API 說明，校正旅行卡預算、行程編輯、帳本單位及離線送出條件；舊 Web 設計標明適用範圍。
+- 全專案變更摘要移至 `docs/changelog.md`，同步更新文件索引與開發規範。
+
 ### 2026-11-20：Web AI 行程匯入
 
-- 修正僅有起降時刻的航班被拆成兩天或預選錯誤日期；預覽依實際旅程日期判斷越界與追加。明確跨日及未提供日期的兩份草稿均已實際匯入、確認並查回。[驗收紀錄](docs/design/ITINERARY_PRESENTATION.md#web-ai-草稿匯入)
+- 修正僅有起降時刻的航班被拆成兩天或預選錯誤日期；預覽依實際旅程日期判斷越界與追加。明確跨日及未提供日期的兩份草稿均已實際匯入、確認並查回。[驗收紀錄](design/ITINERARY_PRESENTATION.md#web-ai-草稿匯入)
 
 ### 2026-11-19：交易測試與開發文件整理
 
@@ -17,7 +23,7 @@
 
 - Web 改善窄版跨日表單與刪除確認的按鈕順序、焦點及日期；線上重載會重讀行程，修正已刪活動再次出現及行程 PDF 文字重疊。
 - App 修正 iOS 動態字級裁字、詳情與選單遮住狀態列，以及寫入查回成功後仍顯示舊錯誤；同步更新 Expo 相容修補版本。
-- 完成 Web 四語鍵盤、iPhone 旋轉及 iPad 全寬／分割表單與確認驗收。詳見 [CD4 驗收進度](docs/design/ITINERARY_PRESENTATION.md#cd4-驗收進度)。
+- 完成 Web 四語鍵盤、iPhone 旋轉及 iPad 全寬／分割表單與確認驗收。詳見 [CD4 驗收進度](design/ITINERARY_PRESENTATION.md#cd4-驗收進度)。
 
 ### 2026-11-07：跨日活動審查修正
 
@@ -28,46 +34,46 @@
 
 - Web／App 活動列改用實際時間及 `00:20 +1` 日差，未填時間不佔空欄、不顯示假的結束狀態；移除重複日期段落，完整日期保留於詳情／確認與無障礙資訊。
 - Web 日卡設定固定於標頭右側，活動「結束於」改用共用選單樣式；單一開始時間按時間點呈現，不改資料／跨日設定或原 UUID。
-- 新增 18 項點時間、缺時間、正負日差與選單回歸，完整測試、check／build、Expo 相容性及三平台匯出通過；工程結果及實際畫面待驗見 [共同規格](docs/design/ITINERARY_PRESENTATION.md)。
+- 新增 18 項點時間、缺時間、正負日差與選單回歸，完整測試、check／build、Expo 相容性及三平台匯出通過；工程結果及實際畫面待驗見 [共同規格](design/ITINERARY_PRESENTATION.md)。
 
 ### 2026-11-06：兩端跨日延續提示
 
 - CD3 共用既有日期卡的正向跨日投影，Web／公開與 App 顯示來源及抵達／結束；未知／負日差不猜測，提示不計數、不加入多選或匯出。
 - Web 返回並聚焦原列，App 開啟原活動唯讀詳情且保留返回位置；來源更新／失效、四語 ICU、焦點、帳號與撤權隔離沿原閱讀流程，無新 API／migration／持久化。
-- 新增 52 項回歸，工程結果與待驗集中 [共同交接](docs/design/ITINERARY_PRESENTATION.md#cd3-兩端延續提示實作與交接)；獨立審查、實際畫面／裝置與 CD4 待執行，未部署。
+- 新增 52 項回歸，工程結果與待驗集中 [共同交接](design/ITINERARY_PRESENTATION.md#cd3-兩端延續提示實作與交接)；獨立審查、實際畫面／裝置與 CD4 待執行，未部署。
 
 ### 2026-11-06：App 跨日活動與行程版面
 
 - CD2 對齊水平選日、日卡設定／備註、活動工具列與分隔清單；單筆編輯／刪除集中「⋯」，保留完整原生詳情與獨立多選頁。
 - App 日期編輯、閱讀／衝突／批次確認統一起訖摘要；依後端能力開放，舊資料不猜測、新舊 UUID／body 與帳號隔離保持，沒有新 migration 或依賴。
-- 新增 47 項回歸，工程檢查結果及限制見 [共同交接](docs/design/ITINERARY_PRESENTATION.md#cd2-app-實作與交接)；獨立審查與 iPhone／iPad 實際驗收待執行，CD3／CD4 未開始，未部署。
+- 新增 47 項回歸，工程檢查結果及限制見 [共同交接](design/ITINERARY_PRESENTATION.md#cd2-app-實作與交接)；獨立審查與 iPhone／iPad 實際驗收待執行，CD3／CD4 未開始，未部署。
 
 ### 2026-11-06：Web 跨日活動顯示與編輯
 
 - CD1 表單、成員／公開活動列及批次確認統一起訖日期，支援當日、翌日、較早日期與無日期的 Day N；未知不猜測，保留原 UUID 恢復與權限／票券規則。
 - AI 加入來源日期證據與可編輯預覽；CSV 改按原活動列出起訖，Markdown／PDF 同步摘要及未知狀態，不重複活動。
-- 新增 27 項回歸，全套測試、check／build、frozen install 與三平台匯出通過；獨立審查、Web／PWA 實際操作及 CD2–CD4 待續，未部署或執行遠端 migration，見 [共同交接](docs/design/ITINERARY_PRESENTATION.md#cd1-web-實作與交接)。
+- 新增 27 項回歸，全套測試、check／build、frozen install 與三平台匯出通過；獨立審查、Web／PWA 實際操作及 CD2–CD4 待續，未部署或執行遠端 migration，見 [共同交接](design/ITINERARY_PRESENTATION.md#cd1-web-實作與交接)。
 
 ### 2026-11-06：行程跨日共用後端與版面規劃
 
-- 建立 [共用規劃](docs/design/ITINERARY_PRESENTATION.md)，統一 Web／App 版面與跨日語意；CD0 新增有界可空日差、共用日期規則、v2 能力及相容預覽，舊 App／整日更新保留原值，UUID／歷史 receipt 不改寫。
+- 建立 [共用規劃](design/ITINERARY_PRESENTATION.md)，統一 Web／App 版面與跨日語意；CD0 新增有界可空日差、共用日期規則、v2 能力及相容預覽，舊 App／整日更新保留原值，UUID／歷史 receipt 不改寫。
 - 新增缺欄補 null 的可重跑 migration 及 60 項兩端／恢復／隔離交易回歸；完整測試、frozen install、check／build、Expo／三平台匯出與本機真 HTTP／DB 通過；Web 讀取快取更新仍保留 outbox，不猜測舊活動日期，未執行遠端 migration。
 - CD1–CD4 畫面、延續提示與聯合驗收未開始；既有 BD3 暫緩與裝置待驗保留。工程結果集中於共同設計，獨立審查另行執行。
 
 ### 2026-11-06：Web 日卡排版與命名
 
-- 依 [共同設計](docs/design/ITINERARY_BATCH_DELETE.md#日卡排版與命名2026-11-06) 將整天操作改為「本日設定」，新增／選取活動集中工具列；空備註捷徑直接聚焦編輯器，單筆選單顯示活動名稱，四語區分每日行程與活動，整天刪除確認說明關聯影響。
+- 依 [共同設計](design/ITINERARY_BATCH_DELETE.md#日卡排版與命名2026-11-06) 將整天操作改為「本日設定」，新增／選取活動集中工具列；空備註捷徑直接聚焦編輯器，單筆選單顯示活動名稱，四語區分每日行程與活動，整天刪除確認說明關聯影響。
 - 日卡與選單支援窄版、大字級與長名稱；取消多選／Esc 回原入口。44 項相關測試、Web 型別／lint／格式及 48 組隔離元件排版通過；後端／恢復協定未變；文件同步完成狀態、移除已修正的溢出待辦，下一步為 App 對齊與真機／閱讀器驗收。
 
 ### 2026-11-06：BD1／BD2 行程活動多選刪除
 
 - Web／共用後端：管理員同日最多 15 項、影響確認、版本／日期衝突與失效選取；整批刪除及 UUID 收據同交易，保留日／支出／相片／成就並只清理無引用票券。Web 凍結請求與恢復、資源消失及取消歷史跳轉修正已通過獨立程式審查；實際畫面待驗。
 - Mobile：同日整列多選、差異再次確認、失效選取及未提交離開提醒；沿用 TripEntry／SQLite 固定 UUID、同旅行保留與帳號 429，重啟只查原結果，被拒可恢復選取。沒有新後端契約或 DB migration；對齊現有 Expo SDK 建議 patch。
-- 新增 37 項 App 故障與恢復回歸；Web／Mobile 全套、根 check／build、frozen install、Expo 相容性、三平台匯出與隔離真 HTTP／DB 通過，工程結果與待驗集中於 [共同設計](docs/design/ITINERARY_BATCH_DELETE.md)。BD2 獨立程式審查與工程複驗通過（未重跑隔離 HTTP／DB）；iPhone／iPad／閱讀器待驗，Android 延後。BD3 跨日暫緩、整日多選保留候選，不阻擋本輪結案；文件集中列出 CI、Web／iOS 操作與真網路恢復的收尾條件，部署另排。
+- 新增 37 項 App 故障與恢復回歸；Web／Mobile 全套、根 check／build、frozen install、Expo 相容性、三平台匯出與隔離真 HTTP／DB 通過，工程結果與待驗集中於 [共同設計](design/ITINERARY_BATCH_DELETE.md)。BD2 獨立程式審查與工程複驗通過（未重跑隔離 HTTP／DB）；iPhone／iPad／閱讀器待驗，Android 延後。BD3 跨日暫緩、整日多選保留候選，不阻擋本輪結案；文件集中列出 CI、Web／iOS 操作與真網路恢復的收尾條件，部署另排。
 
 ### 2026-11-03：旅行卡片簡化
 
-- Web／App：依 [共同設計](docs/design/MY_TRIPS.md#卡片簡化2026-11-03) 實作雙欄分攤／待收付、14 圓角、精簡階段／ISO 幣別與單列快捷，移除列表本人預算；零餘額與非零小額保留正確語意，整卡導覽、封存及恢復不變。
+- Web／App：依 [共同設計](design/MY_TRIPS.md#卡片簡化2026-11-03) 實作雙欄分攤／待收付、14 圓角、精簡階段／ISO 幣別與單列快捷，移除列表本人預算；零餘額與非零小額保留正確語意，整卡導覽、封存及恢復不變。
 - 兩端實卡與靜態 skeleton 共用版面，依卡內空間／字級重排；App 保留背景卡片、尾端分頁占位及本機工作入口。審查補齊 iOS 載入播報；新增 30 項回歸，全套測試、根 check／build、Expo 相容性及三平台匯出通過。Web 元件 256 組版面、獨立操作與自動可及性檢查通過；完整登入流程、Safari／原生裝置、閱讀器與使用者驗證仍待驗。
 
 ### 2026-11-03
@@ -90,50 +96,50 @@
 ### 2026-10-21
 
 - Web：修復高精度匯率被瀏覽器步進驗證擋下的問題，記帳與自訂匯率接受完整數值，保留既有金額／分攤及原 UUID 恢復。新增 19 項回歸，涵蓋新增、描述編輯、展開／收合、刷新、草稿與無效值；不改 App、契約或歷史資料。
-- 工程：Web 2,588 項、Mobile 1,797 項＋工具 48 項、根 check／Web build 通過；646 項環境案例略過。隔離 Chromium／PWA／MongoDB 自動化核對高精度提交與丟回應恢復無重複；Safari／iOS 仍交驗收者，未部署。旅行基準變更維持暫緩，見[共同設計](docs/design/BASE_CURRENCY_CREATION.md#優先修復高精度匯率阻擋記帳提交)。
+- 工程：Web 2,588 項、Mobile 1,797 項＋工具 48 項、根 check／Web build 通過；646 項環境案例略過。隔離 Chromium／PWA／MongoDB 自動化核對高精度提交與丟回應恢復無重複；Safari／iOS 仍交驗收者，未部署。旅行基準變更維持暫緩，見[共同設計](design/BASE_CURRENCY_CREATION.md#優先修復高精度匯率阻擋記帳提交)。
 
 ### 2026-10-14
 
-- 文件：盤點旅行設定變更基準幣別的資料、匯率、分攤／還款及跨端恢復影響；建議先開放未產生帳務的旅行，再另規劃完整轉換，見[共同設計](docs/design/BASE_CURRENCY_CREATION.md#後續評估在旅行設定變更基準幣別)。僅評估，未實作。
+- 文件：盤點旅行設定變更基準幣別的資料、匯率、分攤／還款及跨端恢復影響；建議先開放未產生帳務的旅行，再另規劃完整轉換，見[共同設計](design/BASE_CURRENCY_CREATION.md#後續評估在旅行設定變更基準幣別)。僅評估，未實作。
 - Mobile：修復 CI 的 Expo 相容性檢查失敗，對齊 Expo／crypto／router／splash-screen 四項 patch 與根 lockfile，保留 SDK 與 React Native 版本。
 - Web：移除帳本測試的未使用 import，清除 CI lint 警告。Frozen install、Expo 相容性、根 check／build、三平台匯出及 Web 2,569 項／Mobile 1,797 項＋工具 48 項通過；646 項 DB 環境案例略過。
 
 ### 2026-10-13
 
 - Mobile：BC2a 搜尋 Modal 與 BC2b 能力／離開提醒／本機 pending 守衛完成，基準撤回保留選值、表單隔離登入世代；既有 E 原 body／UUID 恢復與正式 gate 保留。
-- Mobile 全部 1,794 項＋工具 48 項、check／三平台匯出通過。BC2a 已提交、BC2b 已提交；iPhone／iPad／VoiceOver 與 BC3 跨端待驗，Expo 既有四項 patch 更新提示未處理。現況見[共同規格](docs/design/BASE_CURRENCY_CREATION.md#bc2b-表單狀態與原操作恢復)。
+- Mobile 全部 1,794 項＋工具 48 項、check／三平台匯出通過。BC2a 已提交、BC2b 已提交；iPhone／iPad／VoiceOver 與 BC3 跨端待驗，Expo 既有四項 patch 更新提示未處理。現況見[共同規格](design/BASE_CURRENCY_CREATION.md#bc2b-表單狀態與原操作恢復)。
 
-- BC3：使用者確認已驗收，依最新指示移除非 TWD 環境變數、建立分支與隔離工具雙模式，固定開放；既有能力欄位固定 true、歷史 receipt 原終局保留。Web 2,569 項＋隔離交易 33 項、根 check／Web build 通過；真 HTTP 工具受既有開發伺服器占用未重跑。本輪已提交／未部署。保留既有 Web／iPhone／iPad 三幣新建與首次 .01、雙向畫面讀回及 iPhone USD 丟回應恢復局部通過；修正 fixture 日期與 Mobile 還款撤銷漏傳幣別，B4 三幣新增／部分還款／撤銷與跨端局部讀回一致。Mobile 1,797 項＋工具 48 項、check／三平台匯出通過；USD 建立 429 原 UUID 期限後恢復局部通過，完整畫面／故障／B4 逐項證據仍待補，F 不變，見[驗收入口](apps/mobile/docs/LOCAL_ACCEPTANCE.md#bc3-建立到首次記帳交接)。
+- BC3：使用者確認已驗收，依最新指示移除非 TWD 環境變數、建立分支與隔離工具雙模式，固定開放；既有能力欄位固定 true、歷史 receipt 原終局保留。Web 2,569 項＋隔離交易 33 項、根 check／Web build 通過；真 HTTP 工具受既有開發伺服器占用未重跑。本輪已提交／未部署。保留既有 Web／iPhone／iPad 三幣新建與首次 .01、雙向畫面讀回及 iPhone USD 丟回應恢復局部通過；修正 fixture 日期與 Mobile 還款撤銷漏傳幣別，B4 三幣新增／部分還款／撤銷與跨端局部讀回一致。Mobile 1,797 項＋工具 48 項、check／三平台匯出通過；USD 建立 429 原 UUID 期限後恢復局部通過，完整畫面／故障／B4 逐項證據仍待補，F 不變，見[驗收入口](../apps/mobile/docs/LOCAL_ACCEPTANCE.md#bc3-建立到首次記帳交接)。
 
 ### 2026-10-12
 
 - Web／Mobile：完成 T1–T3b 列表篩選／分組、個人封存、線上／離線候選及全量快捷記帳；UX-T1／T2 統一頁首、分頁、卡片與確認互動，保留原 UUID、權限及草稿恢復。
 - Web／Mobile：完成 M4a 通知偏好與 M4b 好友，共用本人／關係服務及 v2 契約。上述功能工程檢查通過、已提交／未部署，iOS、閱讀器、真通知及 UX-T3 使用者驗證仍待驗。
-- Web：BC1 搜尋單選、能力／草稿與窄版整合已完成，建立結果不明依 journal 凍結、原 UUID 恢復與終局解鎖，保留帳號隔離／429 與選配好友邊界。BC1a／b／c 已提交，均未部署；工程與隔離交易通過，實際畫面／PWA 待驗，正式 gate 不變。共同規格與切片安排見[基準幣別建立](docs/design/BASE_CURRENCY_CREATION.md)。
+- Web：BC1 搜尋單選、能力／草稿與窄版整合已完成，建立結果不明依 journal 凍結、原 UUID 恢復與終局解鎖，保留帳號隔離／429 與選配好友邊界。BC1a／b／c 已提交，均未部署；工程與隔離交易通過，實際畫面／PWA 待驗，正式 gate 不變。共同規格與切片安排見[基準幣別建立](design/BASE_CURRENCY_CREATION.md)。
 
 ### 2026-10-11
 
 - Mobile：完成 M1 本人名稱／偏好／關於、M2 頭像與手勢裁切、M3a 密碼／M3b Email，沿用共用後端、帳號隔離與各操作恢復。E2 匿名配額風險仍待 F2 處理。
 - Mobile U3d：新增／編輯、結算／還款、預算／收據／本機工作按內容與主次操作整理，完整保留必要警告、分攤確認與原 UUID／等待期限。
-- 上述工程、隔離故障與必要檢查已交付並提交／未部署；iPhone／iPad、VoiceOver、頭像真 R2／手勢及實際郵件待驗，詳見 [操作清單](apps/mobile/docs/LOCAL_ACCEPTANCE.md) 與 [已完成摘要](apps/mobile/docs/archive/README.md)。
+- 上述工程、隔離故障與必要檢查已交付並提交／未部署；iPhone／iPad、VoiceOver、頭像真 R2／手勢及實際郵件待驗，詳見 [操作清單](../apps/mobile/docs/LOCAL_ACCEPTANCE.md) 與 [已完成摘要](../apps/mobile/docs/archive/README.md)。
 
 ### 2026-10-10
 
-- Mobile：已提交 G5 四語／外觀偏好、裝置保存與關於入口，以及旅行分頁保留父層 ID 修正；check／三平台匯出與回歸通過，未部署。原生與客服／隱私入口待驗／待定，見 [G5 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#g5-語言與外觀交接)。
-- G6（Web／Mobile／contracts）：已提交私人收據閱讀、選圖／拍照／PDF、確認上傳／移除、原 UUID／SQLite 恢復與逾期孤兒清理；短效連結、conditional PUT 防覆寫，附件交易不改金額／分攤。工程檢查已通過、未部署；真 R2／原生待驗見 [G6a](apps/mobile/docs/LOCAL_ACCEPTANCE.md#g6a-私人收據閱讀交接) 與 [G6b](apps/mobile/docs/LOCAL_ACCEPTANCE.md#g6b-附件寫入交接)。
-- U3（Mobile／Web）：U3b／U3c-1 已提交；U3c-2 頁內搜尋／分析、原條件與位置保留、寫入後雙來源失效及舊入口相容已提交，修正 1,000 筆搜尋 getMore／CSOT、保留完整授權快照。Mobile 1,501 項＋工具 48 項、Web／期限回歸、check／contracts／隔離 HTTP／三平台匯出／Web build 通過；iOS／VoiceOver 交接見 [U3c-2](apps/mobile/docs/LOCAL_ACCEPTANCE.md#u3c-2-頁內搜尋與分析交接)；表單已接續完成 U3d-1，R2／裝置待驗仍保留。
+- Mobile：已提交 G5 四語／外觀偏好、裝置保存與關於入口，以及旅行分頁保留父層 ID 修正；check／三平台匯出與回歸通過，未部署。原生與客服／隱私入口待驗／待定，見 [G5 交接](../apps/mobile/docs/LOCAL_ACCEPTANCE.md#g5-語言與外觀交接)。
+- G6（Web／Mobile／contracts）：已提交私人收據閱讀、選圖／拍照／PDF、確認上傳／移除、原 UUID／SQLite 恢復與逾期孤兒清理；短效連結、conditional PUT 防覆寫，附件交易不改金額／分攤。工程檢查已通過、未部署；真 R2／原生待驗見 [G6a](../apps/mobile/docs/LOCAL_ACCEPTANCE.md#g6a-私人收據閱讀交接) 與 [G6b](../apps/mobile/docs/LOCAL_ACCEPTANCE.md#g6b-附件寫入交接)。
+- U3（Mobile／Web）：U3b／U3c-1 已提交；U3c-2 頁內搜尋／分析、原條件與位置保留、寫入後雙來源失效及舊入口相容已提交，修正 1,000 筆搜尋 getMore／CSOT、保留完整授權快照。Mobile 1,501 項＋工具 48 項、Web／期限回歸、check／contracts／隔離 HTTP／三平台匯出／Web build 通過；iOS／VoiceOver 交接見 [U3c-2](../apps/mobile/docs/LOCAL_ACCEPTANCE.md#u3c-2-頁內搜尋與分析交接)；表單已接續完成 U3d-1，R2／裝置待驗仍保留。
 
 ### 2026-10-09
 
-- G4（Web／Mobile／contracts）：G4a 個人預算已提交；G4b 搜尋／日期／分類／付款人篩選及全量分析已接入並提交。共用 Web 計算及授權快照，支援分頁變更重讀、撤權清除與共用限速；工程／隔離 DB／HTTP 驗證及裝置待驗見 [G4b 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#g4b-搜尋與分析交接)，跨旅行分析、非 TWD 新建及原生驗收仍另排。
-- G3（Web／Mobile／contracts）：四模式預覽與交易內確認、手機新增／草稿及明確進階編輯已接入；歷史模式不推測，新舊份額可核對，衝突重預覽、拒絕重開與 C／E 原 UUID 恢復，D 仍限 TWD 均分。Mobile 1,358 項＋工具 48 項、check／三平台匯出與隔離 HTTP 通過；獨立審查、裝置及非 TWD 開放仍待後續，見 [G3 現況](apps/mobile/docs/FEATURES.md#g3b-2-進階支出編輯)。
-- B5（Web／Mobile／contracts）：新操作與公開入口統一 v2，退役舊路徑並修正非 TWD 參考匯率／AI context；舊紀錄不重送，保留歷史隔離及明確捨棄／草稿恢復。獨立審查、工程／隔離 DB／HTTP／PWA 驗證已通過，原生待驗見 [B 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#b-基準幣別驗收b1b2b3-實作交接)。
+- G4（Web／Mobile／contracts）：G4a 個人預算已提交；G4b 搜尋／日期／分類／付款人篩選及全量分析已接入並提交。共用 Web 計算及授權快照，支援分頁變更重讀、撤權清除與共用限速；工程／隔離 DB／HTTP 驗證及裝置待驗見 [G4b 交接](../apps/mobile/docs/LOCAL_ACCEPTANCE.md#g4b-搜尋與分析交接)，跨旅行分析、非 TWD 新建及原生驗收仍另排。
+- G3（Web／Mobile／contracts）：四模式預覽與交易內確認、手機新增／草稿及明確進階編輯已接入；歷史模式不推測，新舊份額可核對，衝突重預覽、拒絕重開與 C／E 原 UUID 恢復，D 仍限 TWD 均分。Mobile 1,358 項＋工具 48 項、check／三平台匯出與隔離 HTTP 通過；獨立審查、裝置及非 TWD 開放仍待後續，見 [G3 現況](../apps/mobile/docs/FEATURES.md#g3b-2-進階支出編輯)。
+- B5（Web／Mobile／contracts）：新操作與公開入口統一 v2，退役舊路徑並修正非 TWD 參考匯率／AI context；舊紀錄不重送，保留歷史隔離及明確捨棄／草稿恢復。獨立審查、工程／隔離 DB／HTTP／PWA 驗證已通過，原生待驗見 [B 交接](../apps/mobile/docs/LOCAL_ACCEPTANCE.md#b-基準幣別驗收b1b2b3-實作交接)。
 
 ### 2026-10-08
 
-- B5（Web／Mobile／contracts）：完成退役盤點、共用 auth／會員／公開入口及 action wrapper。B5c-1 新請求預設 v2，保留原環境憑證／SQLite 分區與舊操作版本；Mobile 1,215 項＋工具 43 項、Mobile check／contracts／三平台匯出複驗通過。v2 流量斷言已修正，收據計數後續修正與原生限制見 [B 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#b-基準幣別驗收b1b2b3-實作交接)。
-- Mobile U1／U2：完成頁面與表單整理，修正恢復等待、原幣代碼、可見筆數、名冊同名短碼與負零，保留原 UUID／期限／撤權；相應 patch 與工程檢查已完成。iOS 字級／閱讀器、歷史名冊限制及延期整理見 [U 交接](apps/mobile/docs/archive/ACCEPTANCE.md#u-靜態審查修正交接2026-10-08)，Android 延後。
-- G1／G2／B1–B4（Web／Mobile）：完成旅行管理、外幣均分與固定基準／v2，保留舊 TWD／v1／UUID 恢復；補隔離驗收工具，修正終局拒絕收據、AI 授權、列表批次驗證及 CI 格式／MongoDB 建表競態，184 項重點回歸通過並提交兩應用 patch。跨端操作待驗見 [B 交接](apps/mobile/docs/LOCAL_ACCEPTANCE.md#b-基準幣別驗收b1b2b3-實作交接)；非 TWD 建立關閉，G3／G4／F 延後，未部署。
+- B5（Web／Mobile／contracts）：完成退役盤點、共用 auth／會員／公開入口及 action wrapper。B5c-1 新請求預設 v2，保留原環境憑證／SQLite 分區與舊操作版本；Mobile 1,215 項＋工具 43 項、Mobile check／contracts／三平台匯出複驗通過。v2 流量斷言已修正，收據計數後續修正與原生限制見 [B 交接](../apps/mobile/docs/LOCAL_ACCEPTANCE.md#b-基準幣別驗收b1b2b3-實作交接)。
+- Mobile U1／U2：完成頁面與表單整理，修正恢復等待、原幣代碼、可見筆數、名冊同名短碼與負零，保留原 UUID／期限／撤權；相應 patch 與工程檢查已完成。iOS 字級／閱讀器、歷史名冊限制及延期整理見 [U 交接](../apps/mobile/docs/archive/ACCEPTANCE.md#u-靜態審查修正交接2026-10-08)，Android 延後。
+- G1／G2／B1–B4（Web／Mobile）：完成旅行管理、外幣均分與固定基準／v2，保留舊 TWD／v1／UUID 恢復；補隔離驗收工具，修正終局拒絕收據、AI 授權、列表批次驗證及 CI 格式／MongoDB 建表競態，184 項重點回歸通過並提交兩應用 patch。跨端操作待驗見 [B 交接](../apps/mobile/docs/LOCAL_ACCEPTANCE.md#b-基準幣別驗收b1b2b3-實作交接)；非 TWD 建立關閉，G3／G4／F 延後，未部署。
 
 ### 2026-10-07
 
@@ -143,15 +149,15 @@
 
 ### 2026-10-06～2026-10-07
 
-- E1／E2：修正多成員加入通知重複鍵及重設碼保護／重寄，新增 localhost 收件匣供原生驗收；Email 配額被耗盡的限制仍見 [E2 契約](apps/mobile/docs/BACKEND_CONTRACT.md#e2-註冊與-email-驗證碼重設)。
+- E1／E2：修正多成員加入通知重複鍵及重設碼保護／重寄，新增 localhost 收件匣供原生驗收；Email 配額被耗盡的限制仍見 [E2 契約](../apps/mobile/docs/BACKEND_CONTRACT.md#e2-註冊與-email-驗證碼重設)。
 - E3／E4／Web：完成手機支出維護與還款，修正衝突保留輸入、第三人登記通知及同名成員結算身分／預填；Android 離開警告改為短標題與完整訊息，增加原生操作 ID 與 SQLite 故障工具。
-- 驗收：兩平台程序中斷、限速、身分隔離與基本顯示完整矩陣通過，四語完整 16 組警告／危險確認亦通過；Mobile 723／Web 2,054 項與檢查、匯出及 Web build 通過。真機、完整閱讀器與外部郵件仍待驗；本次提交包含兩應用 patch 調版，未部署，見 [本機驗收](apps/mobile/docs/LOCAL_ACCEPTANCE.md)。
+- 驗收：兩平台程序中斷、限速、身分隔離與基本顯示完整矩陣通過，四語完整 16 組警告／危險確認亦通過；Mobile 723／Web 2,054 項與檢查、匯出及 Web build 通過。真機、完整閱讀器與外部郵件仍待驗；本次提交包含兩應用 patch 調版，未部署，見 [本機驗收](../apps/mobile/docs/LOCAL_ACCEPTANCE.md)。
 
 ### 2026-10-05～2026-10-06
 
 - Web／workspace：補齊 React PDF、next-themes、cmdk 與 React Leaflet／core 的 React 型別依賴，修復 53 個型別錯誤；frozen install、根 check、Web 正式 build、Mobile 三平台匯出與 Expo 相容性通過。
 - Mobile：完成 C 返回／鍵盤與無障礙修正及 D1–D3 草稿、離線入口和均分佇列；409／原 C 待確認只阻擋同旅行，429 獨立按帳號／環境持久化，捨棄與重啟不解除等待。修正 SQLite 等待期間新增限速仍送出的競態，在 POST／receipt／refresh 重送前同步攔截；本機身分 schema 不相容仍可用有效 token 線上刷新，最大字級成員選項改用固定圓角。
-- Mobile 驗收：修正本機攔截把 120 秒期限延長至 149 秒的 P2，C／D 沿用原始毫秒期限；599 個測試、check、三平台匯出與 Expo 相容性通過。兩平台補驗長名稱最大字級深淺色／選取、身分格式刷新與離線隔離，以及 22 個原生跨旅行／共用限速／重啟／競態案例，核對每 UUID 僅一筆 expense／receipt。D 僅剩 VoiceOver 實際忙碌朗讀、完整手勢與 C 手動恢復，以及 TalkBack 人工驗收；真機／development build 另列 F，見 [本機驗收](apps/mobile/docs/LOCAL_ACCEPTANCE.md#尚未完成的驗收)。依使用者決定，剩餘驗收全部暫緩，不阻擋合併 master 與進入 E；未驗不計通過，對外測試前補齊，產品尚未發布。
+- Mobile 驗收：修正本機攔截把 120 秒期限延長至 149 秒的 P2，C／D 沿用原始毫秒期限；599 個測試、check、三平台匯出與 Expo 相容性通過。兩平台補驗長名稱最大字級深淺色／選取、身分格式刷新與離線隔離，以及 22 個原生跨旅行／共用限速／重啟／競態案例，核對每 UUID 僅一筆 expense／receipt。D 僅剩 VoiceOver 實際忙碌朗讀、完整手勢與 C 手動恢復，以及 TalkBack 人工驗收；真機／development build 另列 F，見 [本機驗收](../apps/mobile/docs/LOCAL_ACCEPTANCE.md#尚未完成的驗收)。依使用者決定，剩餘驗收全部暫緩，不阻擋合併 master 與進入 E；未驗不計通過，對外測試前補齊，產品尚未發布。
 
 ### 2026-10-04
 
@@ -172,4 +178,4 @@
 
 ## 歷史摘要
 
-此前里程碑見 [Web 歷史摘要](apps/web/docs/archive/history/CHANGELOG.md)；該檔不再追加。
+此前里程碑見 [Web 歷史摘要](../apps/web/docs/archive/history/CHANGELOG.md)；該檔不再追加。

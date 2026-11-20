@@ -5,7 +5,6 @@
 Node.js 主版本固定於 repository 根目錄 `.node-version`，pnpm 版本由根目錄 `package.json.packageManager` 決定。從 `travel-budget` 根目錄安裝所有 workspace 的依賴，提交唯一的 `pnpm-lock.yaml`；CI 使用 `pnpm install --frozen-lockfile`。
 
 ```bash
-cd /Users/mhhung/Development/travel-budget
 pnpm install
 pnpm dev:mobile
 pnpm --filter travel-budget-mobile check

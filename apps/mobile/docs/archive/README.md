@@ -28,7 +28,7 @@ G1a 設定／個人封存（`afaf593`）、G1b 名冊／虛擬成員（`82e1cc0`
 
 B1 共用固定帳本單位／v2、B2 Web／PWA、B3 Mobile／SQLite 舊資料恢復及 B4 隔離工具已交付。終局業務拒絕 receipt、非 TWD AI 授權與旅行批次子帳本驗證修正已複驗；Web 35、Mobile 23、隔離 DB 126 項重點複驗通過。更廣開發結果見 [證據](ACCEPTANCE.md#b1b3-與帳本審查)。
 
-B4 跨端操作未結案；非 TWD 建立仍關閉，不能以工具已完成推論已開放。金額規則見 [契約](../BACKEND_CONTRACT.md)，精確案例見 [B4](../LOCAL_ACCEPTANCE.md#b4-固定帳務案例)。
+本次歷史驗收時非 TWD 建立仍關閉；後續開放與 BC3 驗收見 [新旅行幣別規格](../../../../docs/design/BASE_CURRENCY_CREATION.md)。B4 跨端操作仍依現行驗收清單核對。金額規則見 [契約](../BACKEND_CONTRACT.md)，精確案例見 [B4](../LOCAL_ACCEPTANCE.md#b4-固定帳務案例)。
 
 ## B5 v1 退役與 v2 整併（2026-10-09）
 

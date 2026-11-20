@@ -1,29 +1,22 @@
-# 文件入口
+# Travel Budget 文件入口
 
-| 文件                                                       | 用途                                      |
-| ---------------------------------------------------------- | ----------------------------------------- |
-| [變更紀錄](../changelog.md)                                | 每次開發的簡短成果與重要限制              |
-| [開發規範](DEVELOPMENT.md)                                 | Workspace 指令、環境、版本與部署          |
-| [共同設計：我的旅行](design/MY_TRIPS.md)                   | Web／Mobile 列表設計、實作現況與共同驗證  |
-| [行程共用版面與跨日活動](design/ITINERARY_PRESENTATION.md) | Web／App 統一配置、跨日日期與分階段交付   |
-| [新旅行：基準幣別選擇](design/BASE_CURRENCY_CREATION.md)   | Web／App 搜尋單選、後端能力與建立後限制   |
-| [行程活動多選刪除](design/ITINERARY_BATCH_DELETE.md)       | 同日選取／確認／恢復、Web／App 實作與待驗 |
-| [Web／後端](../apps/web/docs/README.md)                    | 功能、架構、AI 與 API                     |
-| [Mobile](../apps/mobile/docs/README.md)                    | 功能、開發、驗收與路線                    |
-| [共用契約](../packages/contracts/README.md)                | Schema 與 OpenAPI                         |
-| [Monorepo 決策](decisions/0001-monorepo.md)                | 應用邊界與整併來源                        |
-| [Agent 規則](../AGENTS.md)                                 | 開發與提交規則                            |
+從 [Web 與 Mobile 產品設計規格](design/README.md) 查一項功能在兩端怎麼用、哪些規則共用、差異在哪裡。要安裝或啟動專案，從 [根 README](../README.md) 開始。
 
-文件只記現況、必要操作與未完成事項；每次開發更新根目錄 `changelog.md`，相關工作合併成 1–3 點。功能與架構各維護一份，不另開逐輪進度報告；已完成計畫壓成成果、驗證與限制，細節查 Git。
+## 按工作找文件
+
+| 想釐清的問題                       | 維護位置                                                                                                                                                                                                                                                                                        |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 同一功能在 Web 與 App 應如何呈現？ | [跨端功能對照、介面規則與四份功能專規](design/README.md)                                                                                                                                                                                                                                        |
+| 某端有哪些入口、權限與限制？       | [Web 功能](../apps/web/docs/FEATURES.md) · [Mobile 功能](../apps/mobile/docs/FEATURES.md)                                                                                                                                                                                                       |
+| 前後端如何分工？                   | [單一後端決策](decisions/0001-monorepo.md) · [Web 與後端架構](../apps/web/docs/ARCHITECTURE.md) · [原生 App 架構](../apps/mobile/docs/ARCHITECTURE.md)                                                                                                                                          |
+| App 可以送哪些請求、收到哪些欄位？ | [contracts 說明](../packages/contracts/README.md)、[schema 原始碼](../packages/contracts/src/index.ts)、[產生的 OpenAPI](../packages/contracts/openapi.json)。[後端實作](../apps/web/docs/MOBILE_API.md) 說明授權與交易；[App 串接](../apps/mobile/docs/BACKEND_CONTRACT.md) 說明失敗處理與恢復 |
+| 如何開發、測試或建置？             | [Workspace 開發規範](DEVELOPMENT.md) · [Web 環境與指令](../apps/web/README.md) · [原生環境與建置](../apps/mobile/docs/DEVELOPMENT.md)                                                                                                                                                           |
+| 如何操作個別子系統？               | [Web 文件索引](../apps/web/docs/README.md) 含 AI 與相簿維運；[Mobile 文件索引](../apps/mobile/docs/README.md) 含 HTTP 與裝置儲存                                                                                                                                                                |
+| 哪些已驗、哪些還要做？             | [路線與優先順序](../apps/mobile/docs/ROADMAP.md) · [跨端專規驗收入口](design/README.md#功能專規與驗收) · [本機驗收與重跑步驟](../apps/mobile/docs/LOCAL_ACCEPTANCE.md) · [Web 專項待驗](../apps/web/docs/README.md#待驗與未排程事項)                                                            |
 
 ## 文件分工與歸檔
 
-| 分類            | 維護位置                                                                                                                                      | 整理原則                                                                        |
-| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| 現行開發規則    | 根／App README、AGENTS／CLAUDE、DEVELOPMENT、採用中的 ADR                                                                                     | 保留必要規則／指令，不因功能已完成而歸檔                                        |
-| 功能／架構／API | 各 App FEATURES／ARCHITECTURE、Mobile BACKEND_CONTRACT、Web MOBILE_API、contracts README／OpenAPI                                             | 保留實作契約；程式是最終依據，不另存逐輪版本                                    |
-| 未完成工作      | [Mobile 路線](../apps/mobile/docs/ROADMAP.md) 排序，驗收結果記在各項連結的規格或操作文件                                                      | 實作、審查、裝置、部署分開標狀態                                                |
-| 操作與來源      | [相簿維運](../apps/web/docs/PHOTO_AUDIT.md)、AI 維護、原始碼旁 README、字型授權                                                               | 長度以安全重跑所需為準，不移走仍在用的命令與限制                                |
-| 已完成成果      | [跨端 archive](archive/README.md)、[Mobile archive](../apps/mobile/docs/archive/README.md)、[Web archive](../apps/web/docs/archive/README.md) | 合併成果／驗證／限制；歷史原型、截圖、量測與已取代 ADR 同步歸檔，詳細過程查 Git |
-
-2026-10-12 已盤點 repository Markdown、文件內設計 HTML／截圖／JSON 與證據目錄。原始證據保留，不重寫成新的通過結果；`/tmp` 私有產物可能已失效。已實作項目不留在「下一步」，尚未驗收的項目不跟著結案。
+- **現行規格**集中在上述位置。功能專規記錄共同行為與平台差異，平台文件補充各自實作。HTTP 欄位與允許值以共用 schema 為準，產物由它生成。歷史階段代號如 BD2、CD4 供對照既有證據與變更紀錄。
+- **開發規則**從 [根 AGENTS](../AGENTS.md) 進入，再讀 [Web](../apps/web/AGENTS.md) 或 [Mobile](../apps/mobile/AGENTS.md) 補充規則；工具專用入口見 [根 CLAUDE](../CLAUDE.md)、[Web CLAUDE](../apps/web/CLAUDE.md) 與 [Web 本機畫面驗證操作](../.claude/skills/verify/SKILL.md)。涉及交易的操作需要 replica set，設定見開發規範。
+- **變更與歷史**在[全專案變更摘要](changelog.md) 記每次交付的 1–3 個要點。已完成計畫、舊原型、舊決策及量測依範圍歸入 [跨端](archive/README.md)、[Web](../apps/web/docs/archive/README.md)、[Mobile](../apps/mobile/docs/archive/README.md)。封存的「手機版」UI 評估若屬 Web，指手機瀏覽器。
+- **驗收與素材**從對應功能專規或操作文件連到 [共用案例](design/fixtures/)、[跨端證據](design/evidence/) 與 [歷史裝置證據](../apps/mobile/docs/archive/ACCEPTANCE.md)。證據保留當時的平台與日期。字型與素材的來源、授權保留在資源旁，見 [Web 字型](../apps/web/public/fonts/README.md)、[歷史圖示](../apps/web/public/archive/icons-2026-07-27/README.md) 及 [Mobile 模板授權](../apps/mobile/LICENSE)。

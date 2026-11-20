@@ -16,7 +16,7 @@ flowchart LR
   SERVICE --> EXT[R2 / AI / 通知]
 ```
 
-Server Actions 與 HTTP API 是兩個呼叫入口，部署初期同在現有 Next.js。權限、分帳、交易、冪等與檔案驗證只維護一套服務。此專案不建立 API server、MongoDB connection 或 migrations。
+Server Actions 與 HTTP API 是兩個呼叫入口，均由現有 Next.js 後端提供。權限、分帳、交易、冪等與檔案驗證只維護一套服務。API、資料庫連線與 migrations 由 Web workspace 維護。
 
 ## App 行程閱讀
 
@@ -183,7 +183,7 @@ Web 預覽沒有登入也沒有資料庫，打包時改用 `pendingExpenseDataba
 
 手機與後端以 `workspace:*` 引用 `@travel-budget/contracts`，schema 單一來源為 `packages/contracts/src/index.ts`，OpenAPI 為 `packages/contracts/openapi.json`。`src/api/contracts.ts` 是薄 adapter，重新匯出共用 DTO 並保留憑證非空的用戶端驗證，不另維護 DTO 定義。從 repository 根目錄執行 `pnpm contracts:generate` 更新產物，`pnpm contracts:check` 檢查同步。
 
-共用契約只依賴純 TypeScript／Zod，不含 Node.js、React、Next.js、MongoDB 或 server SDK。Mobile 不引用 `apps/web` 原始碼。純金額／分攤規則、幣別與翻譯內容仍是後續共用候選，須先隔離平台依賴；目前使用後端既有計算結果。
+共用契約只依賴純 TypeScript／Zod，不含 Node.js、React、Next.js、MongoDB 或 server SDK。Mobile 不引用 `apps/web` 原始碼。兩端共用行程日期與延續提示的純函式。金額與分攤由後端計算，各端保留自己的翻譯、UI 與儲存實作。
 
 React Native 畫面不能直接沿用 Radix、DOM、Leaflet 或 Next provider。照片選取、推播、SecureStore 與 SQLite 採平台 adapter；公開分享頁與 Web PWA 繼續留在網站。Web 預覽只是開發便利入口。
 
@@ -239,7 +239,7 @@ E3 成功只存最小 receipt 結果並刷新資源，刪除明細不再重讀�
 
 ## G2b 原幣新增與固定匯率
 
-expense-options 在同一次旅行讀取補常用／預設設定與後端支援清單。新增使用完整原幣額與匯率預覽，後端仍 computeSplits→roundMoney→既有 createExpenseForActor／receipt，不新增手機換算演算法或改供應商。草稿保存可選 currency／rateText／rateSource／rateDate；缺欄位的既有 JSON 維持 TWD／1，schema 8 無 DDL／重寫。confirmedFields 驗回應原幣／精確匯率、成員與 TWD 分攤加總，再原子交接 C；sameExpense 比對固定原額／幣別／匯率與每份分。
+expense-options 在同一次旅行讀取補常用／預設設定與後端支援清單。新增使用完整原幣額與匯率預覽，後端仍 computeSplits→roundMoney→既有 createExpenseForActor／receipt，不新增手機換算演算法或改供應商。草稿保存可選 currency／rateText／rateSource／rateDate；缺欄位的既有 JSON 維持 TWD／1，schema 8 無 DDL／重寫。confirmedFields 驗回應原幣／精確匯率、成員與帳本基準幣別的分攤加總，再原子交接 C；sameExpense 比對固定原額／幣別／匯率與每份分。
 
 表單的參考／預覽讀取共用 SQLite 帳號限速與登入／catalog 世代；確認 guard 經 ExpenseEntry.submit 傳入原內容 retry，每次 transport（含 refresh 重送）重新核對。429 保存失敗保持本表單期限並提示，後續先重試落盤；重啟保護仍以成功保存為前提。D 入列與 prepare／同步另檢查 TWD／1，外幣草稿不會被解讀成 TWD 意圖。讀取設定或参考值不改已存在原始輸入或 frozen body。
 
@@ -251,7 +251,7 @@ expense-options 在同一次旅行讀取補常用／預設設定與後端支援�
 
 ## G2c 外幣編輯
 
-E3 edit-context 在同一授權交易帶回旅程幣別選項與可選 recalculate 能力；equal 保持舊 App 的 TWD 範圍。後端將已存各人 TWD 份額與原額／歷史匯率的 computeSplits 比對，合法且相同才允許重算；基本更新仍只 $set 明確 metadata。PATCH 新形狀成對帶 currency／exchange_rate，省略兩欄仍為舊 TWD／1 body；凍結操作及 receipt 指紋不補預設或遷移。
+E3 edit-context 在同一授權交易帶回旅程幣別選項與可選 recalculate 能力；equal 保持舊 App 的 TWD 範圍。後端將已存各人的帳本基準份額與原額／歷史匯率的 computeSplits 比對，合法且相同才允許重算；基本更新仍只 $set 明確 metadata。PATCH 新形狀成對帶 currency／exchange_rate，省略兩欄仍為舊 TWD／1 body；凍結操作及 receipt 指紋不補預設或遷移。
 
 maintenance 純函式以歷史原額／幣別／String(rate) 初始化，讀 context → 原幣預覽 → 再讀 context；版本變動回衝突，不接受新 revision 自動寫入。畫面以輸入世代阻擋改值／斷線後晚到的預覽。衝突核對保留明確編輯，rate／currency 成對保留；E 引擎按原 UUID 及內容持久化／恢復，沿用資料庫 schema 8。編輯讀取共用 expenseReadGuard：429 保存失敗先重試落盤，普通預覽檢查 catalog 可見性，明確載入 context 可重新授權，但仍核對登入與撤權世代。
 

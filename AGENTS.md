@@ -26,7 +26,11 @@ Repository-wide instructions for coding agents.
 
 ## Documentation and changelog
 
-- Every development task must update the root `changelog.md` before completion, including fixes,
+- Use the [cross-platform design guide](docs/design/README.md) for shared Web/Mobile behavior
+  and platform differences. Update the feature specification there when a shared workflow
+  changes, and link to it from the affected app documentation.
+
+- Every development task must update the project changelog at `docs/changelog.md` before completion, including fixes,
   features, tests/tooling, and documentation changes. Group related work into one dated entry;
   use 1–3 short bullets describing the outcome and affected app, plus material limitations if any.
 - Use dates and an `Unreleased` section for uncommitted/unreleased work. Do not invent release

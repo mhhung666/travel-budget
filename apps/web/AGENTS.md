@@ -7,7 +7,7 @@ repository-wide [AGENTS.md](../../AGENTS.md).
 
 - Follow the root version, commit, and documentation rules; Web releases independently.
 - This application's `package.json.version` is its product version source.
-- Update the root [changelog.md](../../changelog.md) for every development task; keep entries brief.
+- Update the [project changelog](../../docs/changelog.md) for every development task; keep entries brief.
 
 ## Workspace and backend boundaries
 

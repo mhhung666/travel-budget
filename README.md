@@ -6,7 +6,7 @@
 apps/web/           Next.js Web、HTTP API、MongoDB models、migrations、外部服務
 apps/mobile/        Expo / React Native iOS、Android 用戶端
 packages/contracts/ 純 TypeScript / Zod API schema 與 OpenAPI
-docs/              跨應用開發規範與架構決策
+docs/              跨端產品設計、功能對照、開發規範與架構決策
 ```
 
 ## 開始開發
@@ -21,7 +21,7 @@ cp apps/mobile/.env.example apps/mobile/.env.local
 pnpm dev:web
 ```
 
-另一個終端機執行 `pnpm dev:mobile`。Web 的 MongoDB／JWT 設定留在 `apps/web/.env`；手機僅設定公開 API 位址 `EXPO_PUBLIC_API_BASE_URL`，不放後端密鑰。iOS 模擬器可用 `http://localhost:3000`，Android 模擬器用 `http://10.0.2.2:3000`，真機使用電腦的 LAN IP；只填 origin，App 自動使用 `/api/v2`，正式 bundle 要求 HTTPS。
+另一個終端機執行 `pnpm dev:mobile`。Web 的 MongoDB／JWT 設定留在 `apps/web/.env`；手機使用公開 API 位址 `EXPO_PUBLIC_API_BASE_URL`，邀請分享可另設 `EXPO_PUBLIC_WEB_ORIGIN`，不放後端密鑰。iOS 模擬器可用 `http://localhost:3000`，Android 模擬器用 `http://10.0.2.2:3000`，真機使用電腦的 LAN IP；只填 origin，App 自動使用 `/api/v2`，正式 bundle 要求 HTTPS。
 
 | 根目錄指令                                          | 用途                                                |
 | --------------------------------------------------- | --------------------------------------------------- |
@@ -38,7 +38,7 @@ pnpm dev:web
 
 ## 文件與發布
 
-- [跨應用文件](docs/README.md)、[開發規範](docs/DEVELOPMENT.md)與[整併決策](docs/decisions/0001-monorepo.md)。
+- [文件總覽](docs/README.md)、[Web／Mobile 功能與設計對照](docs/design/README.md)、[開發規範](docs/DEVELOPMENT.md)與[整併決策](docs/decisions/0001-monorepo.md)。
 - [Web／後端文件](apps/web/docs/README.md)與[環境設定](apps/web/README.md)。
 - [Mobile 文件](apps/mobile/docs/README.md)與[操作入口](apps/mobile/README.md)。
 - [共用 API 契約](packages/contracts/README.md)。
@@ -49,4 +49,4 @@ Vercel 專案的 **Root Directory 設為 `apps/web`**，並啟用 **Include file
 
 原同層 `travel-budget-mobile` 已棄用；後續開發、安裝、CI 與提交一律在本 repository。舊目錄僅保留歷史與回復用途。
 
-變更要點見 [changelog.md](changelog.md)，文件入口見 [docs/README.md](docs/README.md)。
+變更要點見 [全專案變更摘要](docs/changelog.md)，文件入口見 [docs/README.md](docs/README.md)。

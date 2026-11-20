@@ -12,7 +12,7 @@
 
 讀取或重查能力時保留已填資料並暫停建立。失敗可重試；若已選幣別從清單移除，保留選值並提示重新選擇。只有已選值也是唯一有效候選時，欄位才顯示唯讀。單獨改幣別也算表單有修改。
 
-建立已確認、送出結果未知時，Web 與 App 都以原帳號、原請求 UUID 和原內容恢復。新能力清單只影響下一次確認；既有收據保留原結果。非 TWD 離線可存草稿，自動送出佇列限 TWD 基準、TWD 原幣且均分。[Web 建立表單](../../apps/web/src/components/trips/CreateTripDialog.tsx) · [App 建立表單](../../apps/mobile/src/features/tripEntry/TripFormScreen.tsx)
+建立已確認、送出結果未知時，Web 與 App 都以原帳號、原請求 UUID 和原內容恢復。新能力清單只影響下一次確認；既有收據保留原結果。非 TWD 帳本可先保存支出草稿。Web 的離線新增限 TWD 帳本；App 要加入前景待送佇列，還須是 TWD 原幣且均分。[Web 建立表單](../../apps/web/src/components/trips/CreateTripDialog.tsx) · [App 建立表單](../../apps/mobile/src/features/tripEntry/TripFormScreen.tsx)
 
 ## 驗證與交接
 

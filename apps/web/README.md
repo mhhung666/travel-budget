@@ -2,7 +2,7 @@
 
 一個現代化、輕量級的**多人旅行記帳與分帳**應用程式，專為團隊出國旅行設計。協助大家輕鬆追蹤支出、自動計算誰該付誰多少、規劃行程，並支援多幣別每日參考匯率、收據附件、離線記帳與年度回顧。
 
-> 此目錄是 `@travel-budget/web`，負責 Web 與共用業務後端；原生 App 位於 `../mobile`。從 [repository 文件入口](../../docs/README.md) 或 [Web 核心文件](docs/README.md) 開始；完整的 [現有功能](docs/FEATURES.md) 與 [架構摘要](docs/ARCHITECTURE.md) 分開維護。
+> 此目錄是 `@travel-budget/web`，負責 Web 與共用業務後端；原生 App 位於 `../mobile`。兩端對照見 [跨端產品設計](../../docs/design/README.md)，本端入口見 [Web 核心文件](docs/README.md)；完整的 [現有功能](docs/FEATURES.md) 與 [架構摘要](docs/ARCHITECTURE.md) 分開維護。
 
 ## 核心功能
 

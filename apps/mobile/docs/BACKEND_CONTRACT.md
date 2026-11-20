@@ -1,10 +1,8 @@
 # 後端分工與 API 契約
 
-B3 Mobile 已使用 B1 v2 契約。線上回應必須帶合法 ledger；基準單位、v1 安全阻擋及原 UUID 恢復規則見 [B1 API](../../web/docs/MOBILE_API.md#b1-基準幣別契約)，Mobile 持久化與傳輸見 [B3 架構](ARCHITECTURE.md#b3mobile-帳本與舊資料恢復)。下方 v1／TWD 節保留歷史相容契約，舊已確認操作及 D TWD 均分佇列繼續使用它。
+App 只呼叫同一 repository 後端的 `/api/v2`；端點與欄位以 [共用 schema 與 OpenAPI](../../../packages/contracts/README.md) 為準。此處記錄原生用戶端如何使用各項能力、處理撤權、失敗與結果未知。產品畫面見 [Mobile 功能](FEATURES.md)。
 
-**B1–B3 已實作，B5 已退役 v1**：現行原生 API／新操作只用 v2，歷史 TWD 解碼與舊本機紀錄保護仍保留；舊 v1 意圖不得改標或重送。非 TWD 建立固定開放、未部署，B4 跨端操作待驗。帳本單位與能力見 [Web API](../../web/docs/MOBILE_API.md#b1-基準幣別契約)，固定案例見 [B4 驗收](LOCAL_ACCEPTANCE.md#b4-固定帳務案例)。
-
-手機沿用同一 repository 中 `apps/web` 的後端與資料庫。唯讀切片（登入、旅行、支出清單／明細、結算）與線上新增支出的後端端點（成員資料、均分預覽、冪等新增、結果查詢）已實作，手機的新增畫面與待確認紀錄已使用這些端點；尚未代表任何遠端環境已部署。
+線上帳務回應使用旅行的 `ledger.baseCurrency`。TWD 是缺欄位的歷史帳本單位，也是目前離線均分佇列的限制。v1 HTTP 已退役；舊意圖僅解碼以便辨識，禁止改版本重送。相容與恢復見 [後端帳本](../../web/docs/MOBILE_API.md#b1-基準幣別契約) 及 [SQLite 舊資料](ARCHITECTURE.md#b3mobile-帳本與舊資料恢復)。
 
 ## App 行程閱讀
 
@@ -59,29 +57,13 @@ App 已接 BD1 的獨立 preview／submit／lookup 契約：`POST /trips/{id}/it
 
 ## 已實作端點
 
-基底路徑 `/api/v2`（`/api/v1` 已於 B5d-2 刪除；App 設定只填網域，舊的 `/api/v1`／`/api/v2` 結尾仍接受並對應同一個環境身分，送出時一律用 v2）。手機與後端透過 `@travel-budget/contracts` 共用 schema，單一來源為 [packages/contracts/src/index.ts](../../../packages/contracts/src/index.ts)，OpenAPI 產物為 [packages/contracts/openapi.json](../../../packages/contracts/openapi.json)。從 repository 根目錄執行 `pnpm contracts:generate` 更新產物，`pnpm contracts:check` 檢查同步。手機沒有 Web source 或 DB 相依。
-
-| 端點                                     | 輸入／回應                                                                        |
-| ---------------------------------------- | --------------------------------------------------------------------------------- |
-| `POST /auth/login`                       | JSON `{ username, password }` → `{ accessToken, refreshToken, expiresIn, user }`  |
-| `POST /auth/refresh`                     | JSON `{ refreshToken }` → 新 token pair 與目前 user                               |
-| `POST /auth/logout`                      | JSON `{ refreshToken }` → `{ loggedOut: true }`；無須有效 access token            |
-| `GET /me`                                | Bearer access token → `{ id, username, displayName }`                             |
-| `GET /trips?page=1&date=YYYY-MM-DD`      | Bearer → `{ items, nextPage }`；每頁 20 筆                                        |
-| `GET /trips/:id/landing?date=YYYY-MM-DD` | Bearer；僅 ObjectId → 受限成員摘要                                                |
-| `GET /trips/:id/expenses?cursor=…`       | Bearer → `{ items, nextCursor }`；每頁 20 筆，游標無效回 400                      |
-| `GET /trips/:id/expenses/:expenseId`     | Bearer → 單筆明細：原幣／TWD 金額、匯率與各成員 TWD 分攤                          |
-| `GET /trips/:id/settlement`              | Bearer → 餘額、建議轉帳（尚未付款）、既有還款、總額與三種狀態                     |
-| `GET /trips/:id/expense-options`         | Bearer → `{ members: [{ id, displayName }], categories }`；成員順序即均分尾差順序 |
-| `POST /trips/:id/expenses/preview`       | JSON `{ amount, member_ids }` → `{ amount, splits }`；唯讀的均分預覽              |
-| `POST /trips/:id/expenses`               | JSON（見下）→ 與明細相同的支出；`client_request_id` 冪等，重播得到相同結果        |
-| `GET /trips/:id/expense-requests/:uuid`  | Bearer → `{ status: 'committed', expense }` 或 `{ status: 'not_found' }`          |
+App 設定填後端 origin；相容接受結尾帶 `/api/v1` 或 `/api/v2` 的舊位址。本機環境隔離沿用原身分，實際請求固定走 v2。登入、旅行、帳務、行程、附件及本人資料的完整方法、路徑與 DTO 見 [OpenAPI](../../../packages/contracts/openapi.json)。
 
 成功 envelope 是 `{ data }`；失敗是 `{ error: { code }, requestId }`。所有回應 `Cache-Control: no-store`，429 帶 `Retry-After`。僅接受 JSON body，預設大小上限 8 KiB；2A 行程 command 的明確例外為 256 KiB。沒有跨來源瀏覽器 CORS；原生請求不使用 Web cookie。
 
-Trip DTO 包含 `id/name/description/startDate/endDate/destination/archived/memberCount/mySpent/myBalance/phase`。Landing 加入 `role/expenseCount/todayGroupSpent/budgetTotal`。日期為 date-only，金額為 TWD、保留既有到分規則；`myBalance` 正數是應收，負數是應付。沒有成員私人預算陣列、分享碼、檔案 key 或收據。
+Trip DTO 包含 `id/name/description/startDate/endDate/destination/archived/memberCount/mySpent/myBalance/phase`。Landing 加入 `role/expenseCount/todayGroupSpent/budgetTotal`。日期為 date-only，金額依回應的帳本基準、保留到分規則；`myBalance` 正數是應收，負數是應付。沒有成員私人預算陣列、分享碼、檔案 key 或收據。
 
-支出清單按 `date`、`createdAt`、`_id` 降冪，游標編碼最後一筆的三個值，因此同日同時間的資料不會跨頁漏掉或重複；分頁不是快照，資料變更後從第一頁重讀。清單與明細 DTO 為明確白名單：id、日期、說明、分類（未知值歸為 `other`）、付款人、TWD 金額、原幣金額與幣別；明細另有匯率與各成員分攤。不輸出附件、標籤、行程關聯、登入帳號或分享碼。付款人或分攤成員的參照已不存在時，id 為 `null`、名稱為空字串。授權清單／明細另提供可選 `payerIsVirtual`，明細分攤可選 `isVirtual`，只來自目前解析的使用者欄位；舊 API／歷史 receipt 缺旗標仍有效，缺值不可推定為正式或虛擬成員。此資訊不代表目前旅行成員資格。
+支出清單按 `date`、`createdAt`、`_id` 降冪，游標編碼最後一筆的三個值，因此同日同時間的資料不會跨頁漏掉或重複；分頁不是快照，資料變更後從第一頁重讀。清單與明細 DTO 為明確白名單：id、日期、說明、分類（未知值歸為 `other`）、付款人、基準金額、原幣金額與幣別；明細另有匯率與各成員分攤。不輸出附件、標籤、行程關聯、登入帳號或分享碼。付款人或分攤成員的參照已不存在時，id 為 `null`、名稱為空字串。授權清單／明細另提供可選 `payerIsVirtual`，明細分攤可選 `isVirtual`，只來自目前解析的使用者欄位；舊 API／歷史 receipt 缺旗標仍有效，缺值不可推定為正式或虛擬成員。此資訊不代表目前旅行成員資格。
 
 結算沿用 `readSettlement` 的餘額與最少轉帳計算（已先扣除已登記還款），`suggestedTransfers` 帶成員 id 以辨識同名成員，全部尚未付款；`status` 為 `empty`（無支出也無還款）、`settled` 或 `outstanding`（任何餘額未歸零即為此狀態）。結算仍讀取該旅行全部支出與還款，游標分頁不代表結算查詢有最佳化。
 
@@ -89,15 +71,9 @@ Trip DTO 包含 `id/name/description/startDate/endDate/destination/archived/memb
 
 ### 線上新增支出的契約
 
-線上新增支援 TWD／外幣與勾選成員均分，匯率／原額細節见 [G2b](#g2b-原幣預覽與新增)。新增 body（snake_case，沿用 Web 輸入名稱；回應仍是 camelCase DTO）：`client_request_id`（UUID，必填）、`payer_id`、`original_amount`、`currency`（支援 ISO）、`exchange_rate`（TWD 固定 1）、`description`（trim 後 1–200 字）、`category`、`date`（YYYY-MM-DD，須是真實日期）、`splits: [{ user_id, share_amount }]`（1–100 位、不可重複、可為 0、至多兩位小數）。金額為正值、至多兩位小數，且TWD／換算後金額與每份分攤不超過單筆上限 1,000,000,000.00（超過回 400、不寫入，預覽同樣）；附件、標籤、行程關聯等其他欄位一律 400，不被忽略。付款人可不參與分攤。
+App 依 options 的預覽及新增能力提供均分、固定金額、百分比或份數。提交包含旅程基準、原幣金額、完整匯率和核對過的份額；使用者改動輸入後重新預覽。精度、上限與穩定尾差見 [四種預覽](#g3a-1-進階分攤預覽)，寫入與舊 body 相容見 [分攤確認](#g3a-2-進階分攤新增與編輯)。
 
-預覽 `{ amount, member_ids }` 由後端呼叫 Web 表單使用的 `computeSplits('equal')`，結果一律依 `expense-options` 的成員順序（與請求順序無關）：100 元三人為 33.34／33.33／33.33。預覽不寫入、不保留交易，新增時後端仍重新驗證成員、加總與金額，所以預覽不代表日後一定能寫入。App 應原樣送出預覽的分攤，不自行計算。
-
-**狀態碼語意**：200 已入帳（含重播）；**任何 4xx 都代表此請求沒有寫入**——400 輸入或成員／金額驗證錯誤、401 session 失效、404 無權或不存在、409 `IDEMPOTENCY_CONFLICT`（同 key 不同內容，須查明原請求，不可換 UUID）、413 body 超過 8 KiB、415；429 `BUSY` 是交易因競爭而中止、尚未提交，依 `Retry-After` 以同一個 key 重試。**5xx、逾時與斷線代表結果不確定**：以 `expense-requests` 查詢，或以同 key、同內容重試；`not_found` 只代表目前沒有 receipt，不代表請求不在執行中。`requestId` 只是診斷編號，不能取代 `client_request_id`。
-
-每次使用者確認的提交產生一個 UUID（建議小寫，後端比對不分大小寫），之後的重送、401 refresh 重送與結果查詢都沿用它與凍結的內容。重播前後端重新授權：失去成員資格者不能重播或查詢；receipt 與支出同一交易提交，支出之後被刪除仍視為已提交，不會重新建立。
-
-手機端依上述語意處理（`features/expenses/entry.ts`）：refresh 的錯誤另標記來源，一律保留待確認紀錄，不套用以下支出端點的拒絕規則；只有 200 或查詢得到 `committed` 才算已儲存；來自 API 本身（含 `{ error: { code } }`）的 400／413／415 等寫入前拒絕才清除待確認紀錄；401／403／404／429、409 與所有逾時、斷線、5xx、無法解析的回應（含閘道的 4xx 網頁）都保留紀錄，因為先前的嘗試可能已經提交。409 先查明原請求而不換 UUID；429 依 `Retry-After` 以原 UUID 重試，期間不重送。手機另以 `requestAs` 確保請求只用建立該請求的帳號的 token 送出；登入已更換後才到的回應（資料或錯誤，包括 400）一律視為結果不明，紀錄保留。
+確認時以 SQLite 保存帳號／環境、UUID 與凍結內容，保存成功才送出。逾時、撤權、refresh 錯誤、409 或登入世代改變時保留未知結果。查詢須使用原帳號及 UUID；`not_found` 不能證明請求未執行。明確成功才顯示已儲存，終局拒絕依原流程還原。429 等待期限跨重啟保存。[新增與恢復](ARCHITECTURE.md#新增支出與不確定結果)
 
 旅行列表沿用 Web 共用服務先讀取本人全部旅程與摘要，再排序、分頁；HTTP payload 有界，DB 工作量仍隨本人旅程數增加。分頁不是快照，Web 有變更後應從第一頁重新整理。`date` 由手機以本地日曆日提供，未提供時使用伺服器 UTC 日。
 
@@ -145,7 +121,7 @@ E 的寫入／查詢與 C／D 共用 `expense_rate_limit`。429 先落盤絕對�
 
 帳號 trim 後 3–200 字，顯示名稱 1–100 字；Email trim／小寫並驗格式，最多 254 字。新密碼至少六字元、最多 72 UTF-8 bytes，空白保留；舊登入輸入不改。確認密碼不送 API，未知欄位拒絕。409 `ACCOUNT_CONFLICT` 不區分帳號／Email。400 `INVALID_CODE`、`CODE_EXPIRED`、`TOO_MANY_ATTEMPTS` 可重新寄碼；429 `RATE_LIMITED` 附 Retry-After。逾時、5xx 或無法驗證成功回應均結果不明：建立／重設可先登入核對，不能自動重送，也不保存密碼。
 
-`accountEntry.ts` 共用 Web／HTTP 規則；六位碼 15 分鐘有效，五次錯碼上限；錯誤嘗試、密碼更新／碼消耗與重新寄碼的競態在 MongoDB 交易內處理。同碼併發只成功一次；未到期且錯碼未滿五次時，重寄回 429 並保留原碼、次數與期限；已鎖死的碼可在上次寄碼 60 秒後更換，仍受每小時五次上限，新碼與尚存舊碼不同，副作用在提交後 best-effort；不印碼到本機／正式 log。現有 Mobile 密碼 fingerprint 檢查使舊 session 失效；Web cookie 機制不宣稱全撤銷。本機 C／D／E1 紀錄不刪。
+`accountEntry.ts` 共用 Web／HTTP 規則；六位碼 15 分鐘有效，五次錯碼上限；錯誤嘗試、密碼更新／碼消耗與重新寄碼的競態在 MongoDB 交易內處理。同碼併發只成功一次；未到期且錯碼未滿五次時，重寄回 429 並保留原碼、次數與期限；已鎖死的碼可在上次寄碼 60 秒後更換，仍受每小時五次上限，新碼與尚存舊碼不同，副作用在提交後 best-effort；不印碼到本機／正式 log。現有 Mobile 密碼 fingerprint 檢查使舊 session 失效；重設同時遞增 authVersion，舊 Web cookie 下次驗證即失效。本機 C／D／E1 紀錄不刪。
 
 匿名限流為原子滑動時窗：每正規化 Email 寄碼預設每 15 分鐘一次、每小時五次；錯碼滿五次的恢復例外只把間隔縮為 60 秒，不清除寄碼或驗碼配額。`accountentryattempts` 以相同 HMAC key 保存已知／未知 Email 的錯碼次數與有效期限，與錯碼／寄碼交易一起提交，使例外的回應與等待一致；寄碼配額與新碼同交易，被拒絕不消耗配額或延長期限，寄信失敗亦須等原期限再寄；驗碼每 15 分鐘十次（未知 Email 同樣計數）；註冊另按帳號每小時二十次。零冷卻操作只限制時窗次數，請求逆序到達不另加時間間隔，亦不縮短原到期時間。可信來源的註冊／寄碼共用每小時二十次，只在 `VERCEL=1` 接受平台覆寫的單一 `x-forwarded-for` IP；其他環境忽略用戶轉送 header，仍保留 Email／帳號限制，需部署入口另做流量限制。政策集中 `accountPolicy`，adapter 不各自定義。計數 `_id` 用 JWT secret 的 domain-separated HMAC，不記明文 Email／IP，TTL 不取代期限判斷；與已登入帳務限流分開。
 
@@ -182,7 +158,7 @@ revision 對原始業務欄位、支出／旅行 ID 與目前成員的儲存／�
 | `GET /trips/:id/payments/:paymentId/revoke-context` | `{ payment, revision }`，僅方向、金額、備註、日期等白名單                                 |
 | `DELETE /trips/:id/payments/:paymentId`             | JSON UUID、expected_revision → `{ tripId, paymentId, deleted: true }`                     |
 
-任何目前成員都可代記／撤銷，包括虛擬成員。付款／收款必須是不同的有效成員 ID；TWD 金額 0.01–1,000,000,000.00，最多兩位小數；備註 trim 後最多 200 字。部分、超額、沒有建議的手動付款均可，建議不作上限。只記錄外部已完成的實際付款，不執行轉帳；撤銷是修正誤登而非退款。成功只表示登記／撤銷完成，不表示餘額歸零；結算由後端重算。
+任何目前成員都可代記／撤銷，包括虛擬成員。付款／收款必須是不同的有效成員 ID；帳本基準金額 0.01–1,000,000,000.00，最多兩位小數；備註 trim 後最多 200 字。部分、超額、沒有建議的手動付款均可，建議不作上限。只記錄外部已完成的實際付款，不執行轉帳；撤銷是修正誤登而非退款。成功只表示登記／撤銷完成，不表示餘額歸零；結算由後端重算。
 
 `paymentWrite.ts` 為 Web cookie action 與 Mobile HTTP 共用的 actor／交易服務，`calculateSettlementDetail` 抽出既有結算計算供模型讀取與交易快照使用。context 在同一 trip fence／snapshot 內讀成員、支出及還款；HMAC token 綁定 trip ID、成員儲存／有效順序、原始支出業務欄位與 payment ID／方向／金額／備註。背景送達狀態及顯示名稱不影響 token；Web 支出或還款修改、D 新增及身分轉換會使舊確認失效。不是持續遞增版本，內容還原可回相同 token。
 
@@ -228,29 +204,15 @@ expense-options／payment-context members 新增可選 isVirtual；結算 balanc
 
 ## G2a 旅行幣別與參考匯率
 
-- `GET /trips/:id/currency-settings`：成員專用 `TripCurrencyContext`，只含 tripId、role、設定內容、後端支援的 ISO 幣別清單與獨立 currency revision。沒有分享碼、私人預算、名冊或帳務；支援清單沿用後端 Intl，Mobile 不另維護一份允許清單。
-- `POST /trips/:id/currency-settings`：嚴格 `TripCurrencyInput`，含 `client_request_id`、`expected_revision` 與完整 `settings: { default_currency, currencies: [{ code, rate }] }`。rate 為有限正數或 null；最多 30 列。後端依既有 Web 規則同幣別後列覆蓋前列、TWD rate 清為 null、default null 且清單空時整份設定清為 null；預設 TWD 可用 null 表達。Mobile 選單限制預設外幣必須在常用清單內，後端仍接受 Web 既有合法設定形狀。
-- `GET /exchange-rates`：Bearer 認證，`ReferenceRates` 的 rates、dates、provider 使用既有 Frankfurter 後端代理，方向 `1 原幣 = ? TWD`。rates.TWD 固定 1；每個外幣有發布日期，缺幣別即缺值。上游失敗 503 `SERVICE_UNAVAILABLE`，沒有杜撰的外幣兜底。HTTP 回應 no-store，上游保留既有 900 秒 revalidation；日期不是取得時間或即時報價。
-
-Web 設定 Action 與 HTTP 共用 currencySettings／tripManagement 的父旅行交易與正規化；管理員資格在交易內重驗。revision 只覆蓋幣別設定，不因名稱／封存或帳務改變失效；同內容回到原狀可使用相同 revision，並非單調計數。舊 revision 409 `RESOURCE_CHANGED`、降為一般成員 403 `FORBIDDEN`、失去成員資格 404 `NOT_FOUND`。確認寫入與 `trip.currency` receipt 原子提交，UUID／凍結內容重播不覆蓋之後的新設定；終局拒絕可依原 UUID 查回。receipt 仍需目前成員資格，不使用 G1c 成功退出例外；不同 body／operation 同 UUID 409。
-
-設定寫入不讀外部匯率，不改任何 expense／payment，也不更新 C 已確認 body。舊 App TWD／匯率 1 契約維持；外幣新增／預覽已由 G2b 擴充；編輯見 G2c。
+成員讀取設定，管理員核對 revision 後保存常用幣別、預設及自訂匯率。參考報價由後端按旅行基準換算，同幣為 1；缺報價或跨幣日期不符時列為不可用。App 明確套用才更新輸入；原草稿與已確認請求保留原匯率。[帳本與報價](../../web/docs/MOBILE_API.md#b1-基準幣別契約) · [表單與衝突驗收](LOCAL_ACCEPTANCE.md#g2a-幣別設定與匯率交接)
 
 ## G2b 原幣預覽與新增
 
-- `expense-options` 加可選 currencySettings（snake_case 設定內容或 null）與 supportedCurrencies。僅成員可讀，同一次 Trip 查詢取得名冊與設定；舊 App 忽略新增欄位。沒有私人預算、分享碼或其他帳務。
-- `expenses/preview` 舊 `{ amount, member_ids }` 保留 TWD／1，回應仍 `{ amount, splits }`。新 `{ amount, currency, exchange_rate, member_ids }` 必須同時提供幣別與匯率；amount 為原幣，回應另含 originalAmount／currency／exchangeRate，amount 與 splits.shareAmount 仍為 TWD。幣別用後端支援清單；匯率有限正數、方向 TWD／原幣、TWD 固定 1。原幣至少 0.01、至多兩位小數且分為安全整數；TWD 原額及換算後 TWD／份額上限仍為 1,000,000,000。溢位、不支援或成員變動 400，不留 receipt。
-- `expenses` 放寬既有 currency／exchange_rate，原幣驗證同上，完整匯率不做格式化後回寫。Web createExpenseForActor 再驗換算、成員、日期、加總與交易；預覽 shares 源自 Web 的原幣分角再換算，不能在手機另算 TWD 均分。很小的有效換算依既有規則可取整為零。已提交 receipt 重播不重取設定或匯率；原 UUID 不同匯率仍 409，刪除後不復活、撤權不能重播／查詢。
-
-回應 runtime schema 檢查 TWD 到分、分攤加總／唯一成員與完整原幣回音；手機 confirmedFields 再確認屬於当前原幣／匯率／成員。C SQLite 讀取同步使用擴充 create schema，D raw draft 新欄位可選，schema 8 無遷移、舊紀錄原內容不改。D TWD 佇列在引擎、SQLite enqueue／prepare 與同步都拒絕外幣；保存草稿不等於允許離線送出。外幣編輯見 G2c。
+新草稿可帶入旅行預設幣別與自訂匯率，支援的 ISO 清單取自後端。預覽送出原幣、正數匯率、基準幣、成員與金額；原幣等於基準時匯率為 1。畫面核對回傳的單位、原幣與份額，提交和重播維持同一份內容。外幣草稿可離線續填；D 佇列仍限 TWD 帳本、TWD 原幣且均分。[原幣與草稿資料流](ARCHITECTURE.md#g2b-原幣新增與固定匯率)
 
 ## G2c 原幣均分編輯
 
-沿用 E3 的 edit-context／PATCH／mutation-requests。context 的 options 補 G2b 幣別設定／支援清單及虛擬旗標；capabilities.recalculate 為可選 boolean，支持 TWD／外幣均分重算。equal 仍只代表舊 App 的 TWD 能力，reason 保留原 enum。recalculate 需要完整合法原額／匯率、換算總額與現存 TWD 金額一致、付款人／分攤在目前名冊，以及份額逐人等於 computeSplits 的原幣均分結果；不同尾差／非均分／無效歷史資料只允許 basic。DB 沒有原始模式，數值相同者無法辨識最初使用哪種模式。
-
-mode=equal 的 changes 可成對新增 currency／exchange_rate，original_amount 沿用 G2b 原幣安全到分規則，TWD／換算後總額與每份 TWD 分攤上限不變。TWD rate 固定 1；ISO 語法由 contracts 驗證、後端核對支援清單。未帶兩欄的舊 body 嚴格按 TWD／1 處理且不補欄位，不改舊指紋；僅帶一欄／無效 rate／未知欄位為 400。後端再以目前名冊與請求原額／匯率計算每份 TWD，偽造份額、不可重算或換算溢位為終局 409 VALIDATION_ERROR；Web／成員修改原始業務欄位仍為 409 RESOURCE_CHANGED。基本更新完全不重算歷史金額。
-
-支出、活動與終局 E receipt 同交易；原 UUID 重播不套新設定、後續編輯或匯率，不新增 migration。撤權仍拒絕重播／查詢。Mobile 預覽使用 G2b 原幣形狀、確認後才進 E；SQLite 原 body、共用限速期限、帳號／環境及登入世代隔離保持，故障／裝置交接見 [G2c](LOCAL_ACCEPTANCE.md#g2c-外幣編輯交接)。
+對支援均分重算的歷史支出，依 edit context 的能力、最新名冊、原額與匯率預覽。僅基本編輯時保留原帳；使用者明確重算才更動各人份額。有進階能力時可另外指定新模式，不能由既有份額推測原模式。版本改變須重新核對；已送出的 body 與 UUID 保留供結果查詢。[進階編輯](FEATURES.md#g3b-2-進階支出編輯) · [原幣編輯驗收](LOCAL_ACCEPTANCE.md#g2c-外幣編輯交接)
 
 ## G3a-1 進階分攤預覽
 
@@ -271,7 +233,7 @@ mode=equal 的 changes 可成對新增 currency／exchange_rate，original_amoun
 
 **能力與部署**：`GET /expense-options` 新增可選 `splitPreviewModes: ["equal", "amount", "percent", "shares"]`；缺欄位按僅有舊均分預覽處理。全域 `/capabilities` 保持原嚴格形狀，避免舊 App 拒絕新增 key。`splitPreviewModes` 只宣告預覽，不能據此開放進階新增／編輯；寫入能力另見下節 G3a-2，UI／草稿在 G3b，需相容後端先部署。舊請求的 revision、原 UUID 與 receipt 指紋不變。
 
-**歷史與保存決策**：新舊帳本均繼續只保存最終金額／份額，暫不新增持久化分攤模式或原始意圖，避免只有 Mobile 維護而被 Web 修改後失真。不能從最終份額推斷原百分比／份數或宣稱還原模式；基本編輯保留原帳，後續進階重算須重新選模式及明確確認。草稿與確認待送 body 可保存使用者當次意圖，但不是歷史支出的模式來源。本片不提供歷史固定金額預填。D 仍只允許 TWD 基準＋TWD 原幣＋均分，非均分不得因結果相等就降級入列。非 TWD 新建預設依 Web 能力回應開放，裝置驗收另列。
+**歷史與保存決策**：新舊帳本均繼續只保存最終金額／份額，暫不新增持久化分攤模式或原始意圖，避免只有 Mobile 維護而被 Web 修改後失真。不能從最終份額推斷原百分比／份數或宣稱還原模式；基本編輯保留原帳，後續進階重算須重新選模式及明確確認。草稿與確認待送 body 可保存使用者當次意圖，但不是歷史支出的模式來源。本片不提供歷史固定金額預填。D 仍只允許 TWD 基準＋TWD 原幣＋均分，非均分不得因結果相等就降級入列。新建幣別取自後端允許清單，裝置驗收另列。
 
 ## G3a-2 進階分攤新增與編輯
 

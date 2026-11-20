@@ -2,20 +2,18 @@
 
 這裡維護 `apps/web` 的 Web 與後端文件。跨應用架構、workspace 指令及手機入口見 [repository 文件入口](../../../docs/README.md)。
 
-| 文件                                                                     | 用途                                         |
-| ------------------------------------------------------------------------ | -------------------------------------------- |
-| [變更紀錄](../../../changelog.md)                                        | 全專案的簡短變更摘要                         |
-| [現有功能](FEATURES.md)                                                  | 使用者能做什麼、主要操作流程與使用限制       |
-| [AI 維護與測試](AI.md)                                                   | 三種 AI 功能的現況、設定、測試方式與評測入口 |
-| [架構摘要](ARCHITECTURE.md)                                              | 核心資料流、程式入口與維護原則               |
-| [共同設計：我的旅行](../../../docs/design/MY_TRIPS.md)                   | Web／Mobile 列表設計、實作與待驗證項目       |
-| [行程共用版面與跨日活動](../../../docs/design/ITINERARY_PRESENTATION.md) | Web／App 統一配置、跨日日期與驗收            |
-| [新旅行：基準幣別選擇](../../../docs/design/BASE_CURRENCY_CREATION.md)   | 新旅行幣別搜尋、建立與恢復                   |
-| [手機 API](MOBILE_API.md)                                                | 原生 `/api/v2` 的認證、資料邊界與驗證        |
-| [共用 OpenAPI](../../../packages/contracts/openapi.json)                 | Web／手機共用的 API 契約產物                 |
-| [專案 README](../README.md)                                              | 安裝、環境設定與開發指令                     |
+| 文件 | 用途 |
+| --- | --- |
+| [變更紀錄](../../../docs/changelog.md) | 全專案的簡短變更摘要 |
+| [現有功能](FEATURES.md) | 使用者能做什麼、主要操作流程與使用限制 |
+| [AI 維護與測試](AI.md) | 三種 AI 功能的現況、設定、測試方式與評測入口 |
+| [架構摘要](ARCHITECTURE.md) | 核心資料流、程式入口與維護原則 |
+| [跨端產品設計](../../../docs/design/README.md) | Web／App 功能對照與專規，含旅行卡、建立幣別、行程版面與同日多選 |
+| [手機 API](MOBILE_API.md) | 原生 `/api/v2` 的認證、資料邊界與驗證 |
+| [共用 OpenAPI](../../../packages/contracts/openapi.json) | Web／手機共用的 API 契約產物 |
+| [專案 README](../README.md) | 安裝、環境設定與開發指令 |
 
-歷史測試結果、驗收紀錄、詳細設計與待辦已集中到 [archive](archive/README.md)，需要追溯時再查閱。封存不代表待辦完成，也不代表所有功能已通過正式環境驗收；目前不以封存清單安排下一步工作。
+[Web archive](archive/README.md) 保存歷史設計、量測、測試與維運紀錄。現行跨端規格由上表的產品設計入口維護，尚待驗收的 Web 專項列於下方。
 
 ## 操作與已完成成果
 
@@ -38,7 +36,7 @@
 ## 維護方式
 
 - 現有功能變更時，更新 `FEATURES.md`；核心資料流改變時，更新 `ARCHITECTURE.md`。
-- 每次開發更新根目錄 `changelog.md`；已完成計畫只保留成果、驗證與限制，不再新增逐輪歷史報告。
+- 每次開發更新`docs/changelog.md`；已完成計畫只保留成果、驗證與限制，不再新增逐輪歷史報告。
 - 主文件只保留現況，不累積測試流水帳、階段進度或候選功能。
 - `archive/` 保留既有摘要、必要維運操作與證據；詳細修改過程查 Git，不再累積流水帳。
 - 程式碼與文件不一致時，以實作為準；Web 版本只讀取 `apps/web/package.json.version`，手機獨立版本。
