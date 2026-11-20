@@ -188,8 +188,14 @@ const response = (name) => ({
   },
 });
 // Bodies of the sign-in routes are unauthenticated; authenticated writes opt in explicitly.
-const operation = (id, output, input, { authenticated = !input, errors = [] } = {}) => ({
+const operation = (
+  id,
+  output,
+  input,
+  { authenticated = !input, errors = {}, description } = {}
+) => ({
   operationId: id,
+  description,
   security: authenticated ? [{ bearerAuth: [] }] : [],
   ...(input
     ? { requestBody: { required: true, content: { 'application/json': { schema: ref(input) } } } }
@@ -197,18 +203,22 @@ const operation = (id, output, input, { authenticated = !input, errors = [] } = 
   responses: {
     200: response(output),
     ...Object.fromEntries(
-      [400, 401, 404, ...errors, 413, 415, 429, 500]
+      [400, 401, 404, 413, 415, 429, 500, ...Object.keys(errors).map(Number)]
         .sort((a, b) => a - b)
         .map((status) => [
           status,
           {
-            description: 'Error code; 429 includes Retry-After seconds',
+            description: errors[status] ?? 'Error code; 429 includes Retry-After seconds',
             content: { 'application/json': { schema: ref('Error') } },
           },
         ])
     ),
   },
 });
+// Trip routes opt in to the ledger failure reported by their output/validation adapter.
+const ledgerFailure = 'LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.';
+const ledgerOperation = (id, output, input, options = {}) =>
+  operation(id, output, input, { ...options, errors: { 503: ledgerFailure, ...options.errors } });
 const dateParam = {
   name: 'date',
   in: 'query',
@@ -221,7 +231,9 @@ const tripIdParam = { name: 'id', in: 'path', required: true, schema: objectId }
 const templates = {
   '/auth/register': {
     post: {
-      ...operation('register', 'User', 'RegisterInput', { errors: [409] }),
+      ...operation('register', 'User', 'RegisterInput', {
+        errors: { 409: 'ACCOUNT_CONFLICT: username or email already in use.' },
+      }),
       description:
         'Creates an account without a session. ACCOUNT_CONFLICT covers either username or email. New passwords: minimum 6 characters, maximum 72 UTF-8 bytes; never trimmed. Timeout/5xx: outcome unknown; try login, never automatically resend or persist the password.',
     },
@@ -246,35 +258,51 @@ const templates = {
   '/me': { get: operation('me', 'User') },
   '/me/email/request': {
     post: operation('requestEmailChange', 'EmailChangeSentSchema', 'EmailChangeRequestInput', {
+      description: 'Send a verification code to the proposed new email address.',
       authenticated: true,
+      errors: {
+        409: 'CONFLICT or RESOURCE_CHANGED.',
+        503: 'EMAIL_DELIVERY_FAILED: the verification email could not be delivered.',
+      },
     }),
   },
   '/me/email/confirm': {
     post: operation('confirmEmailChange', 'EmailChangeResultSchema', 'EmailChangeConfirmInput', {
+      description: 'Verify the code and update the signed-in account’s email address.',
       authenticated: true,
+      errors: { 409: 'CONFLICT or RESOURCE_CHANGED.' },
     }),
   },
   '/me/email/cancel': {
     post: operation('cancelEmailChange', 'EmailChangeCancelledSchema', 'EmailChangeCancelInput', {
+      description: 'Cancel the pending email change for the signed-in account.',
       authenticated: true,
     }),
   },
   '/me/password': {
     post: operation('changePassword', 'PasswordChangeResult', 'PasswordChangeInput', {
+      description:
+        'Verify the current password and set a new one. A successful change invalidates previous sessions.',
       authenticated: true,
+      errors: { 409: 'RESOURCE_CHANGED: the credentials changed during the request.' },
     }),
   },
   '/me/friends': {
-    get: operation('friends', 'Friends', undefined, { authenticated: true }),
-    post: operation('inviteFriend', 'FriendMutation', 'FriendInviteInput', {
+    get: operation('friends', 'Friends', undefined, {
+      description: 'List the signed-in user’s friends and incoming and outgoing invitations.',
       authenticated: true,
-      errors: [409],
+    }),
+    post: operation('inviteFriend', 'FriendMutation', 'FriendInviteInput', {
+      description: 'Send a friend invitation to the specified user.',
+      authenticated: true,
+      errors: { 409: 'Friendship state conflicts with this invitation.' },
     }),
   },
   '/me/friends/{friendshipId}': {
     post: {
       ...operation('changeFriendship', 'FriendMutation', 'FriendCommandInput', {
         authenticated: true,
+        errors: { 409: 'Friendship state conflicts with the command.' },
       }),
       parameters: [
         {
@@ -290,6 +318,7 @@ const templates = {
   },
   '/me/notification-preferences': {
     get: operation('notificationPreferences', 'NotificationPreferences', undefined, {
+      description: 'Read the signed-in user’s notification preferences.',
       authenticated: true,
     }),
     patch: {
@@ -304,7 +333,10 @@ const templates = {
     },
   },
   '/me/profile': {
-    get: operation('accountProfile', 'AccountProfile', undefined, { authenticated: true }),
+    get: operation('accountProfile', 'AccountProfile', undefined, {
+      description: 'Read the signed-in user’s profile.',
+      authenticated: true,
+    }),
     patch: {
       ...operation('updateAccountProfile', 'AccountProfile', 'AccountProfileInput', {
         authenticated: true,
@@ -314,17 +346,24 @@ const templates = {
     },
   },
   '/me/avatar': {
-    get: operation('accountAvatar', 'AvatarContext', undefined, { authenticated: true }),
+    get: operation('accountAvatar', 'AvatarContext', undefined, {
+      description: 'Read the current avatar and revision for the signed-in user.',
+      authenticated: true,
+    }),
   },
   '/me/avatar/requests': {
     post: operation('beginAvatarWrite', 'AvatarWriteState', 'AvatarWriteInput', {
+      description: 'Begin an avatar change under the original request UUID.',
       authenticated: true,
-      errors: [409],
+      errors: { 409: 'Avatar write conflicts with the current request or avatar state.' },
     }),
   },
   '/me/avatar/requests/{clientRequestId}': {
     get: {
-      ...operation('avatarWriteStatus', 'AvatarWriteState', undefined, { authenticated: true }),
+      ...operation('avatarWriteStatus', 'AvatarWriteState', undefined, {
+        description: 'Look up the signed-in user’s avatar change by its request UUID.',
+        authenticated: true,
+      }),
       parameters: [
         {
           name: 'clientRequestId',
@@ -336,8 +375,9 @@ const templates = {
     },
     post: {
       ...operation('commandAvatarWrite', 'AvatarUploadTicket', 'AvatarWriteCommandInput', {
+        description: 'Request an upload ticket, finish the upload, or cancel the avatar change.',
         authenticated: true,
-        errors: [409],
+        errors: { 409: 'Avatar command conflicts with the current upload or request state.' },
       }),
       parameters: [
         {
@@ -350,14 +390,16 @@ const templates = {
     },
   },
   '/trips/join': {
-    post: operation('joinTrip', 'TripMutationResult', 'TripJoinInput', {
+    post: ledgerOperation('joinTrip', 'TripMutationResult', 'TripJoinInput', {
       authenticated: true,
-      errors: [409],
+      errors: { 409: 'Conflicting request identity or incompatible stored receipt.' },
     }),
   },
   '/mutation-requests/{clientRequestId}': {
     get: {
-      ...operation('mutationRequest', 'MutationRequest'),
+      ...ledgerOperation('mutationRequest', 'MutationRequest', undefined, {
+        errors: { 409: 'CLIENT_UPGRADE_REQUIRED for a receipt stored by v1.' },
+      }),
       parameters: [
         {
           name: 'clientRequestId',
@@ -369,15 +411,15 @@ const templates = {
     },
   },
   '/trips/{id}/invitation': {
-    get: { ...operation('invitation', 'Invitation'), parameters: [tripIdParam] },
+    get: { ...ledgerOperation('invitation', 'Invitation'), parameters: [tripIdParam] },
   },
   '/trips': {
-    post: operation('createTrip', 'TripMutationResult', 'TripCreateInput', {
+    post: ledgerOperation('createTrip', 'TripMutationResult', 'TripCreateInput', {
       authenticated: true,
-      errors: [409],
+      errors: { 409: 'Conflicting request identity or incompatible stored receipt.' },
     }),
     get: {
-      ...operation('trips', 'Trips'),
+      ...ledgerOperation('trips', 'Trips'),
       parameters: [
         dateParam,
         {
@@ -409,9 +451,9 @@ const templates = {
   },
   '/trips/{id}/expenses/{expenseId}/attachment-requests': {
     post: {
-      ...operation('receiptBegin', 'V2ReceiptWriteState', 'V2ReceiptWriteInput', {
+      ...ledgerOperation('receiptBegin', 'V2ReceiptWriteState', 'V2ReceiptWriteInput', {
         authenticated: true,
-        errors: [409],
+        errors: { 409: 'Attachment request conflicts with the current state.' },
       }),
       parameters: [
         tripIdParam,
@@ -423,7 +465,11 @@ const templates = {
   },
   '/trips/{id}/expenses/{expenseId}/attachment-requests/{clientRequestId}': {
     get: {
-      ...operation('receiptWriteStatus', 'V2ReceiptWriteState'),
+      ...ledgerOperation('receiptWriteStatus', 'V2ReceiptWriteState', undefined, {
+        errors: {
+          409: 'IDEMPOTENCY_CONFLICT: the request belongs to a different trip or expense.',
+        },
+      }),
       parameters: [
         tripIdParam,
         { name: 'expenseId', in: 'path', required: true, schema: objectId },
@@ -436,9 +482,9 @@ const templates = {
       ],
     },
     post: {
-      ...operation('receiptWriteCommand', 'V2ReceiptUploadTicket', 'V2ReceiptWriteCommand', {
+      ...ledgerOperation('receiptWriteCommand', 'V2ReceiptUploadTicket', 'V2ReceiptWriteCommand', {
         authenticated: true,
-        errors: [409],
+        errors: { 409: 'Attachment command conflicts with the current upload or request state.' },
       }),
       parameters: [
         tripIdParam,
@@ -456,7 +502,13 @@ const templates = {
   },
   '/trips/{id}/expenses/{expenseId}/attachments': {
     get: {
-      ...operation('receiptAttachments', 'V2ReceiptAttachments'),
+      ...ledgerOperation('receiptAttachments', 'V2ReceiptAttachments', undefined, {
+        errors: {
+          503: `${ledgerFailure} ATTACHMENT_DATA_INVALID for inconsistent attachment metadata.`,
+        },
+      }),
+      description:
+        'Member-only attached receipt metadata. Opaque IDs, MIME type and bytes only; no storage keys or URLs. No public fallback or persistent cache.',
       parameters: [
         tripIdParam,
         {
@@ -470,7 +522,13 @@ const templates = {
   },
   '/trips/{id}/expenses/{expenseId}/attachments/{attachmentId}': {
     get: {
-      ...operation('receiptView', 'V2ReceiptView'),
+      ...ledgerOperation('receiptView', 'V2ReceiptView', undefined, {
+        errors: {
+          503: `${ledgerFailure} ATTACHMENT_DATA_INVALID for inconsistent attachment metadata.`,
+        },
+      }),
+      description:
+        'Reauthorizes membership and expense attachment before and after storage checks. Returns a fresh HTTPS URL valid at most 300 seconds, with private no-store response override. Missing/detached objects: 404 ATTACHMENT_UNAVAILABLE. Previously issued URLs may remain valid until expiry; external viewers control their own downloads. No-store API response.',
       parameters: [
         tripIdParam,
         {
@@ -490,10 +548,12 @@ const templates = {
   },
   '/trips/{id}/expense-search': {
     get: {
-      ...operation('expenseSearch', 'V2ExpenseSearch', undefined, {
+      ...ledgerOperation('expenseSearch', 'V2ExpenseSearch', undefined, {
         authenticated: true,
-        errors: [409],
+        errors: { 409: 'RESOURCE_CHANGED: restart pagination from the first page.' },
       }),
+      description:
+        'Member-only full-trip literal description/payer search. AND filters: keyword (trimmed, max 200), category, payerId (id or missing), inclusive dateFrom/dateTo (YYYY-MM-DD). Unknown/repeated keys or invalid ranges return 400. Twenty rows per page, date/createdAt/id descending. Same snapshot supplies all matching totals, own normalized shares, category and member analysis. Cursor binds actor/trip/filters/result revision; changed results return 409 RESOURCE_CHANGED, restart page 1. No private budgets, tags, receipts, drafts or repayments.',
       parameters: [
         tripIdParam,
         ...['keyword', 'category', 'payerId', 'dateFrom', 'dateTo', 'cursor'].map((name) => ({
@@ -505,21 +565,36 @@ const templates = {
     },
   },
   '/trips/{id}/budget': {
-    get: { ...operation('budgetContext', 'V2BudgetContext'), parameters: [tripIdParam] },
+    get: {
+      ...ledgerOperation('budgetContext', 'V2BudgetContext'),
+      description:
+        'Signed-in member only: private total/category budget, opaque personal revision and all recorded trip expense shares using the Web calculator. No other member budgets, drafts or repayments.',
+      parameters: [tripIdParam],
+    },
     post: {
-      ...operation('setBudget', 'V2BudgetMutationResult', 'V2BudgetInput', {
+      ...ledgerOperation('setBudget', 'V2BudgetMutationResult', 'V2BudgetInput', {
         authenticated: true,
-        errors: [409],
+        errors: {
+          409: 'Budget revision, base currency, or request identity conflicts with the confirmed input.',
+        },
       }),
+      description:
+        'Full replacement of the actor budget in the immutable trip base currency. Zero/null removes a limit; unique categories and cent precision required. Same Web revision/transaction and original UUID budget.set receipt; conflict requires receipt lookup and fresh review.',
       parameters: [tripIdParam],
     },
   },
   '/trips/{id}/currency-settings': {
-    get: { ...operation('tripCurrencySettings', 'TripCurrencyContext'), parameters: [tripIdParam] },
+    get: {
+      ...ledgerOperation('tripCurrencySettings', 'TripCurrencyContext'),
+      parameters: [tripIdParam],
+    },
     post: {
-      ...operation('updateTripCurrency', 'TripManagementResult', 'TripCurrencyInput', {
+      ...ledgerOperation('updateTripCurrency', 'TripManagementResult', 'TripCurrencyInput', {
         authenticated: true,
-        errors: [403, 409],
+        errors: {
+          403: 'Insufficient trip permissions.',
+          409: 'Currency settings, revision, or request identity conflict.',
+        },
       }),
       parameters: [tripIdParam],
       description:
@@ -527,46 +602,52 @@ const templates = {
     },
   },
   '/trips/{id}/settings': {
-    get: { ...operation('tripSettings', 'TripSettings'), parameters: [tripIdParam] },
+    get: { ...ledgerOperation('tripSettings', 'TripSettings'), parameters: [tripIdParam] },
   },
   '/trips/{id}': {
     patch: {
-      ...operation('updateTrip', 'TripManagementResult', 'TripUpdateInput', {
+      ...ledgerOperation('updateTrip', 'TripManagementResult', 'TripUpdateInput', {
         authenticated: true,
-        errors: [403, 409],
+        errors: {
+          403: 'Insufficient trip permissions.',
+          409: 'Trip revision or request identity conflicts with the update.',
+        },
       }),
       parameters: [tripIdParam],
     },
   },
   '/trips/{id}/archive': {
     post: {
-      ...operation('archiveTrip', 'TripManagementResult', 'TripArchiveInput', {
+      ...ledgerOperation('archiveTrip', 'TripManagementResult', 'TripArchiveInput', {
         authenticated: true,
-        errors: [409],
+        errors: { 409: 'Archive revision or request identity conflicts with the update.' },
       }),
       parameters: [tripIdParam],
     },
   },
   '/trips/{id}/access': {
     get: {
-      ...operation('tripAccessContext', 'TripAccessContext'),
+      ...ledgerOperation('tripAccessContext', 'TripAccessContext'),
       parameters: [tripIdParam],
       description:
         'Member-only current roster and deletion counts; opaque revision includes all deleted records.',
     },
     post: {
-      ...operation('manageTripAccess', 'TripAccessResult', 'TripAccessInput', {
+      ...ledgerOperation('manageTripAccess', 'TripAccessResult', 'TripAccessInput', {
         authenticated: true,
-        errors: [403, 409],
+        errors: {
+          403: 'Insufficient trip permissions.',
+          409: 'Trip access revision or request identity conflicts with the command.',
+        },
       }),
       parameters: [tripIdParam],
       description:
-        'Admin role/removal/delete, own leave. Fresh revision, one UUID. Only successful leave/delete receipts may be replayed by their original actor after membership loss. No ledger in exit receipts.',
+        'Admin role/removal/delete, own leave. Fresh revision, one UUID. Only successful leave/delete receipts may be replayed by their original actor after membership loss.',
     },
   },
   '/trips/{id}/members/{memberId}/claim-invitation': {
     get: {
-      ...operation('memberClaimInvitation', 'MemberClaimInvitation'),
+      ...ledgerOperation('memberClaimInvitation', 'MemberClaimInvitation'),
       parameters: [tripIdParam, { name: 'memberId', in: 'path', required: true, schema: objectId }],
       description:
         'Admin only. Existing Web claim capability for a current virtual member. Recipient registers or logs in on Web. Share-code rotation revokes the link.',
@@ -574,16 +655,24 @@ const templates = {
   },
   '/trips/{id}/members': {
     get: {
-      ...operation('tripMembers', 'TripMembers'),
+      ...ledgerOperation('tripMembers', 'TripMembers'),
       parameters: [tripIdParam],
       description:
         'Current authorized member roster in joined order. No username, email or budget.',
     },
     post: {
-      ...operation('createVirtualMember', 'MemberMutationResult', 'VirtualMemberCreateInput', {
-        authenticated: true,
-        errors: [403, 409],
-      }),
+      ...ledgerOperation(
+        'createVirtualMember',
+        'MemberMutationResult',
+        'VirtualMemberCreateInput',
+        {
+          authenticated: true,
+          errors: {
+            403: 'Insufficient trip permissions.',
+            409: 'Roster revision or request identity conflicts with the command.',
+          },
+        }
+      ),
       parameters: [tripIdParam],
       description:
         'Admin only. Persist one UUID before sending; stale roster yields a terminal rejection. Replay is authorized as a current member.',
@@ -591,10 +680,18 @@ const templates = {
   },
   '/trips/{id}/members/{memberId}': {
     patch: {
-      ...operation('renameVirtualMember', 'MemberMutationResult', 'VirtualMemberRenameInput', {
-        authenticated: true,
-        errors: [403, 409],
-      }),
+      ...ledgerOperation(
+        'renameVirtualMember',
+        'MemberMutationResult',
+        'VirtualMemberRenameInput',
+        {
+          authenticated: true,
+          errors: {
+            403: 'Insufficient trip permissions.',
+            409: 'Roster revision or request identity conflicts with the command.',
+          },
+        }
+      ),
       parameters: [tripIdParam, { name: 'memberId', in: 'path', required: true, schema: objectId }],
       description:
         'Admin only, current virtual members only. Same UUID and payload for every retry; query the original result after an ambiguous response.',
@@ -602,13 +699,13 @@ const templates = {
   },
   '/trips/{id}/landing': {
     get: {
-      ...operation('landing', 'Landing'),
+      ...ledgerOperation('landing', 'Landing'),
       parameters: [tripIdParam, dateParam],
     },
   },
   '/trips/{id}/expenses': {
     get: {
-      ...operation('expenses', 'Expenses'),
+      ...ledgerOperation('expenses', 'Expenses'),
       parameters: [
         tripIdParam,
         {
@@ -622,26 +719,32 @@ const templates = {
         '20 items/page ordered by date, createdAt and id (all descending). Pagination is not a snapshot; refresh from the first page after changes. Members only: non-members and unknown trips return 404. Attachments are never returned.',
     },
     post: {
-      ...operation('createExpense', 'ExpenseDetail', 'ExpenseCreateInput', {
+      ...ledgerOperation('createExpense', 'ExpenseDetail', 'ExpenseCreateInput', {
         authenticated: true,
-        errors: [409],
+        errors: {
+          409: 'Conflicting request identity, incompatible receipt, or mismatched trip base currency.',
+        },
       }),
       parameters: [tripIdParam],
-      description: `Creates one supported currency expense split among trip members. original_amount has at most two decimals with safe integer cents; exchange_rate is a finite positive full-precision TWD-per-unit rate (TWD requires 1). Converted TWD total and every share_amount are at most ${maxAmount}; invalid conversion returns 400 and writes nothing. client_request_id is a UUID the client generates once per confirmed submission and reuses for every retry of the same payload (letter case does not matter); the first success and every replay return 200 with the same body, and replays are authorized again. A 4xx status means this request wrote nothing (409: the key was already used with different content). A 5xx status, timeout or dropped connection leaves the outcome unknown: query /expense-requests/{clientRequestId} or retry the identical payload. 429 means the trip write could not start; nothing was written, retry with the same key after Retry-After. Unknown fields are rejected; an expense deleted after creation is not created again by a replay.`,
+      description: `Creates a split expense in the trip base currency. exchange_rate is base currency per unit of original currency, and is 1 when the currencies match. The converted total and individual shares use two decimals and may not exceed ${maxAmount}. After an unknown outcome, look up the original client_request_id and reuse the same UUID and body on retry. Replays are authorized again and return the original result even after deletion.`,
     },
   },
   '/trips/{id}/expenses/preview': {
     post: {
-      ...operation('previewExpense', 'ExpensePreview', 'ExpensePreviewInput', {
+      ...ledgerOperation('previewExpense', 'ExpensePreview', 'ExpensePreviewInput', {
         authenticated: true,
+        errors: {
+          409: 'LEDGER_CURRENCY_MISMATCH: base_currency differs from the trip base currency.',
+        },
       }),
       parameters: [tripIdParam],
-      description: `Equal split among selected members. Legacy {amount, member_ids} remains TWD with its original response. Explicit {amount, currency, exchange_rate, member_ids} treats amount as original currency (safe cents), echoes originalAmount/currency/exchangeRate, and returns converted amount and TWD shares (at most ${maxAmount}). Shares follow expense-options order; original-cent allocation and TWD conversion use Web computeSplits, independent of request order. Currency settings never replace an explicit request rate. Read-only: nothing is stored or reserved, and creating the expense validates everything again.`,
+      description:
+        'Previews a split in the trip base currency using the supplied original amount and exchange rate. Omit split for equal allocation. Shares follow expense-options member order. The preview is read-only.',
     },
   },
   '/trips/{id}/expense-options': {
     get: {
-      ...operation('expenseOptions', 'ExpenseOptions'),
+      ...ledgerOperation('expenseOptions', 'ExpenseOptions'),
       parameters: [tripIdParam],
       description:
         'Trip members (earliest joined first, virtual members included; ids, display names and optional virtual flags only) and the expense categories. Members only.',
@@ -649,7 +752,9 @@ const templates = {
   },
   '/trips/{id}/expense-requests/{clientRequestId}': {
     get: {
-      ...operation('expenseRequest', 'ExpenseRequest'),
+      ...ledgerOperation('expenseRequest', 'ExpenseRequest', undefined, {
+        errors: { 409: 'CLIENT_UPGRADE_REQUIRED for a receipt stored by v1.' },
+      }),
       parameters: [
         tripIdParam,
         {
@@ -665,7 +770,7 @@ const templates = {
   },
   '/trips/{id}/expenses/{expenseId}/edit-context': {
     get: {
-      ...operation('expenseEditContext', 'ExpenseEditContext'),
+      ...ledgerOperation('expenseEditContext', 'ExpenseEditContext'),
       parameters: [
         tripIdParam,
         { name: 'expenseId', in: 'path', required: true, schema: objectId },
@@ -674,21 +779,25 @@ const templates = {
   },
   '/trips/{id}/expenses/{expenseId}': {
     patch: {
-      ...operation('updateExpense', 'ExpenseMutationResult', 'ExpenseUpdateInput', {
+      ...ledgerOperation('updateExpense', 'ExpenseMutationResult', 'ExpenseUpdateInput', {
         authenticated: true,
-        errors: [409],
+        errors: {
+          409: 'Expense state, revision, base currency, or request identity conflicts with the update.',
+        },
       }),
       description:
-        'Basic metadata preserves all accounting. Explicit equal recalculation accepts paired original currency/rate; omitted fields retain the legacy TWD/1 operation. Context recalculate capability requires existing canonical equal shares. UUID/revision, authorization and terminal receipt rules apply.',
+        'Basic edits preserve accounting fields. Equal and split recalculations require the original currency, exchange rate and confirmed shares. Supply the expected revision, trip base currency and original request UUID.',
       parameters: [
         tripIdParam,
         { name: 'expenseId', in: 'path', required: true, schema: objectId },
       ],
     },
     delete: {
-      ...operation('deleteExpense', 'ExpenseMutationResult', 'ExpenseDeleteInput', {
+      ...ledgerOperation('deleteExpense', 'ExpenseMutationResult', 'ExpenseDeleteInput', {
         authenticated: true,
-        errors: [409],
+        errors: {
+          409: 'Expense state, revision, base currency, or request identity conflicts with deletion.',
+        },
       }),
       parameters: [
         tripIdParam,
@@ -696,18 +805,18 @@ const templates = {
       ],
     },
     get: {
-      ...operation('expense', 'ExpenseDetail'),
+      ...ledgerOperation('expense', 'ExpenseDetail'),
       parameters: [
         tripIdParam,
         { name: 'expenseId', in: 'path', required: true, schema: objectId },
       ],
       description:
-        'Amounts are TWD rounded by the existing money rules; originalAmount, currency and exchangeRate describe the entered value. An expense of another trip returns 404.',
+        'Amount and shares use two decimals in the trip base currency; originalAmount, currency and exchangeRate describe the entered value. An expense of another trip returns 404.',
     },
   },
   '/trips/{id}/payment-context': {
     get: {
-      ...operation('paymentContext', 'PaymentContext'),
+      ...ledgerOperation('paymentContext', 'PaymentContext'),
       parameters: [tripIdParam],
       description:
         'Fresh members and backend settlement in one snapshot, with an opaque trip-bound revision. External payments only; suggestions are unpaid.',
@@ -715,18 +824,20 @@ const templates = {
   },
   '/trips/{id}/payments': {
     post: {
-      ...operation('createPayment', 'PaymentMutationResult', 'PaymentCreateInput', {
+      ...ledgerOperation('createPayment', 'PaymentMutationResult', 'PaymentCreateInput', {
         authenticated: true,
-        errors: [409],
+        errors: {
+          409: 'Settlement revision, base currency, or request identity conflicts with the payment.',
+        },
       }),
       parameters: [tripIdParam],
       description:
-        'Records an actual external TWD payment (two decimals, 0.01 to 1,000,000,000). Partial, excess and manual payments are allowed. UUID/immutable body survive every retry. SETTLEMENT_CHANGED is a terminal receipt: reload and explicitly reconfirm with a new UUID. Timeout/5xx: lookup original mutation request; never change UUID. Replay after revocation does not resurrect the payment.',
+        'Records an external payment in the trip base currency (two decimals, 0.01 to 1,000,000,000). Partial, excess and manual payments are allowed. UUID/immutable body survive every retry. SETTLEMENT_CHANGED is a terminal receipt: reload and explicitly reconfirm with a new UUID. Timeout/5xx: lookup original mutation request; never change UUID. Replay after revocation does not resurrect the payment.',
     },
   },
   '/trips/{id}/payments/{paymentId}/revoke-context': {
     get: {
-      ...operation('paymentRevokeContext', 'PaymentRevokeContext'),
+      ...ledgerOperation('paymentRevokeContext', 'PaymentRevokeContext'),
       parameters: [
         tripIdParam,
         { name: 'paymentId', in: 'path', required: true, schema: objectId },
@@ -737,9 +848,11 @@ const templates = {
   },
   '/trips/{id}/payments/{paymentId}': {
     delete: {
-      ...operation('revokePayment', 'PaymentMutationResult', 'PaymentDeleteInput', {
+      ...ledgerOperation('revokePayment', 'PaymentMutationResult', 'PaymentDeleteInput', {
         authenticated: true,
-        errors: [409],
+        errors: {
+          409: 'Payment state, revision, base currency, or request identity conflicts with revocation.',
+        },
       }),
       parameters: [
         tripIdParam,
@@ -751,7 +864,7 @@ const templates = {
   },
   '/trips/{id}/settlement': {
     get: {
-      ...operation('settlement', 'Settlement'),
+      ...ledgerOperation('settlement', 'Settlement'),
       parameters: [tripIdParam],
       description:
         'Balances already include registered payments. suggestedTransfers are suggestions only and have not been paid. status distinguishes no expenses, settled and outstanding.',
@@ -772,37 +885,9 @@ const rewriteV2 = (value) => {
     })
   );
 };
-const paths = {};
-for (const [path, item] of Object.entries(templates)) {
-  const next = rewriteV2(item);
-  paths[`/v2${path}`] = next;
-  // Auth and me keep the identity schemas, rate limits and refresh rotation; no trip ledger.
-  if (path.startsWith('/auth') || path === '/me') continue;
-  for (const method of ['get', 'post', 'patch', 'delete'])
-    if (next[method]) {
-      next[method].description =
-        'v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions.';
-      next[method].responses[409] = {
-        description:
-          'Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.',
-        content: { 'application/json': { schema: ref('Error') } },
-      };
-      next[method].responses[503] = {
-        description: 'Ledger data or total outside the safe range',
-        content: { 'application/json': { schema: ref('Error') } },
-      };
-    }
-}
-paths['/v2/trips/{id}/expenses/{expenseId}/attachments'].get.description =
-  'Member-only attached receipt metadata. Opaque IDs, MIME type and bytes only; no storage keys or URLs. No public fallback or persistent cache.';
-paths['/v2/trips/{id}/expenses/{expenseId}/attachments/{attachmentId}'].get.description =
-  'Reauthorizes membership and expense attachment before and after storage checks. Returns a fresh HTTPS URL valid at most 300 seconds, with private no-store response override. Missing/detached objects: 404 ATTACHMENT_UNAVAILABLE. Previously issued URLs may remain valid until expiry; external viewers control their own downloads. No-store API response.';
-paths['/v2/trips/{id}/expense-search'].get.description =
-  'Member-only full-trip literal description/payer search. AND filters: keyword (trimmed, max 200), category, payerId (id or missing), inclusive dateFrom/dateTo (YYYY-MM-DD). Unknown/repeated keys or invalid ranges return 400. Twenty rows per page, date/createdAt/id descending. Same snapshot supplies all matching totals, own normalized shares, category and member analysis. Cursor binds actor/trip/filters/result revision; changed results return 409 RESOURCE_CHANGED, restart page 1. No private budgets, tags, receipts, drafts or repayments.';
-paths['/v2/trips/{id}/budget'].get.description =
-  'Signed-in member only: private total/category budget, opaque personal revision and all recorded trip expense shares using the Web calculator. No other member budgets, drafts or repayments.';
-paths['/v2/trips/{id}/budget'].post.description =
-  'Full replacement of the actor budget in the immutable trip base currency. Zero/null removes a limit; unique categories and cent precision required. Same Web revision/transaction and original UUID budget.set receipt; conflict requires receipt lookup and fresh review.';
+const paths = Object.fromEntries(
+  Object.entries(templates).map(([path, item]) => [`/v2${path}`, rewriteV2(item)])
+);
 paths['/v2/trips/{id}/itinerary'] = {
   get: {
     ...operation('tripItinerary', 'Itinerary'),
@@ -874,7 +959,11 @@ paths['/v2/trips/{id}/itinerary/activity-deletions/{uuid}'] = {
 paths['/v2/capabilities'] = { get: operation('ledgerCapabilitiesV2', 'V2Capabilities') };
 paths['/v2/trips/{id}/exchange-rates'] = {
   parameters: [tripIdParam],
-  get: operation('tripReferenceRatesV2', 'V2ReferenceRates'),
+  get: ledgerOperation('tripReferenceRatesV2', 'V2ReferenceRates', undefined, {
+    errors: {
+      503: `${ledgerFailure} SERVICE_UNAVAILABLE if reference rates cannot be loaded or rebased.`,
+    },
+  }),
 };
 
 // Publish only the schemas the v2 paths reach; v1-only DTOs stay in the TypeScript package.

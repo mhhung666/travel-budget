@@ -14,6 +14,7 @@
     "/v2/auth/register": {
       "post": {
         "operationId": "registerV2",
+        "description": "Creates an account without a session. ACCOUNT_CONFLICT covers either username or email. New passwords: minimum 6 characters, maximum 72 UTF-8 bytes; never trimmed. Timeout/5xx: outcome unknown; try login, never automatically resend or persist the password.",
         "security": [],
         "requestBody": {
           "required": true,
@@ -75,7 +76,7 @@
             }
           },
           "409": {
-            "description": "Error code; 429 includes Retry-After seconds",
+            "description": "ACCOUNT_CONFLICT: username or email already in use.",
             "content": {
               "application/json": {
                 "schema": {
@@ -124,13 +125,13 @@
               }
             }
           }
-        },
-        "description": "Creates an account without a session. ACCOUNT_CONFLICT covers either username or email. New passwords: minimum 6 characters, maximum 72 UTF-8 bytes; never trimmed. Timeout/5xx: outcome unknown; try login, never automatically resend or persist the password."
+        }
       }
     },
     "/v2/auth/password-reset/request": {
       "post": {
         "operationId": "requestPasswordResetV2",
+        "description": "Same accepted response for all emails; delivery is best effort. Per normalized email: once per 60 seconds, five per rolling hour. Trusted source: shared registration/send limit of twenty per rolling hour. 429 includes Retry-After.",
         "security": [],
         "requestBody": {
           "required": true,
@@ -231,13 +232,13 @@
               }
             }
           }
-        },
-        "description": "Same accepted response for all emails; delivery is best effort. Per normalized email: once per 60 seconds, five per rolling hour. Trusted source: shared registration/send limit of twenty per rolling hour. 429 includes Retry-After."
+        }
       }
     },
     "/v2/auth/password-reset/confirm": {
       "post": {
         "operationId": "resetPasswordV2",
+        "description": "Six-digit string, including leading zeros; valid 15 minutes, five incorrect attempts, ten verification requests per email per rolling 15 minutes. Password update and code consumption are atomic; one concurrent success. Resend invalidates the previous code. All previous Mobile sessions and Web cookies expire after password change. Timeout/5xx: try logging in with the new password.",
         "security": [],
         "requestBody": {
           "required": true,
@@ -338,8 +339,7 @@
               }
             }
           }
-        },
-        "description": "Six-digit string, including leading zeros; valid 15 minutes, five incorrect attempts, ten verification requests per email per rolling 15 minutes. Password update and code consumption are atomic; one concurrent success. Resend invalidates the previous code. All previous Mobile sessions and Web cookies expire after password change. Timeout/5xx: try logging in with the new password."
+        }
       }
     },
     "/v2/auth/login": {
@@ -763,6 +763,7 @@
     "/v2/me/email/request": {
       "post": {
         "operationId": "requestEmailChangeV2",
+        "description": "Send a verification code to the proposed new email address.",
         "security": [
           {
             "bearerAuth": []
@@ -828,7 +829,7 @@
             }
           },
           "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
+            "description": "CONFLICT or RESOURCE_CHANGED.",
             "content": {
               "application/json": {
                 "schema": {
@@ -878,7 +879,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "EMAIL_DELIVERY_FAILED: the verification email could not be delivered.",
             "content": {
               "application/json": {
                 "schema": {
@@ -887,13 +888,13 @@
               }
             }
           }
-        },
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        }
       }
     },
     "/v2/me/email/confirm": {
       "post": {
         "operationId": "confirmEmailChangeV2",
+        "description": "Verify the code and update the signed-in account’s email address.",
         "security": [
           {
             "bearerAuth": []
@@ -959,7 +960,7 @@
             }
           },
           "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
+            "description": "CONFLICT or RESOURCE_CHANGED.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1007,24 +1008,14 @@
                 }
               }
             }
-          },
-          "503": {
-            "description": "Ledger data or total outside the safe range",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
           }
-        },
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        }
       }
     },
     "/v2/me/email/cancel": {
       "post": {
         "operationId": "cancelEmailChangeV2",
+        "description": "Cancel the pending email change for the signed-in account.",
         "security": [
           {
             "bearerAuth": []
@@ -1089,16 +1080,6 @@
               }
             }
           },
-          "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
           "413": {
             "description": "Error code; 429 includes Retry-After seconds",
             "content": {
@@ -1138,24 +1119,14 @@
                 }
               }
             }
-          },
-          "503": {
-            "description": "Ledger data or total outside the safe range",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
           }
-        },
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        }
       }
     },
     "/v2/me/password": {
       "post": {
         "operationId": "changePasswordV2",
+        "description": "Verify the current password and set a new one. A successful change invalidates previous sessions.",
         "security": [
           {
             "bearerAuth": []
@@ -1221,7 +1192,7 @@
             }
           },
           "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
+            "description": "RESOURCE_CHANGED: the credentials changed during the request.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1269,24 +1240,14 @@
                 }
               }
             }
-          },
-          "503": {
-            "description": "Ledger data or total outside the safe range",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
           }
-        },
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        }
       }
     },
     "/v2/me/friends": {
       "get": {
         "operationId": "friendsV2",
+        "description": "List the signed-in user’s friends and incoming and outgoing invitations.",
         "security": [
           {
             "bearerAuth": []
@@ -1341,16 +1302,6 @@
               }
             }
           },
-          "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
           "413": {
             "description": "Error code; 429 includes Retry-After seconds",
             "content": {
@@ -1390,22 +1341,12 @@
                 }
               }
             }
-          },
-          "503": {
-            "description": "Ledger data or total outside the safe range",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
           }
-        },
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        }
       },
       "post": {
         "operationId": "inviteFriendV2",
+        "description": "Send a friend invitation to the specified user.",
         "security": [
           {
             "bearerAuth": []
@@ -1471,7 +1412,7 @@
             }
           },
           "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
+            "description": "Friendship state conflicts with this invitation.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1519,24 +1460,14 @@
                 }
               }
             }
-          },
-          "503": {
-            "description": "Ledger data or total outside the safe range",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
           }
-        },
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        }
       }
     },
     "/v2/me/friends/{friendshipId}": {
       "post": {
         "operationId": "changeFriendshipV2",
+        "description": "Recipient accepts/declines pending invitations; requester withdraws; either participant removes an accepted friendship. Unknown outcomes must be checked by reading current friends; never automatically resend.",
         "security": [
           {
             "bearerAuth": []
@@ -1602,7 +1533,7 @@
             }
           },
           "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
+            "description": "Friendship state conflicts with the command.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1650,16 +1581,6 @@
                 }
               }
             }
-          },
-          "503": {
-            "description": "Ledger data or total outside the safe range",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
           }
         },
         "parameters": [
@@ -1672,13 +1593,13 @@
               "pattern": "^[a-fA-F0-9]{24}$"
             }
           }
-        ],
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        ]
       }
     },
     "/v2/me/notification-preferences": {
       "get": {
         "operationId": "notificationPreferencesV2",
+        "description": "Read the signed-in user’s notification preferences.",
         "security": [
           {
             "bearerAuth": []
@@ -1733,16 +1654,6 @@
               }
             }
           },
-          "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
           "413": {
             "description": "Error code; 429 includes Retry-After seconds",
             "content": {
@@ -1782,22 +1693,12 @@
                 }
               }
             }
-          },
-          "503": {
-            "description": "Ledger data or total outside the safe range",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
           }
-        },
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        }
       },
       "patch": {
         "operationId": "updateNotificationPreferencesV2",
+        "description": "Self-only partial settings update; at least one field required. Notification locale is independent of device/UI locale. On unknown outcomes read current settings before deciding to save again. No ledger journal.",
         "security": [
           {
             "bearerAuth": []
@@ -1862,16 +1763,6 @@
               }
             }
           },
-          "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
           "413": {
             "description": "Error code; 429 includes Retry-After seconds",
             "content": {
@@ -1911,24 +1802,14 @@
                 }
               }
             }
-          },
-          "503": {
-            "description": "Ledger data or total outside the safe range",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
           }
-        },
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        }
       }
     },
     "/v2/me/profile": {
       "get": {
         "operationId": "accountProfileV2",
+        "description": "Read the signed-in user’s profile.",
         "security": [
           {
             "bearerAuth": []
@@ -1983,16 +1864,6 @@
               }
             }
           },
-          "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
           "413": {
             "description": "Error code; 429 includes Retry-After seconds",
             "content": {
@@ -2032,22 +1903,12 @@
                 }
               }
             }
-          },
-          "503": {
-            "description": "Ledger data or total outside the safe range",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
           }
-        },
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        }
       },
       "patch": {
         "operationId": "updateAccountProfileV2",
+        "description": "Self-only display name update. Email and username are read-only. Explicit online save; on an unknown outcome read the profile before deciding whether to save again. No ledger/outbox operation.",
         "security": [
           {
             "bearerAuth": []
@@ -2112,16 +1973,6 @@
               }
             }
           },
-          "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
           "413": {
             "description": "Error code; 429 includes Retry-After seconds",
             "content": {
@@ -2161,24 +2012,14 @@
                 }
               }
             }
-          },
-          "503": {
-            "description": "Ledger data or total outside the safe range",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
           }
-        },
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        }
       }
     },
     "/v2/me/avatar": {
       "get": {
         "operationId": "accountAvatarV2",
+        "description": "Read the current avatar and revision for the signed-in user.",
         "security": [
           {
             "bearerAuth": []
@@ -2233,16 +2074,6 @@
               }
             }
           },
-          "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
           "413": {
             "description": "Error code; 429 includes Retry-After seconds",
             "content": {
@@ -2282,24 +2113,14 @@
                 }
               }
             }
-          },
-          "503": {
-            "description": "Ledger data or total outside the safe range",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
           }
-        },
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        }
       }
     },
     "/v2/me/avatar/requests": {
       "post": {
         "operationId": "beginAvatarWriteV2",
+        "description": "Begin an avatar change under the original request UUID.",
         "security": [
           {
             "bearerAuth": []
@@ -2365,7 +2186,7 @@
             }
           },
           "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
+            "description": "Avatar write conflicts with the current request or avatar state.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2413,24 +2234,14 @@
                 }
               }
             }
-          },
-          "503": {
-            "description": "Ledger data or total outside the safe range",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
           }
-        },
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        }
       }
     },
     "/v2/me/avatar/requests/{clientRequestId}": {
       "get": {
         "operationId": "avatarWriteStatusV2",
+        "description": "Look up the signed-in user’s avatar change by its request UUID.",
         "security": [
           {
             "bearerAuth": []
@@ -2485,16 +2296,6 @@
               }
             }
           },
-          "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
           "413": {
             "description": "Error code; 429 includes Retry-After seconds",
             "content": {
@@ -2534,16 +2335,6 @@
                 }
               }
             }
-          },
-          "503": {
-            "description": "Ledger data or total outside the safe range",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
           }
         },
         "parameters": [
@@ -2556,11 +2347,11 @@
               "format": "uuid"
             }
           }
-        ],
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        ]
       },
       "post": {
         "operationId": "commandAvatarWriteV2",
+        "description": "Request an upload ticket, finish the upload, or cancel the avatar change.",
         "security": [
           {
             "bearerAuth": []
@@ -2626,7 +2417,7 @@
             }
           },
           "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
+            "description": "Avatar command conflicts with the current upload or request state.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2674,16 +2465,6 @@
                 }
               }
             }
-          },
-          "503": {
-            "description": "Ledger data or total outside the safe range",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
           }
         },
         "parameters": [
@@ -2696,8 +2477,7 @@
               "format": "uuid"
             }
           }
-        ],
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        ]
       }
     },
     "/v2/trips/join": {
@@ -2768,7 +2548,7 @@
             }
           },
           "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
+            "description": "Conflicting request identity or incompatible stored receipt.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2818,7 +2598,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2827,8 +2607,7 @@
               }
             }
           }
-        },
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        }
       }
     },
     "/v2/mutation-requests/{clientRequestId}": {
@@ -2889,7 +2668,7 @@
             }
           },
           "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
+            "description": "CLIENT_UPGRADE_REQUIRED for a receipt stored by v1.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2939,7 +2718,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2959,8 +2738,7 @@
               "format": "uuid"
             }
           }
-        ],
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        ]
       }
     },
     "/v2/trips/{id}/invitation": {
@@ -3020,16 +2798,6 @@
               }
             }
           },
-          "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
           "413": {
             "description": "Error code; 429 includes Retry-After seconds",
             "content": {
@@ -3071,7 +2839,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3091,8 +2859,7 @@
               "pattern": "^[a-fA-F0-9]{24}$"
             }
           }
-        ],
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        ]
       }
     },
     "/v2/trips": {
@@ -3163,7 +2930,7 @@
             }
           },
           "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
+            "description": "Conflicting request identity or incompatible stored receipt.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3213,7 +2980,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3222,11 +2989,11 @@
               }
             }
           }
-        },
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        }
       },
       "get": {
         "operationId": "tripsV2",
+        "description": "20 items/page after filtering/sorting. Defaults preserve legacy mixed order. sort=list pins ongoing/upcoming only for unarchived trips, then descending departure year/date, undated last. sort=quick-add requires archive=unarchived and uses Web quick-add order. preferred_trip_id is valid only for quick-add, is echoed as metadata.preferredTripId, and is ignored when absent from authorized unarchived candidates. metadata counts and quickAdd decision cover all authorized trips, even on empty pages. Pagination is not a snapshot; reset to page 1 after changes.",
         "security": [
           {
             "bearerAuth": []
@@ -3281,16 +3048,6 @@
               }
             }
           },
-          "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
           "413": {
             "description": "Error code; 429 includes Retry-After seconds",
             "content": {
@@ -3332,7 +3089,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3397,13 +3154,13 @@
             },
             "description": "Optional quick-add preference. Only reorders within the same group before pagination; does not change uniqueness or authorize access."
           }
-        ],
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        ]
       }
     },
     "/v2/trips/{id}/expenses/{expenseId}/attachment-requests": {
       "post": {
         "operationId": "receiptBeginV2",
+        "description": "Private attachment add/remove intent. Save UUID before sending; replay same body only. No financial changes. Add requires upload and finish; remove commits immediately.",
         "security": [
           {
             "bearerAuth": []
@@ -3469,7 +3226,7 @@
             }
           },
           "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
+            "description": "Attachment request conflicts with the current state.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3519,7 +3276,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3548,8 +3305,7 @@
               "pattern": "^[a-fA-F0-9]{24}$"
             }
           }
-        ],
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        ]
       }
     },
     "/v2/trips/{id}/expenses/{expenseId}/attachment-requests/{clientRequestId}": {
@@ -3610,7 +3366,7 @@
             }
           },
           "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
+            "description": "IDEMPOTENCY_CONFLICT: the request belongs to a different trip or expense.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3660,7 +3416,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3698,11 +3454,11 @@
               "format": "uuid"
             }
           }
-        ],
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        ]
       },
       "post": {
         "operationId": "receiptWriteCommandV2",
+        "description": "Upload ticket requires Content-Type and If-None-Match:* PUT headers, no bearer credential. 120-second URL, 24-hour pending lifetime. Finish checks HEAD then commits reference and terminal result in one authorized transaction. Cancel retires unused blob. Always query original UUID after ambiguity.",
         "security": [
           {
             "bearerAuth": []
@@ -3768,7 +3524,7 @@
             }
           },
           "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
+            "description": "Attachment command conflicts with the current upload or request state.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3818,7 +3574,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3856,13 +3612,13 @@
               "format": "uuid"
             }
           }
-        ],
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        ]
       }
     },
     "/v2/trips/{id}/expenses/{expenseId}/attachments": {
       "get": {
         "operationId": "receiptAttachmentsV2",
+        "description": "Member-only attached receipt metadata. Opaque IDs, MIME type and bytes only; no storage keys or URLs. No public fallback or persistent cache.",
         "security": [
           {
             "bearerAuth": []
@@ -3917,16 +3673,6 @@
               }
             }
           },
-          "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
           "413": {
             "description": "Error code; 429 includes Retry-After seconds",
             "content": {
@@ -3968,7 +3714,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE. ATTACHMENT_DATA_INVALID for inconsistent attachment metadata.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3997,13 +3743,13 @@
               "pattern": "^[a-fA-F0-9]{24}$"
             }
           }
-        ],
-        "description": "Member-only attached receipt metadata. Opaque IDs, MIME type and bytes only; no storage keys or URLs. No public fallback or persistent cache."
+        ]
       }
     },
     "/v2/trips/{id}/expenses/{expenseId}/attachments/{attachmentId}": {
       "get": {
         "operationId": "receiptViewV2",
+        "description": "Reauthorizes membership and expense attachment before and after storage checks. Returns a fresh HTTPS URL valid at most 300 seconds, with private no-store response override. Missing/detached objects: 404 ATTACHMENT_UNAVAILABLE. Previously issued URLs may remain valid until expiry; external viewers control their own downloads. No-store API response.",
         "security": [
           {
             "bearerAuth": []
@@ -4058,16 +3804,6 @@
               }
             }
           },
-          "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
           "413": {
             "description": "Error code; 429 includes Retry-After seconds",
             "content": {
@@ -4109,7 +3845,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE. ATTACHMENT_DATA_INVALID for inconsistent attachment metadata.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4147,13 +3883,13 @@
               "pattern": "^[a-f0-9]{64}$"
             }
           }
-        ],
-        "description": "Reauthorizes membership and expense attachment before and after storage checks. Returns a fresh HTTPS URL valid at most 300 seconds, with private no-store response override. Missing/detached objects: 404 ATTACHMENT_UNAVAILABLE. Previously issued URLs may remain valid until expiry; external viewers control their own downloads. No-store API response."
+        ]
       }
     },
     "/v2/trips/{id}/expense-search": {
       "get": {
         "operationId": "expenseSearchV2",
+        "description": "Member-only full-trip literal description/payer search. AND filters: keyword (trimmed, max 200), category, payerId (id or missing), inclusive dateFrom/dateTo (YYYY-MM-DD). Unknown/repeated keys or invalid ranges return 400. Twenty rows per page, date/createdAt/id descending. Same snapshot supplies all matching totals, own normalized shares, category and member analysis. Cursor binds actor/trip/filters/result revision; changed results return 409 RESOURCE_CHANGED, restart page 1. No private budgets, tags, receipts, drafts or repayments.",
         "security": [
           {
             "bearerAuth": []
@@ -4209,7 +3945,7 @@
             }
           },
           "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
+            "description": "RESOURCE_CHANGED: restart pagination from the first page.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4259,7 +3995,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4346,13 +4082,13 @@
               "pattern": "^[a-f0-9]{64}\\.[1-9]\\d{0,8}$"
             }
           }
-        ],
-        "description": "Member-only full-trip literal description/payer search. AND filters: keyword (trimmed, max 200), category, payerId (id or missing), inclusive dateFrom/dateTo (YYYY-MM-DD). Unknown/repeated keys or invalid ranges return 400. Twenty rows per page, date/createdAt/id descending. Same snapshot supplies all matching totals, own normalized shares, category and member analysis. Cursor binds actor/trip/filters/result revision; changed results return 409 RESOURCE_CHANGED, restart page 1. No private budgets, tags, receipts, drafts or repayments."
+        ]
       }
     },
     "/v2/trips/{id}/budget": {
       "get": {
         "operationId": "budgetContextV2",
+        "description": "Signed-in member only: private total/category budget, opaque personal revision and all recorded trip expense shares using the Web calculator. No other member budgets, drafts or repayments.",
         "security": [
           {
             "bearerAuth": []
@@ -4407,16 +4143,6 @@
               }
             }
           },
-          "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
           "413": {
             "description": "Error code; 429 includes Retry-After seconds",
             "content": {
@@ -4458,7 +4184,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4478,11 +4204,11 @@
               "pattern": "^[a-fA-F0-9]{24}$"
             }
           }
-        ],
-        "description": "Signed-in member only: private total/category budget, opaque personal revision and all recorded trip expense shares using the Web calculator. No other member budgets, drafts or repayments."
+        ]
       },
       "post": {
         "operationId": "setBudgetV2",
+        "description": "Full replacement of the actor budget in the immutable trip base currency. Zero/null removes a limit; unique categories and cent precision required. Same Web revision/transaction and original UUID budget.set receipt; conflict requires receipt lookup and fresh review.",
         "security": [
           {
             "bearerAuth": []
@@ -4548,7 +4274,7 @@
             }
           },
           "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
+            "description": "Budget revision, base currency, or request identity conflicts with the confirmed input.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4598,7 +4324,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4618,8 +4344,7 @@
               "pattern": "^[a-fA-F0-9]{24}$"
             }
           }
-        ],
-        "description": "Full replacement of the actor budget in the immutable trip base currency. Zero/null removes a limit; unique categories and cent precision required. Same Web revision/transaction and original UUID budget.set receipt; conflict requires receipt lookup and fresh review."
+        ]
       }
     },
     "/v2/trips/{id}/currency-settings": {
@@ -4679,16 +4404,6 @@
               }
             }
           },
-          "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
           "413": {
             "description": "Error code; 429 includes Retry-After seconds",
             "content": {
@@ -4730,7 +4445,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4750,11 +4465,11 @@
               "pattern": "^[a-fA-F0-9]{24}$"
             }
           }
-        ],
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        ]
       },
       "post": {
         "operationId": "updateTripCurrencyV2",
+        "description": "Admin-only full replacement. Opaque settings revision, original UUID receipt. Existing expenses and confirmed requests remain unchanged.",
         "security": [
           {
             "bearerAuth": []
@@ -4810,7 +4525,7 @@
             }
           },
           "403": {
-            "description": "Error code; 429 includes Retry-After seconds",
+            "description": "Insufficient trip permissions.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4830,7 +4545,7 @@
             }
           },
           "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
+            "description": "Currency settings, revision, or request identity conflict.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4880,7 +4595,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4900,8 +4615,7 @@
               "pattern": "^[a-fA-F0-9]{24}$"
             }
           }
-        ],
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        ]
       }
     },
     "/v2/trips/{id}/settings": {
@@ -4961,16 +4675,6 @@
               }
             }
           },
-          "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
           "413": {
             "description": "Error code; 429 includes Retry-After seconds",
             "content": {
@@ -5012,7 +4716,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5032,8 +4736,7 @@
               "pattern": "^[a-fA-F0-9]{24}$"
             }
           }
-        ],
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        ]
       }
     },
     "/v2/trips/{id}": {
@@ -5094,7 +4797,7 @@
             }
           },
           "403": {
-            "description": "Error code; 429 includes Retry-After seconds",
+            "description": "Insufficient trip permissions.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5114,7 +4817,7 @@
             }
           },
           "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
+            "description": "Trip revision or request identity conflicts with the update.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5164,7 +4867,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5184,8 +4887,7 @@
               "pattern": "^[a-fA-F0-9]{24}$"
             }
           }
-        ],
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        ]
       }
     },
     "/v2/trips/{id}/archive": {
@@ -5256,7 +4958,7 @@
             }
           },
           "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
+            "description": "Archive revision or request identity conflicts with the update.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5306,7 +5008,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5326,13 +5028,13 @@
               "pattern": "^[a-fA-F0-9]{24}$"
             }
           }
-        ],
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        ]
       }
     },
     "/v2/trips/{id}/access": {
       "get": {
         "operationId": "tripAccessContextV2",
+        "description": "Member-only current roster and deletion counts; opaque revision includes all deleted records.",
         "security": [
           {
             "bearerAuth": []
@@ -5387,16 +5089,6 @@
               }
             }
           },
-          "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
           "413": {
             "description": "Error code; 429 includes Retry-After seconds",
             "content": {
@@ -5438,7 +5130,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5458,11 +5150,11 @@
               "pattern": "^[a-fA-F0-9]{24}$"
             }
           }
-        ],
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        ]
       },
       "post": {
         "operationId": "manageTripAccessV2",
+        "description": "Admin role/removal/delete, own leave. Fresh revision, one UUID. Only successful leave/delete receipts may be replayed by their original actor after membership loss.",
         "security": [
           {
             "bearerAuth": []
@@ -5518,7 +5210,7 @@
             }
           },
           "403": {
-            "description": "Error code; 429 includes Retry-After seconds",
+            "description": "Insufficient trip permissions.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5538,7 +5230,7 @@
             }
           },
           "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
+            "description": "Trip access revision or request identity conflicts with the command.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5588,7 +5280,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5608,13 +5300,13 @@
               "pattern": "^[a-fA-F0-9]{24}$"
             }
           }
-        ],
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        ]
       }
     },
     "/v2/trips/{id}/members/{memberId}/claim-invitation": {
       "get": {
         "operationId": "memberClaimInvitationV2",
+        "description": "Admin only. Existing Web claim capability for a current virtual member. Recipient registers or logs in on Web. Share-code rotation revokes the link.",
         "security": [
           {
             "bearerAuth": []
@@ -5669,16 +5361,6 @@
               }
             }
           },
-          "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
           "413": {
             "description": "Error code; 429 includes Retry-After seconds",
             "content": {
@@ -5720,7 +5402,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5749,13 +5431,13 @@
               "pattern": "^[a-fA-F0-9]{24}$"
             }
           }
-        ],
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        ]
       }
     },
     "/v2/trips/{id}/members": {
       "get": {
         "operationId": "tripMembersV2",
+        "description": "Current authorized member roster in joined order. No username, email or budget.",
         "security": [
           {
             "bearerAuth": []
@@ -5810,16 +5492,6 @@
               }
             }
           },
-          "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
           "413": {
             "description": "Error code; 429 includes Retry-After seconds",
             "content": {
@@ -5861,7 +5533,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5881,11 +5553,11 @@
               "pattern": "^[a-fA-F0-9]{24}$"
             }
           }
-        ],
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        ]
       },
       "post": {
         "operationId": "createVirtualMemberV2",
+        "description": "Admin only. Persist one UUID before sending; stale roster yields a terminal rejection. Replay is authorized as a current member.",
         "security": [
           {
             "bearerAuth": []
@@ -5941,7 +5613,7 @@
             }
           },
           "403": {
-            "description": "Error code; 429 includes Retry-After seconds",
+            "description": "Insufficient trip permissions.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5961,7 +5633,7 @@
             }
           },
           "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
+            "description": "Roster revision or request identity conflicts with the command.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6011,7 +5683,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6031,13 +5703,13 @@
               "pattern": "^[a-fA-F0-9]{24}$"
             }
           }
-        ],
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        ]
       }
     },
     "/v2/trips/{id}/members/{memberId}": {
       "patch": {
         "operationId": "renameVirtualMemberV2",
+        "description": "Admin only, current virtual members only. Same UUID and payload for every retry; query the original result after an ambiguous response.",
         "security": [
           {
             "bearerAuth": []
@@ -6093,7 +5765,7 @@
             }
           },
           "403": {
-            "description": "Error code; 429 includes Retry-After seconds",
+            "description": "Insufficient trip permissions.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6113,7 +5785,7 @@
             }
           },
           "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
+            "description": "Roster revision or request identity conflicts with the command.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6163,7 +5835,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6192,8 +5864,7 @@
               "pattern": "^[a-fA-F0-9]{24}$"
             }
           }
-        ],
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        ]
       }
     },
     "/v2/trips/{id}/landing": {
@@ -6253,16 +5924,6 @@
               }
             }
           },
-          "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
           "413": {
             "description": "Error code; 429 includes Retry-After seconds",
             "content": {
@@ -6304,7 +5965,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6333,13 +5994,13 @@
               "format": "date"
             }
           }
-        ],
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        ]
       }
     },
     "/v2/trips/{id}/expenses": {
       "get": {
         "operationId": "expensesV2",
+        "description": "20 items/page ordered by date, createdAt and id (all descending). Pagination is not a snapshot; refresh from the first page after changes. Members only: non-members and unknown trips return 404. Attachments are never returned.",
         "security": [
           {
             "bearerAuth": []
@@ -6394,16 +6055,6 @@
               }
             }
           },
-          "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
           "413": {
             "description": "Error code; 429 includes Retry-After seconds",
             "content": {
@@ -6445,7 +6096,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6475,11 +6126,11 @@
               "maxLength": 64
             }
           }
-        ],
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        ]
       },
       "post": {
         "operationId": "createExpenseV2",
+        "description": "Creates a split expense in the trip base currency. exchange_rate is base currency per unit of original currency, and is 1 when the currencies match. The converted total and individual shares use two decimals and may not exceed 1,000,000,000.00. After an unknown outcome, look up the original client_request_id and reuse the same UUID and body on retry. Replays are authorized again and return the original result even after deletion.",
         "security": [
           {
             "bearerAuth": []
@@ -6545,7 +6196,7 @@
             }
           },
           "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
+            "description": "Conflicting request identity, incompatible receipt, or mismatched trip base currency.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6595,7 +6246,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6615,13 +6266,13 @@
               "pattern": "^[a-fA-F0-9]{24}$"
             }
           }
-        ],
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        ]
       }
     },
     "/v2/trips/{id}/expenses/preview": {
       "post": {
         "operationId": "previewExpenseV2",
+        "description": "Previews a split in the trip base currency using the supplied original amount and exchange rate. Omit split for equal allocation. Shares follow expense-options member order. The preview is read-only.",
         "security": [
           {
             "bearerAuth": []
@@ -6687,7 +6338,7 @@
             }
           },
           "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
+            "description": "LEDGER_CURRENCY_MISMATCH: base_currency differs from the trip base currency.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6737,7 +6388,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6757,13 +6408,13 @@
               "pattern": "^[a-fA-F0-9]{24}$"
             }
           }
-        ],
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        ]
       }
     },
     "/v2/trips/{id}/expense-options": {
       "get": {
         "operationId": "expenseOptionsV2",
+        "description": "Trip members (earliest joined first, virtual members included; ids, display names and optional virtual flags only) and the expense categories. Members only.",
         "security": [
           {
             "bearerAuth": []
@@ -6818,16 +6469,6 @@
               }
             }
           },
-          "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
           "413": {
             "description": "Error code; 429 includes Retry-After seconds",
             "content": {
@@ -6869,7 +6510,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6889,13 +6530,13 @@
               "pattern": "^[a-fA-F0-9]{24}$"
             }
           }
-        ],
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        ]
       }
     },
     "/v2/trips/{id}/expense-requests/{clientRequestId}": {
       "get": {
         "operationId": "expenseRequestV2",
+        "description": "Result of the caller's own earlier create request for this trip; the key matches without regard to letter case. committed: the expense as accepted, also after it was deleted later. not_found: no result is stored for this key; it does not prove that a request with the same key is not still running, so retry with the original key and payload.",
         "security": [
           {
             "bearerAuth": []
@@ -6951,7 +6592,7 @@
             }
           },
           "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
+            "description": "CLIENT_UPGRADE_REQUIRED for a receipt stored by v1.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7001,7 +6642,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7030,8 +6671,7 @@
               "format": "uuid"
             }
           }
-        ],
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        ]
       }
     },
     "/v2/trips/{id}/expenses/{expenseId}/edit-context": {
@@ -7091,16 +6731,6 @@
               }
             }
           },
-          "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
           "413": {
             "description": "Error code; 429 includes Retry-After seconds",
             "content": {
@@ -7142,7 +6772,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7171,13 +6801,13 @@
               "pattern": "^[a-fA-F0-9]{24}$"
             }
           }
-        ],
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        ]
       }
     },
     "/v2/trips/{id}/expenses/{expenseId}": {
       "patch": {
         "operationId": "updateExpenseV2",
+        "description": "Basic edits preserve accounting fields. Equal and split recalculations require the original currency, exchange rate and confirmed shares. Supply the expected revision, trip base currency and original request UUID.",
         "security": [
           {
             "bearerAuth": []
@@ -7243,7 +6873,7 @@
             }
           },
           "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
+            "description": "Expense state, revision, base currency, or request identity conflicts with the update.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7293,7 +6923,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7303,7 +6933,6 @@
             }
           }
         },
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions.",
         "parameters": [
           {
             "name": "id",
@@ -7392,7 +7021,7 @@
             }
           },
           "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
+            "description": "Expense state, revision, base currency, or request identity conflicts with deletion.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7442,7 +7071,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7471,11 +7100,11 @@
               "pattern": "^[a-fA-F0-9]{24}$"
             }
           }
-        ],
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        ]
       },
       "get": {
         "operationId": "expenseV2",
+        "description": "Amount and shares use two decimals in the trip base currency; originalAmount, currency and exchangeRate describe the entered value. An expense of another trip returns 404.",
         "security": [
           {
             "bearerAuth": []
@@ -7530,16 +7159,6 @@
               }
             }
           },
-          "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
           "413": {
             "description": "Error code; 429 includes Retry-After seconds",
             "content": {
@@ -7581,7 +7200,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7610,13 +7229,13 @@
               "pattern": "^[a-fA-F0-9]{24}$"
             }
           }
-        ],
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        ]
       }
     },
     "/v2/trips/{id}/payment-context": {
       "get": {
         "operationId": "paymentContextV2",
+        "description": "Fresh members and backend settlement in one snapshot, with an opaque trip-bound revision. External payments only; suggestions are unpaid.",
         "security": [
           {
             "bearerAuth": []
@@ -7671,16 +7290,6 @@
               }
             }
           },
-          "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
           "413": {
             "description": "Error code; 429 includes Retry-After seconds",
             "content": {
@@ -7722,7 +7331,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7742,13 +7351,13 @@
               "pattern": "^[a-fA-F0-9]{24}$"
             }
           }
-        ],
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        ]
       }
     },
     "/v2/trips/{id}/payments": {
       "post": {
         "operationId": "createPaymentV2",
+        "description": "Records an external payment in the trip base currency (two decimals, 0.01 to 1,000,000,000). Partial, excess and manual payments are allowed. UUID/immutable body survive every retry. SETTLEMENT_CHANGED is a terminal receipt: reload and explicitly reconfirm with a new UUID. Timeout/5xx: lookup original mutation request; never change UUID. Replay after revocation does not resurrect the payment.",
         "security": [
           {
             "bearerAuth": []
@@ -7814,7 +7423,7 @@
             }
           },
           "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
+            "description": "Settlement revision, base currency, or request identity conflicts with the payment.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7864,7 +7473,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7884,13 +7493,13 @@
               "pattern": "^[a-fA-F0-9]{24}$"
             }
           }
-        ],
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        ]
       }
     },
     "/v2/trips/{id}/payments/{paymentId}/revoke-context": {
       "get": {
         "operationId": "paymentRevokeContextV2",
+        "description": "Current direction, amount, note and opaque raw payment revision. RESOURCE_GONE is a resource-only 404.",
         "security": [
           {
             "bearerAuth": []
@@ -7945,16 +7554,6 @@
               }
             }
           },
-          "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
           "413": {
             "description": "Error code; 429 includes Retry-After seconds",
             "content": {
@@ -7996,7 +7595,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -8025,13 +7624,13 @@
               "pattern": "^[a-fA-F0-9]{24}$"
             }
           }
-        ],
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        ]
       }
     },
     "/v2/trips/{id}/payments/{paymentId}": {
       "delete": {
         "operationId": "revokePaymentV2",
+        "description": "Revokes a mistaken registration; does not refund money. Every member may revoke. Raw payment revision guards identity changes; original creation receipt remains valid.",
         "security": [
           {
             "bearerAuth": []
@@ -8097,7 +7696,7 @@
             }
           },
           "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
+            "description": "Payment state, revision, base currency, or request identity conflicts with revocation.",
             "content": {
               "application/json": {
                 "schema": {
@@ -8147,7 +7746,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -8176,13 +7775,13 @@
               "pattern": "^[a-fA-F0-9]{24}$"
             }
           }
-        ],
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        ]
       }
     },
     "/v2/trips/{id}/settlement": {
       "get": {
         "operationId": "settlementV2",
+        "description": "Balances already include registered payments. suggestedTransfers are suggestions only and have not been paid. status distinguishes no expenses, settled and outstanding.",
         "security": [
           {
             "bearerAuth": []
@@ -8237,16 +7836,6 @@
               }
             }
           },
-          "409": {
-            "description": "Currency mismatch, version conflict (CLIENT_UPGRADE_REQUIRED for a receipt stored by v1) or feature unavailable; confirmed writes require original receipt lookup.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
           "413": {
             "description": "Error code; 429 includes Retry-After seconds",
             "content": {
@@ -8288,7 +7877,7 @@
             }
           },
           "503": {
-            "description": "Ledger data or total outside the safe range",
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE.",
             "content": {
               "application/json": {
                 "schema": {
@@ -8308,13 +7897,13 @@
               "pattern": "^[a-fA-F0-9]{24}$"
             }
           }
-        ],
-        "description": "v2: explicit immutable trip ledger unit; two-decimal money. Shares and amounts are in the trip base currency. Original UUIDs cannot move between API versions."
+        ]
       }
     },
     "/v2/trips/{id}/itinerary": {
       "get": {
         "operationId": "tripItinerary",
+        "description": "Bearer member-only, no public fallback. Unknown/malformed trips and non-members return 404. Days ordered by dayNumber; activity start time ascending, untimed last, stable ties. Dates use UTC calendar-day arithmetic from trip start; gaps are preserved. No attachment metadata, storage keys, URLs, photos or collaborator identities. Private no-store response; no ledger amounts.",
         "security": [
           {
             "bearerAuth": []
@@ -8420,13 +8009,13 @@
               "pattern": "^[a-fA-F0-9]{24}$"
             }
           }
-        ],
-        "description": "Bearer member-only, no public fallback. Unknown/malformed trips and non-members return 404. Days ordered by dayNumber; activity start time ascending, untimed last, stable ties. Dates use UTC calendar-day arithmetic from trip start; gaps are preserved. No attachment metadata, storage keys, URLs, photos or collaborator identities. Private no-store response; no ledger amounts."
+        ]
       }
     },
     "/v2/trips/{id}/itinerary/edit-context": {
       "get": {
         "operationId": "itineraryEditContext",
+        "description": "Current admins only; same ordered reader plus day/activity revisions and deletion impact counts/revision. No tickets, storage keys or collaborator identities. Read-only snapshot, no fence writes.",
         "security": [
           {
             "bearerAuth": []
@@ -8532,13 +8121,13 @@
               "pattern": "^[a-fA-F0-9]{24}$"
             }
           }
-        ],
-        "description": "Current admins only; same ordered reader plus day/activity revisions and deletion impact counts/revision. No tickets, storage keys or collaborator identities. Read-only snapshot, no fence writes."
+        ]
       }
     },
     "/v2/trips/{id}/itinerary/requests": {
       "post": {
         "operationId": "itineraryWrite",
+        "description": "Admin-only confirmed online command; persist UUID/body/account/environment before sending. Strict six-operation body; no attachments, AI or bulk activity replacement. Atomic mutation and terminal receipt, replay returns original IDs/revisions even if deleted since. Conflicts/rejections return a terminal rejected state. Changed body/trip under same actor UUID: 409 IDEMPOTENCY_CONFLICT. Unknown transport/5xx: query original UUID; only not_found permits retry of exact frozen command. Not_found is not proof of failure. 256 KiB body cap.",
         "security": [
           {
             "bearerAuth": []
@@ -8654,13 +8243,13 @@
               "pattern": "^[a-fA-F0-9]{24}$"
             }
           }
-        ],
-        "description": "Admin-only confirmed online command; persist UUID/body/account/environment before sending. Strict six-operation body; no attachments, AI or bulk activity replacement. Atomic mutation and terminal receipt, replay returns original IDs/revisions even if deleted since. Conflicts/rejections return a terminal rejected state. Changed body/trip under same actor UUID: 409 IDEMPOTENCY_CONFLICT. Unknown transport/5xx: query original UUID; only not_found permits retry of exact frozen command. Not_found is not proof of failure. 256 KiB body cap."
+        ]
       }
     },
     "/v2/trips/{id}/itinerary/requests/{uuid}": {
       "get": {
         "operationId": "itineraryRequest",
+        "description": "Current admins only; own actor/trip receipt, read-only, no TTL or fence write. No result inference from current resource. Revocation denies recovery; original receipt remains for reauthorized account. No ledger/private content in receipt.",
         "security": [
           {
             "bearerAuth": []
@@ -8775,13 +8364,13 @@
               "format": "uuid"
             }
           }
-        ],
-        "description": "Current admins only; own actor/trip receipt, read-only, no TTL or fence write. No result inference from current resource. Revocation denies recovery; original receipt remains for reauthorized account. No ledger/private content in receipt."
+        ]
       }
     },
     "/v2/trips/{id}/itinerary/activity-deletions/preview": {
       "post": {
         "operationId": "activityDeletionPreview",
+        "description": "Admin read-only snapshot for 1–15 distinct same-day activities. Missing/changed targets are explicit. Opaque confirmation revision covers day date/title and selected activity/ticket references, not siblings. No storage keys in reply.",
         "security": [],
         "requestBody": {
           "required": true,
@@ -8893,13 +8482,13 @@
               "pattern": "^[a-fA-F0-9]{24}$"
             }
           }
-        ],
-        "description": "Admin read-only snapshot for 1–15 distinct same-day activities. Missing/changed targets are explicit. Opaque confirmation revision covers day date/title and selected activity/ticket references, not siblings. No storage keys in reply."
+        ]
       }
     },
     "/v2/trips/{id}/itinerary/activity-deletions": {
       "post": {
         "operationId": "activityDeletionWrite",
+        "description": "Admin-only atomic batch and terminal receipt, shared actor/UUID namespace with single itinerary commands. All targets must match original revisions and confirmation context. Keeps day, expenses, photos and achievements; retires only unreferenced tickets. Persist frozen intent before sending; unknown results require original UUID lookup. not_found permits only explicit exact retry. Target order is canonicalized. No private text/keys in receipt.",
         "security": [],
         "requestBody": {
           "required": true,
@@ -9011,13 +8600,13 @@
               "pattern": "^[a-fA-F0-9]{24}$"
             }
           }
-        ],
-        "description": "Admin-only atomic batch and terminal receipt, shared actor/UUID namespace with single itinerary commands. All targets must match original revisions and confirmation context. Keeps day, expenses, photos and achievements; retires only unreferenced tickets. Persist frozen intent before sending; unknown results require original UUID lookup. not_found permits only explicit exact retry. Target order is canonicalized. No private text/keys in receipt."
+        ]
       }
     },
     "/v2/trips/{id}/itinerary/activity-deletions/{uuid}": {
       "get": {
         "operationId": "activityDeletionLookup",
+        "description": "Current admin authorization, own actor/trip receipt. Read-only, no TTL or fence write; resource disappearance does not change committed result. Query denial is not proof of rejection.",
         "security": [
           {
             "bearerAuth": []
@@ -9132,8 +8721,7 @@
               "format": "uuid"
             }
           }
-        ],
-        "description": "Current admin authorization, own actor/trip receipt. Read-only, no TTL or fence write; resource disappearance does not change committed result. Query denial is not proof of rejection."
+        ]
       }
     },
     "/v2/capabilities": {
@@ -9336,6 +8924,16 @@
           },
           "500": {
             "description": "Error code; 429 includes Retry-After seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "LEDGER_DATA_INVALID or MONEY_TOTAL_OUT_OF_RANGE. SERVICE_UNAVAILABLE if reference rates cannot be loaded or rebased.",
             "content": {
               "application/json": {
                 "schema": {

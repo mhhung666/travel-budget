@@ -40,6 +40,30 @@ describe('published backend contract', () => {
     expect(contract.servers).toEqual([{ url: '/api' }]);
     expect(Object.keys(contract.paths).every((path) => path.startsWith('/v2/'))).toBe(true);
   });
+  it('documents account operations with their own descriptions and failures', () => {
+    const { get, patch } = contract.paths['/v2/me/notification-preferences'];
+    expect(patch.description).toContain('partial settings update');
+    for (const method of [get, patch, contract.paths['/v2/me/friends'].get]) {
+      expect(method.responses).not.toHaveProperty('409');
+      expect(method.responses).not.toHaveProperty('503');
+    }
+    expect(contract.paths['/v2/me/password'].post.responses[409].description).toContain(
+      'RESOURCE_CHANGED'
+    );
+    expect(contract.paths['/v2/me/email/request'].post.responses[503].description).toContain(
+      'EMAIL_DELIVERY_FAILED'
+    );
+  });
+  it('publishes trip-base units and distinguishes a preview conflict from a ledger read failure', () => {
+    const preview = contract.paths['/v2/trips/{id}/expenses/preview'].post;
+    expect(preview.description).toContain('trip base currency');
+    expect(preview.description).not.toContain('TWD');
+    expect(preview.responses[409].description).toContain('LEDGER_CURRENCY_MISMATCH');
+    const expenses = contract.paths['/v2/trips/{id}/expenses'].get;
+    expect(expenses.description).toContain('20 items/page');
+    expect(expenses.responses[503].description).toContain('LEDGER_DATA_INVALID');
+    expect(expenses.responses).not.toHaveProperty('409');
+  });
   // What the client sends and parses at the HTTP boundary, against the published v2 schema.
   for (const [name, schema] of Object.entries({
     User: userSchema,
