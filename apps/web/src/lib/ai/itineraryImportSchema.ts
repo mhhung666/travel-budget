@@ -90,6 +90,7 @@ export const itineraryImportActivitySchema = z
 export const itineraryImportDaySchema = z
   .object({
     date: calendarDateSchema.optional(),
+    dateEvidence: z.string().trim().max(500).optional(),
     relativeDay: z.number().int().positive().max(366).optional(),
     title: z.string().trim().min(1).max(ITINERARY_IMPORT_LIMITS.dayTitleCharacters).optional(),
     content: z.string().trim().max(ITINERARY_IMPORT_LIMITS.dayContentCharacters).optional(),
@@ -152,6 +153,7 @@ export const openAIItineraryImportDraftSchema = z
         z
           .object({
             date: calendarDateSchema.nullable(),
+            dateEvidence: z.string().trim().max(500).nullable(),
             relativeDay: z.number().int().positive().max(366).nullable(),
             title: z
               .string()
@@ -225,6 +227,7 @@ export function parseOpenAIItineraryImportDraft(value: unknown): ItineraryImport
     sourceSummary: parsed.sourceSummary,
     days: parsed.days.map((day) => ({
       ...(day.date !== null ? { date: day.date } : {}),
+      ...(day.dateEvidence !== null ? { dateEvidence: day.dateEvidence } : {}),
       ...(day.relativeDay !== null ? { relativeDay: day.relativeDay } : {}),
       ...(day.title !== null ? { title: day.title } : {}),
       ...(day.content !== null ? { content: day.content } : {}),

@@ -91,14 +91,26 @@ export function normalizeItineraryImport(
   );
   const importedKeys = new Set<string>();
   const sortedActivities = parsed.days.map((day) => sortActivities(day.activities));
-  const warnings = parsed.warnings.map((warning) => {
-    if (warning.dayIndex === undefined || warning.activityIndex === undefined)
-      return { ...warning };
-    const source = parsed.days[warning.dayIndex]?.activities[warning.activityIndex];
-    return source
-      ? { ...warning, activityIndex: sortedActivities[warning.dayIndex].indexOf(source) }
-      : { ...warning };
-  });
+  // Range, missing dates, and existing-day membership come from the actual trip.
+  const warnings = parsed.warnings
+    .filter(
+      (warning) =>
+        ![
+          'DATE_OUTSIDE_TRIP',
+          'EXISTING_DAY_APPEND',
+          'MISSING_DATE',
+          'RELATIVE_DATE_UNRESOLVED',
+          'END_TIME_BEFORE_START',
+        ].includes(warning.code)
+    )
+    .map((warning) => {
+      if (warning.dayIndex === undefined || warning.activityIndex === undefined)
+        return { ...warning };
+      const source = parsed.days[warning.dayIndex]?.activities[warning.activityIndex];
+      return source
+        ? { ...warning, activityIndex: sortedActivities[warning.dayIndex].indexOf(source) }
+        : { ...warning };
+    });
   const warningKeys = new Set(warnings.map(warningKey));
 
   const days = parsed.days.map((sourceDay, dayIndex) => {
@@ -116,17 +128,14 @@ export function normalizeItineraryImport(
         code: day.relativeDay ? 'RELATIVE_DATE_UNRESOLVED' : 'MISSING_DATE',
         dayIndex,
       });
-      return day;
-    }
-
-    if (
+    } else if (
       (context.tripStartDate && day.date < context.tripStartDate) ||
       (context.tripEndDate && day.date > context.tripEndDate)
     ) {
       addWarning(warnings, warningKeys, { code: 'DATE_OUTSIDE_TRIP', dayIndex });
     }
 
-    if (existingByDate.has(day.date)) {
+    if (day.date && existingByDate.has(day.date)) {
       addWarning(warnings, warningKeys, { code: 'EXISTING_DAY_APPEND', dayIndex });
     }
 
@@ -144,7 +153,8 @@ export function normalizeItineraryImport(
         });
       }
 
-      const key = duplicateKey(day.date!, activity);
+      if (!day.date) return;
+      const key = duplicateKey(day.date, activity);
       if (existingKeys.has(key) || importedKeys.has(key)) {
         addWarning(warnings, warningKeys, {
           code: 'POSSIBLE_DUPLICATE',

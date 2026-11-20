@@ -1,7 +1,7 @@
 'use client';
 import { activityAnchorId, projectItineraryContinuations } from '@/lib/itineraryContinuations';
 import { activityTimingLabels, activityTimingText } from '@/lib/activityTiming';
-import { toDateOnly } from '@/lib/itineraryDayTarget';
+import { dateForDayNumber, toDateOnly } from '@/lib/itineraryDayTarget';
 import dynamic from 'next/dynamic';
 import { ActivityBatchDeletionProvider } from '@/components/trips/detail/itinerary/ActivityBatchDeletion';
 import { ClientQueryBoundary } from '@/components/common/ClientQueryBoundary';
@@ -112,6 +112,14 @@ function ItineraryPageContent() {
   const continuations = useMemo(() => projectItineraryContinuations(days), [days]);
   const tripQuery = useTrip(tripId);
   const { data: trip } = tripQuery;
+  const tripStart = toDateOnly(trip?.start_date);
+  const existingImportDates = useMemo(
+    () =>
+      tripStart
+        ? itineraryQuery.data?.map((day) => dateForDayNumber(tripStart, day.day_number))
+        : undefined,
+    [itineraryQuery.data, tripStart]
+  );
   const { data: shell } = useTripShell(tripId);
   const phase = trip ? getTripPhase(trip.start_date, trip.end_date).phase : null;
   // Secondary overview data is phase-specific and does not block itinerary content.
@@ -648,8 +656,9 @@ function ItineraryPageContent() {
           open={aiImportOpen}
           onClose={() => setAiImportOpen(false)}
           tripId={tripId}
-          tripStartDate={trip?.start_date}
-          tripEndDate={trip?.end_date}
+          existingDates={existingImportDates}
+          tripStartDate={tripStart}
+          tripEndDate={toDateOnly(trip?.end_date)}
           onImported={() => {
             void refetchItinerary();
             void queryClient.invalidateQueries({ queryKey: tripKeys.activity(tripId) });

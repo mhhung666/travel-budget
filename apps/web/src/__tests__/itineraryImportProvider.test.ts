@@ -248,7 +248,7 @@ it.each([
 ])(
   'retains a model end date only when its quoted evidence occurs in the source: $source',
   async ({ evidence, source, expected }) => {
-    const { retainEvidencedEndDates } = await import('@/lib/ai/itineraryImportProvider');
+    const { groundItineraryDates } = await import('@/lib/ai/itineraryImportEvidence');
     const draft = {
       sourceSummary: '',
       days: [
@@ -268,7 +268,7 @@ it.each([
       ],
       warnings: [],
     };
-    const result = retainEvidencedEndDates(draft, source);
+    const result = groundItineraryDates(draft, source);
     expect(result.days[0].activities[0]).toHaveProperty('endDayOffset', expected);
     expect(result.days[0].activities[0]).not.toHaveProperty('endDateEvidence');
     expect(draft.days[0].activities[0].endDayOffset).toBe(1);

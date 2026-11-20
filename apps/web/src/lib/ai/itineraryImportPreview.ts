@@ -79,16 +79,39 @@ function warningForDay(
   return preview.warnings.some((warning) => warning.code === code && warning.dayIndex === dayIndex);
 }
 
-export function createItineraryImportPreview(draft: ItineraryImportDraft): ItineraryImportPreview {
+type TripDates = {
+  startDate?: string | null;
+  endDate?: string | null;
+  existingDates?: readonly string[];
+};
+
+export function outsideImportDates(date: string, { startDate, endDate }: TripDates): boolean {
+  return Boolean(date && ((startDate && date < startDate) || (endDate && date > endDate)));
+}
+
+export function appendsToImportDay(
+  preview: ItineraryImportPreview,
+  index: number,
+  existingDates?: readonly string[]
+): boolean {
+  const day = preview.days[index];
+  return (
+    existingDates?.includes(day.date) ??
+    (day.date === day.sourceDate && warningForDay(preview, 'EXISTING_DAY_APPEND', index))
+  );
+}
+
+export function createItineraryImportPreview(
+  draft: ItineraryImportDraft,
+  tripDates: TripDates = {}
+): ItineraryImportPreview {
   const parsed = itineraryImportDraftSchema.parse(draft);
   return {
     sourceSummary: parsed.sourceSummary,
     warnings: parsed.warnings.map((warning) => ({ ...warning })),
     days: parsed.days.map((day, dayIndex) => ({
       id: `day-${dayIndex}`,
-      included: !parsed.warnings.some(
-        (warning) => warning.code === 'DATE_OUTSIDE_TRIP' && warning.dayIndex === dayIndex
-      ),
+      included: !outsideImportDates(day.date ?? '', tripDates),
       sourceDate: day.date ?? '',
       date: day.date ?? '',
       relativeDay: day.relativeDay,
@@ -112,7 +135,7 @@ export function createItineraryImportPreview(draft: ItineraryImportDraft): Itine
 
 export function validateItineraryImportPreview(
   preview: ItineraryImportPreview,
-  tripDates: { startDate?: string | null; endDate?: string | null } = {}
+  tripDates: TripDates = {}
 ): ItineraryImportPreviewIssue[] {
   const issues: ItineraryImportPreviewIssue[] = [];
   const selectedDays = preview.days.filter((day) => day.included);
@@ -123,14 +146,11 @@ export function validateItineraryImportPreview(
 
     if (!day.date) issues.push({ code: 'MISSING_DATE', dayIndex });
     else if (!isCalendarDate(day.date)) issues.push({ code: 'INVALID_DATE', dayIndex });
-    else if (
-      (tripDates.startDate && day.date < tripDates.startDate) ||
-      (tripDates.endDate && day.date > tripDates.endDate)
-    ) {
+    else if (outsideImportDates(day.date, tripDates)) {
       issues.push({ code: 'DATE_OUTSIDE_TRIP', dayIndex });
     }
 
-    const appendsToExistingDay = warningForDay(preview, 'EXISTING_DAY_APPEND', dayIndex);
+    const appendsToExistingDay = appendsToImportDay(preview, dayIndex, tripDates.existingDates);
     if (!appendsToExistingDay && !day.title.trim()) {
       issues.push({ code: 'MISSING_DAY_TITLE', dayIndex });
     } else if (day.title.trim().length > ITINERARY_IMPORT_LIMITS.dayTitleCharacters) {

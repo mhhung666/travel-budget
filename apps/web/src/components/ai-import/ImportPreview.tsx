@@ -5,10 +5,12 @@ import { isCalendarDate } from '@/lib/itineraryDayTarget';
 import { useState } from 'react';
 import { AlertTriangle, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import type {
-  ItineraryImportPreview,
-  ItineraryImportPreviewActivity,
-  ItineraryImportPreviewIssue,
+import {
+  appendsToImportDay,
+  outsideImportDates,
+  type ItineraryImportPreview,
+  type ItineraryImportPreviewActivity,
+  type ItineraryImportPreviewIssue,
 } from '@/lib/ai/itineraryImportPreview';
 import { ITINERARY_IMPORT_ACTIVITY_TYPES } from '@/lib/ai/itineraryImportSchema';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -29,6 +31,7 @@ import { Textarea } from '@/components/ui/textarea';
 type ImportPreviewProps = {
   preview: ItineraryImportPreview;
   issues: ItineraryImportPreviewIssue[];
+  existingDates?: readonly string[];
   tripStartDate?: string | null;
   tripEndDate?: string | null;
   onChange: (preview: ItineraryImportPreview) => void;
@@ -51,6 +54,7 @@ function hasWarning(
 export default function ImportPreview({
   preview,
   issues,
+  existingDates,
   tripStartDate,
   tripEndDate,
   onChange,
@@ -108,12 +112,11 @@ export default function ImportPreview({
 
       {preview.days.map((day, dayIndex) => {
         const currentDayIssues = dayIssues(dayIndex);
-        const append =
-          day.date === day.sourceDate && hasWarning(preview, 'EXISTING_DAY_APPEND', dayIndex);
-        const outside =
-          !!day.date &&
-          ((!!tripStartDate && day.date < tripStartDate) ||
-            (!!tripEndDate && day.date > tripEndDate));
+        const append = appendsToImportDay(preview, dayIndex, existingDates);
+        const outside = outsideImportDates(day.date, {
+          startDate: tripStartDate,
+          endDate: tripEndDate,
+        });
 
         return (
           <section

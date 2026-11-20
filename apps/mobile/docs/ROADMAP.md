@@ -2,7 +2,7 @@
 
 ## 目前優先
 
-- **跨日活動（CD4）**：Web 與 iOS 表單／確認畫面已驗。下一項是用隔離測試憑證匯入兩份 AI 草稿，核對明確日期與僅有時刻的差異。已驗環境、證據與暫緩案例見 [CD4 驗收進度](../../../docs/design/ITINERARY_PRESENTATION.md#cd4-驗收進度)。
+- **跨日活動（CD4）**：Web／iOS 表單與 Web AI 航班匯入已驗；剩餘 VoiceOver、離線 PWA 與 Android 裝置驗收暫緩。詳見 [CD4 驗收進度](../../../docs/design/ITINERARY_PRESENTATION.md#cd4-驗收進度)。
 
 ## 接續
 

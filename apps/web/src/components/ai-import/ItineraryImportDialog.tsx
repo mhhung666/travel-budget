@@ -38,6 +38,7 @@ type ItineraryImportDialogProps = {
   open: boolean;
   onClose: () => void;
   tripId: string;
+  existingDates?: readonly string[];
   tripStartDate?: string | null;
   tripEndDate?: string | null;
   onImported?: () => void;
@@ -71,6 +72,7 @@ export default function ItineraryImportDialog({
   open,
   onClose,
   tripId,
+  existingDates,
   tripStartDate,
   tripEndDate,
   onImported,
@@ -112,9 +114,10 @@ export default function ItineraryImportDialog({
         ? validateItineraryImportPreview(preview, {
             startDate: tripStartDate,
             endDate: tripEndDate,
+            existingDates,
           })
         : [],
-    [preview, tripStartDate, tripEndDate]
+    [preview, tripStartDate, tripEndDate, existingDates]
   );
   const canConfirmPreview =
     !!preview && issues.length === 0 && toItineraryImportDraft(preview) !== null;
@@ -163,7 +166,9 @@ export default function ItineraryImportDialog({
         });
         return;
       }
-      setPreview(createItineraryImportPreview(draft.data));
+      setPreview(
+        createItineraryImportPreview(draft.data, { startDate: tripStartDate, endDate: tripEndDate })
+      );
       setOperationId(crypto.randomUUID());
       trackProductEvent('ai_itinerary_import', {
         stage: 'preview_shown',
@@ -220,7 +225,13 @@ export default function ItineraryImportDialog({
             included: failedDates.has(day.date),
           })),
         });
-        if (retryDraft) setPreview(createItineraryImportPreview(retryDraft));
+        if (retryDraft)
+          setPreview(
+            createItineraryImportPreview(retryDraft, {
+              startDate: tripStartDate,
+              endDate: tripEndDate,
+            })
+          );
       }
       if (result.data.summary.addedActivities > 0 || result.data.summary.successfulDays > 0) {
         onImported?.();
@@ -349,6 +360,7 @@ export default function ItineraryImportDialog({
               <ImportPreview
                 preview={preview}
                 issues={issues}
+                existingDates={existingDates}
                 tripStartDate={tripStartDate}
                 tripEndDate={tripEndDate}
                 onChange={(nextPreview) => {

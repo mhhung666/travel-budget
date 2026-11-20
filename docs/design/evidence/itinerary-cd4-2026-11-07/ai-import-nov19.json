@@ -1,0 +1,155 @@
+{
+  "model": "openai/gpt-5-mini",
+  "tripStartDate": "2028-02-28",
+  "tripEndDate": "2028-03-01",
+  "cases": [
+    {
+      "source": "2028-02-28 22:25 搭乘測試航班 CD401 自台北起飛，2028-02-29 00:20 抵達香港。",
+      "httpStatus": 200,
+      "initialDraft": {
+        "sourceSummary": "2028-02-28 22:25 自台北搭乘航班 CD401，於 2028-02-29 00:20 抵達香港。",
+        "days": [
+          {
+            "date": "2028-02-28",
+            "activities": [
+              {
+                "time": "22:25",
+                "endTime": "00:20",
+                "endDayOffset": 1,
+                "title": "搭乘測試航班 CD401 自台北起飛，抵達香港",
+                "type": "flight"
+              }
+            ]
+          }
+        ],
+        "warnings": [
+          {
+            "code": "EXISTING_DAY_APPEND",
+            "dayIndex": 0
+          }
+        ]
+      },
+      "verifiedDraft": {
+        "sourceSummary": "包含一段航班資訊：2028-02-28 22:25 搭乘測試航班 CD401 自台北起飛，2028-02-29 00:20 抵達香港。",
+        "days": [
+          {
+            "date": "2028-02-28",
+            "activities": [
+              {
+                "time": "22:25",
+                "endTime": "00:20",
+                "endDayOffset": 1,
+                "title": "搭乘測試航班 CD401 自台北起飛，抵達香港",
+                "type": "flight",
+                "locationName": "台北 → 香港"
+              }
+            ]
+          }
+        ],
+        "warnings": [
+          {
+            "code": "EXISTING_DAY_APPEND",
+            "dayIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "source": "測試航班 CD402，22:25 台北起飛，00:20 香港抵達。",
+      "httpStatus": 200,
+      "initialDraft": {
+        "sourceSummary": "來源為一則含有單一航班資訊的文本：測試航班 CD402，22:25 台北起飛，00:20 香港抵達。",
+        "days": [
+          {
+            "date": "2028-02-28",
+            "activities": [
+              {
+                "time": "22:25",
+                "title": "航班 CD402 自台北起飛",
+                "type": "flight",
+                "locationName": "台北"
+              }
+            ]
+          },
+          {
+            "date": "2028-02-29",
+            "activities": [
+              {
+                "time": "00:20",
+                "title": "航班 CD402 抵達香港",
+                "type": "flight",
+                "locationName": "香港"
+              }
+            ]
+          }
+        ],
+        "warnings": [
+          {
+            "code": "DATE_OUTSIDE_TRIP",
+            "message": "抵達時間 00:20 未明確標示日期；推測為起飛當日之後一日，但無明確日曆證據，因此將抵達活動放在 2028-02-29。",
+            "dayIndex": 1,
+            "activityIndex": 0
+          },
+          {
+            "code": "MISSING_DATE",
+            "message": "來源未提供航班的具體日期；已根據行程起迄範圍（2028-02-28 至 2028-03-01）將起飛活動放在 2028-02-28。",
+            "dayIndex": 0,
+            "activityIndex": 0
+          },
+          {
+            "code": "EXISTING_DAY_APPEND",
+            "dayIndex": 0
+          },
+          {
+            "code": "EXISTING_DAY_APPEND",
+            "dayIndex": 1
+          }
+        ]
+      },
+      "verifiedDraft": {
+        "sourceSummary": "來源包含一段航班資訊：測試航班 CD402，22:25 台北起飛，00:20 香港抵達。",
+        "days": [
+          {
+            "activities": [
+              {
+                "time": "22:25",
+                "endTime": "00:20",
+                "title": "測試航班 CD402",
+                "type": "flight",
+                "note": "22:25 台北起飛，00:20 香港抵達。"
+              }
+            ]
+          }
+        ],
+        "warnings": [
+          {
+            "code": "MISSING_DATE",
+            "dayIndex": 0
+          },
+          {
+            "code": "END_TIME_BEFORE_START",
+            "dayIndex": 0,
+            "activityIndex": 0
+          }
+        ]
+      }
+    }
+  ],
+  "savedByDay": [
+    [
+      {
+        "title": "搭乘測試航班 CD401 自台北起飛，抵達香港",
+        "start": "22:25",
+        "end": "00:20",
+        "offset": 1
+      },
+      {
+        "title": "測試航班 CD402",
+        "start": "22:25",
+        "end": "00:20",
+        "offset": null
+      }
+    ],
+    []
+  ]
+}

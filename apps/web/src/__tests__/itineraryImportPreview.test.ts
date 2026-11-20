@@ -37,7 +37,10 @@ const draft: ItineraryImportDraft = {
 
 describe('itinerary import preview', () => {
   it('starts outside-range days unchecked and reports editable blocking fields', () => {
-    const preview = createItineraryImportPreview(draft);
+    const preview = createItineraryImportPreview(draft, {
+      startDate: '2026-09-01',
+      endDate: '2026-09-30',
+    });
 
     expect(preview.days[0].included).toBe(true);
     expect(preview.days[1].included).toBe(false);
@@ -50,7 +53,10 @@ describe('itinerary import preview', () => {
   });
 
   it('clears a time blocker after the user fixes the end time', () => {
-    const preview = createItineraryImportPreview(draft);
+    const preview = createItineraryImportPreview(draft, {
+      startDate: '2026-09-01',
+      endDate: '2026-09-30',
+    });
     preview.days[0].activities[0].endTime = '15:00';
 
     expect(

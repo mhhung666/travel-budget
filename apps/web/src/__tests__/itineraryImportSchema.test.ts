@@ -93,6 +93,7 @@ describe('itineraryImportDraftSchema', () => {
         days: [
           {
             date: '2026-09-01',
+            dateEvidence: null,
             relativeDay: null,
             title: null,
             content: null,
