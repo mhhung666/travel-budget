@@ -1,13 +1,16 @@
 import { z } from 'zod';
 import { confirmedExpenseShares } from './expenseSplitConfirmation';
 import { getEnv } from '@/lib/env';
-import type { LedgerMutationRequest } from '@travel-budget/contracts';
+import {
+  deleteExpenseRecords,
+  readExpenseReceipt,
+  recordExpenseActivity,
+  withExpenseReceipt,
+  type ExpenseTerminal as Terminal,
+} from './expenseMaintenanceTransaction';
 import {
   parseLedgerInput,
   ledgerFingerprint,
-  receiptStamp,
-  terminalWithLedger,
-  checkReceiptVersion,
   ledgerMismatch,
   authorizeLedger,
   ledgerStamp,
@@ -23,7 +26,7 @@ import {
   resolveAttachments,
   splitsMatchAmount,
 } from '@/lib/expenseCreate';
-import { Expense, Trip, Comment } from '@/models';
+import { Expense, Trip } from '@/models';
 import { updateExpenseSchema, type UpdateExpenseInput } from '@/lib/validation';
 import type { ActionResult } from '@/actions/types';
 import { logger } from '@/lib/logger';
@@ -42,7 +45,6 @@ import {
   type ExpenseMutationResult,
   type ExpenseUpdateV2Input,
   type expenseSplitModeSchema,
-  type MutationRequest,
 } from '@travel-budget/contracts';
 import {
   withTripWrite,
@@ -50,7 +52,7 @@ import {
   withTripWriteInDatabase,
   withTripReadInDatabase,
 } from './tripWriteTransaction';
-import { MUTATION_REQUESTS, TripEntryError } from './tripEntry';
+import { TripEntryError } from './tripEntry';
 import { getAllCurrencyCodes, isSupportedCurrency } from '@/constants/currencies';
 import { computeSplits } from './expenseSplit';
 import { retireUnreferencedBlobs } from './blobReferences';
@@ -79,15 +81,6 @@ interface Parent extends mongo.Document {
     currencies?: { code: string; rate?: number | null }[];
   } | null;
 }
-type Terminal = Exclude<MutationRequest | LedgerMutationRequest, { status: 'not_found' }>;
-interface Receipt {
-  _id: string;
-  fingerprint: string;
-  contractVersion?: number;
-  ledger?: unknown;
-  terminal: Terminal;
-  createdAt: Date;
-}
 // Canonicalize raw BSON, including missing vs null; never hash populated or repaired DTOs.
 function canonical(value: unknown): unknown {
   if (value === undefined) return { missing: true };
@@ -101,6 +94,14 @@ function canonical(value: unknown): unknown {
         .map(([k, v]) => [k, canonical(v)])
     );
   return value;
+}
+function expenseRequest(key: string, fingerprintInput: unknown) {
+  return {
+    key,
+    fingerprint: createHash('sha256')
+      .update(JSON.stringify(canonical(fingerprintInput)))
+      .digest('hex'),
+  };
 }
 const businessFields = [
   'payer',
@@ -336,6 +337,71 @@ export function readExpenseEditContext(
     return context;
   });
 }
+function mobileExpenseChanges(
+  update: ExpenseUpdateV2Input,
+  current: ExpenseEditContext
+): Record<string, unknown> | null {
+  let set: Record<string, unknown> = {};
+  const { changes } = update;
+  if (changes.description !== undefined) set.description = changes.description;
+  if (changes.category !== undefined) set.category = changes.category;
+  if (changes.date !== undefined) set.date = new Date(changes.date);
+  if (update.mode === 'equal' || update.mode === 'split') {
+    const { original_amount, payer_id, splits } = update.changes;
+    const currency = update.changes.currency ?? 'TWD';
+    const rate = update.changes.exchange_rate ?? 1;
+    const product = original_amount * rate;
+    const selected = new Set(splits.map((s) => s.user_id));
+    const members = current.options.members;
+    const confirmed =
+      update.mode === 'split' ? confirmedExpenseShares(update.changes, members) : null;
+    const shares =
+      update.mode === 'split'
+        ? (confirmed ?? {})
+        : isSupportedCurrency(currency) &&
+            Number.isFinite(product) &&
+            roundMoney(product) <= MAX_EXPENSE_AMOUNT
+          ? computeSplits(
+              'equal',
+              members.map((m) => ({
+                id: m.id,
+                selected: selected.has(m.id),
+                value: '',
+              })),
+              original_amount,
+              rate
+            ).twd
+          : {};
+    if (
+      (update.mode === 'split'
+        ? !confirmed
+        : !(update.changes.currency === undefined
+            ? current.capabilities.equal
+            : current.capabilities.recalculate)) ||
+      roundMoney(original_amount) !== original_amount ||
+      !isSupportedCurrency(currency) ||
+      !Number.isFinite(product) ||
+      roundMoney(product) > MAX_EXPENSE_AMOUNT ||
+      !members.some((m) => m.id === payer_id) ||
+      splits.some((s) => shares[s.user_id] !== s.share_amount) ||
+      members.filter((m) => selected.has(m.id)).length !== splits.length
+    )
+      return null;
+    set = {
+      ...set,
+      ...ledgerStamp(),
+      originalAmount: original_amount,
+      amount: roundMoney(product),
+      payer: new mongo.ObjectId(payer_id),
+      currency,
+      exchangeRate: rate,
+      splits: members
+        .filter((m) => selected.has(m.id))
+        .map((m) => ({ user: new mongo.ObjectId(m.id), shareAmount: shares[m.id] })),
+    };
+  }
+  return set;
+}
 /** Both adapters use a trip-fenced transaction. Terminal refusals and success compete on one UUID. */
 export async function maintainExpense(
   db: mongo.Db,
@@ -351,137 +417,59 @@ export async function maintainExpense(
     operation === 'expense.update'
       ? parseLedgerInput(expenseUpdateV2Input, body)
       : parseLedgerInput(expenseDeleteInput, body);
-  const key = `${actorId.toLowerCase()}:${input.client_request_id}`;
-  const fingerprint = createHash('sha256')
-    .update(JSON.stringify(canonical(ledgerFingerprint({ operation, tripId, expenseId, input }))))
-    .digest('hex');
+  const request = expenseRequest(
+    `${actorId.toLowerCase()}:${input.client_request_id}`,
+    ledgerFingerprint({ operation, tripId, expenseId, input })
+  );
   for (let attempt = 0; attempt < 10; attempt++) {
     try {
-      const accepted = await withTripWriteInDatabase(db, tripId, actorId, async (session) => {
-        const receipts = db.collection<Receipt>(MUTATION_REQUESTS);
-        const existing = await receipts.findOne({ _id: key }, { session });
-        if (existing) {
-          checkReceiptVersion({
-            contractVersion: existing.contractVersion,
-            ledger: existing.ledger,
+      const accepted = await withTripWriteInDatabase(db, tripId, actorId, (session) =>
+        withExpenseReceipt(db, session, request, async () => {
+          const current = await contextInSnapshot(db, session, tripId, expenseId, secret);
+          const reject = (
+            code:
+              | 'RESOURCE_GONE'
+              | 'RESOURCE_CHANGED'
+              | 'VALIDATION_ERROR'
+              | 'LEDGER_CURRENCY_MISMATCH'
+          ) => ({
+            terminal: { status: 'rejected' as const, operation, tripId, code },
+            keys: [],
           });
-          if (existing.fingerprint !== fingerprint)
-            throw new TripEntryError('IDEMPOTENCY_CONFLICT');
-          return { terminal: existing.terminal, keys: [] as string[] };
-        }
-        const current = await contextInSnapshot(db, session, tripId, expenseId, secret);
-        let terminal: Terminal;
-        let keys: string[] = [];
-        const reject = (
-          code:
-            | 'RESOURCE_GONE'
-            | 'RESOURCE_CHANGED'
-            | 'VALIDATION_ERROR'
-            | 'LEDGER_CURRENCY_MISMATCH'
-        ): Terminal => ({ status: 'rejected', operation, tripId, code });
-        if (ledgerMismatch()) terminal = reject('LEDGER_CURRENCY_MISMATCH');
-        else if (!current) terminal = reject('RESOURCE_GONE');
-        else if (current.revision !== input.expected_revision)
-          terminal = reject('RESOURCE_CHANGED');
-        else {
-          const filter = { _id: new mongo.ObjectId(expenseId), trip: new mongo.ObjectId(tripId) };
-          let set: Record<string, unknown> = {};
-          let invalid = false;
+          if (ledgerMismatch()) return reject('LEDGER_CURRENCY_MISMATCH');
+          if (!current) return reject('RESOURCE_GONE');
+          if (current.revision !== input.expected_revision) return reject('RESOURCE_CHANGED');
+
+          let keys: string[] = [];
+          let description = current.expense.description;
           if (operation === 'expense.update') {
             const update = input as ExpenseUpdateV2Input;
-            const { changes } = update;
-            if (changes.description !== undefined) set.description = changes.description;
-            if (changes.category !== undefined) set.category = changes.category;
-            if (changes.date !== undefined) set.date = new Date(changes.date);
-            if (update.mode === 'equal' || update.mode === 'split') {
-              const { original_amount, payer_id, splits } = update.changes;
-              const currency = update.changes.currency ?? 'TWD';
-              const rate = update.changes.exchange_rate ?? 1;
-              const product = original_amount * rate;
-              const selected = new Set(splits.map((s) => s.user_id));
-              const members = current.options.members;
-              const confirmed =
-                update.mode === 'split' ? confirmedExpenseShares(update.changes, members) : null;
-              const shares =
-                update.mode === 'split'
-                  ? (confirmed ?? {})
-                  : isSupportedCurrency(currency) &&
-                      Number.isFinite(product) &&
-                      roundMoney(product) <= MAX_EXPENSE_AMOUNT
-                    ? computeSplits(
-                        'equal',
-                        members.map((m) => ({ id: m.id, selected: selected.has(m.id), value: '' })),
-                        original_amount,
-                        rate
-                      ).twd
-                    : {};
-              invalid =
-                (update.mode === 'split'
-                  ? !confirmed
-                  : !(update.changes.currency === undefined
-                      ? current.capabilities.equal
-                      : current.capabilities.recalculate)) ||
-                roundMoney(original_amount) !== original_amount ||
-                !isSupportedCurrency(currency) ||
-                !Number.isFinite(product) ||
-                roundMoney(product) > MAX_EXPENSE_AMOUNT ||
-                !members.some((m) => m.id === payer_id) ||
-                splits.some((s) => shares[s.user_id] !== s.share_amount) ||
-                members.filter((m) => selected.has(m.id)).length !== splits.length;
-              set = {
-                ...set,
-                ...ledgerStamp(),
-                originalAmount: original_amount,
-                amount: roundMoney(product),
-                payer: new mongo.ObjectId(payer_id),
-                currency,
-                exchangeRate: rate,
-                splits: members
-                  .filter((m) => selected.has(m.id))
-                  .map((m) => ({ user: new mongo.ObjectId(m.id), shareAmount: shares[m.id] })),
-              };
-            }
-          }
-          if (invalid) terminal = reject('VALIDATION_ERROR');
-          else {
-            if (operation === 'expense.update')
-              await db.collection('expenses').updateOne(filter, { $set: set }, { session });
-            else {
-              const raw = await db.collection<RawExpense>('expenses').findOne(filter, { session });
-              await db.collection('expenses').deleteOne(filter, { session });
-              await db
-                .collection('comments')
-                .deleteMany({ expense: filter._id, trip: filter.trip }, { session });
-              keys = await retireUnreferencedBlobs(
-                db,
-                session,
-                tripId,
-                (raw?.attachments ?? []).map((a) => a.key)
+            const set = mobileExpenseChanges(update, current);
+            if (!set) return reject('VALIDATION_ERROR');
+            description = update.changes.description ?? description;
+            await db
+              .collection('expenses')
+              .updateOne(
+                { _id: new mongo.ObjectId(expenseId), trip: new mongo.ObjectId(tripId) },
+                { $set: set },
+                { session }
               );
-            }
-            await db.collection('activitylogs').insertOne(
-              {
-                trip: filter.trip,
-                actor: new mongo.ObjectId(actorId),
-                actorName: current.options.members.find((m) => m.id === actorId)?.displayName ?? '',
-                type: operation === 'expense.update' ? 'expense_updated' : 'expense_deleted',
-                meta: {
-                  expense_id: expenseId,
-                  description:
-                    operation === 'expense.update' && 'changes' in input
-                      ? ((input as ExpenseUpdateV2Input).changes.description ??
-                        current.expense.description)
-                      : current.expense.description,
-                },
-                createdAt: new Date(),
-              },
-              { session }
-            );
-            const next =
-              operation === 'expense.update'
-                ? await contextInSnapshot(db, session, tripId, expenseId, secret)
-                : null;
-            terminal = {
+          } else {
+            keys = await deleteExpenseRecords(db, session, tripId, expenseId);
+          }
+          await recordExpenseActivity(db, session, {
+            tripId,
+            actorId,
+            actorName: current.options.members.find((m) => m.id === actorId)?.displayName ?? '',
+            type: operation === 'expense.update' ? 'expense_updated' : 'expense_deleted',
+            meta: { expense_id: expenseId, description },
+          });
+          const next =
+            operation === 'expense.update'
+              ? await contextInSnapshot(db, session, tripId, expenseId, secret)
+              : null;
+          return {
+            terminal: {
               status: 'committed',
               operation,
               resourceId: expenseId,
@@ -490,29 +478,19 @@ export async function maintainExpense(
                 expenseId,
                 ...(next ? { revision: next.revision } : { deleted: true as const }),
               },
-            };
-          }
-        }
-        // The first response is the stored receipt, so a replay returns exactly the same terminal.
-        const stored = terminalWithLedger(terminal);
-        await receipts.insertOne(
-          {
-            _id: key,
-            fingerprint,
-            ...receiptStamp(),
-            terminal: stored,
-            createdAt: new Date(),
-          },
-          { session }
-        );
-        return { terminal: stored, keys };
-      });
+            },
+            keys,
+          };
+        })
+      );
       if (accepted.terminal.status === 'rejected') throw new TripEntryError(accepted.terminal.code);
       await Promise.resolve()
         .then(() => cleanup(db, accepted.keys))
         .catch(() => undefined);
       return accepted.terminal.result as ExpenseMutationResult;
     } catch (error) {
+      if (error instanceof TripWriteError && error.code === 'CONFLICT')
+        throw new TripEntryError('IDEMPOTENCY_CONFLICT');
       if ((error as { code?: number })?.code === 11000 && attempt < 9) continue;
       throw error;
     }
@@ -557,6 +535,17 @@ export const updateExpenseForActor = async (
       tags,
     } = validation.data;
 
+    const request = expenseRequest(
+      `${actorId.toLowerCase()}:${validation.data.client_request_id.toLowerCase()}`,
+      {
+        contractVersion: 2,
+        baseCurrency: validation.data.base_currency,
+        operation: 'web.expense.update',
+        tripId,
+        expenseId,
+        input: validation.data,
+      }
+    );
     // Attachment verification is external I/O. A replay must not depend on the
     // continued existence of the expense or an already retired receipt blob.
     if (attachments !== undefined) {
@@ -564,32 +553,7 @@ export const updateExpenseForActor = async (
         mongoose.connection.db!,
         tripId,
         actorId,
-        async (session) => {
-          const receipt = await mongoose.connection.db!.collection(MUTATION_REQUESTS).findOne(
-            {
-              _id: `${actorId.toLowerCase()}:${validation.data.client_request_id!.toLowerCase()}` as never,
-            },
-            { session }
-          );
-          if (!receipt) return undefined;
-          checkReceiptVersion({ contractVersion: receipt.contractVersion, ledger: receipt.ledger });
-          const fingerprint = createHash('sha256')
-            .update(
-              JSON.stringify(
-                canonical({
-                  contractVersion: 2,
-                  baseCurrency: validation.data.base_currency,
-                  operation: 'web.expense.update',
-                  tripId,
-                  expenseId,
-                  input: validation.data,
-                })
-              )
-            )
-            .digest('hex');
-          if (receipt.fingerprint !== fingerprint) throw new TripWriteError('CONFLICT');
-          return receipt.terminal as Terminal;
-        }
+        (session) => readExpenseReceipt(mongoose.connection.db!, session, request)
       );
       if (previous?.status === 'rejected')
         return { success: false, error: previous.code, code: previous.code };
@@ -602,22 +566,8 @@ export const updateExpenseForActor = async (
       attachments === undefined
         ? null
         : await Expense.findOne({ _id: expenseId, trip: tripId })
-            .select(
-              'payer amount originalAmount currency exchangeRate description category date splits attachments tags itineraryDays'
-            )
-            .lean<{
-              originalAmount: number;
-              exchangeRate: number;
-              description: string;
-              splits: { user: { toString(): string }; shareAmount: number }[];
-              attachments?: {
-                key: string;
-                contentType: string;
-                size: number;
-                uploadedBy: { toString(): string };
-                uploadedAt: Date;
-              }[];
-            }>();
+            .select('attachments.key')
+            .lean<{ attachments?: { key: string }[] }>();
 
     const initialKeys = new Set((snapshot?.attachments ?? []).map((a) => a.key));
     const verified =
@@ -629,16 +579,12 @@ export const updateExpenseForActor = async (
             attachments.filter((a) => !initialKeys.has(a.key))
           );
     if (!verified) return { success: false, error: 'VALIDATION_ERROR', code: 'VALIDATION_ERROR' };
-    const { removed, terminal } = await withTripWrite(
-      tripId,
-      actorId,
-      async (transactionSession) => {
+    const { keys, terminal } = await withTripWrite(tripId, actorId, (transactionSession) =>
+      withExpenseReceipt(mongoose.connection.db!, transactionSession, request, async () => {
         // 讀取目前值（同時作為 existence check）
         const current = await Expense.findOne({ _id: expenseId, trip: tripId })
           .session(transactionSession)
-          .select(
-            'payer amount originalAmount currency exchangeRate description category date splits attachments tags itineraryDays'
-          )
+          .select(businessFields.join(' '))
           .lean<{
             originalAmount: number;
             exchangeRate: number;
@@ -655,34 +601,6 @@ export const updateExpenseForActor = async (
 
         const unit = validation.data.base_currency!;
         const body = validation.data;
-        const key = `${actorId.toLowerCase()}:${body.client_request_id!.toLowerCase()}`;
-        const fingerprint = createHash('sha256')
-          .update(
-            JSON.stringify(
-              canonical({
-                contractVersion: 2,
-                baseCurrency: unit,
-                operation: 'web.expense.update',
-                tripId,
-                expenseId,
-                input: body,
-              })
-            )
-          )
-          .digest('hex');
-        const receipts = mongoose.connection.db!.collection(MUTATION_REQUESTS);
-        const existing = await receipts.findOne(
-          { _id: key as never },
-          { session: transactionSession }
-        );
-        if (existing) {
-          checkReceiptVersion({
-            contractVersion: existing.contractVersion,
-            ledger: existing.ledger,
-          });
-          if (existing.fingerprint !== fingerprint) throw new TripWriteError('CONFLICT');
-          return { removed: [] as string[], terminal: existing.terminal as Terminal };
-        }
         const parent = await Trip.findById(tripId)
           .session(transactionSession)
           .select('members baseCurrency')
@@ -695,27 +613,19 @@ export const updateExpenseForActor = async (
           unit !== currentLedger().baseCurrency ||
           body.expected_revision !== revision
         ) {
-          const terminal = terminalWithLedger({
-            status: 'rejected' as const,
-            operation: 'expense.update' as const,
-            tripId,
-            code: !current
-              ? ('RESOURCE_GONE' as const)
-              : unit !== currentLedger().baseCurrency
-                ? ('LEDGER_CURRENCY_MISMATCH' as const)
-                : ('RESOURCE_CHANGED' as const),
-          });
-          await receipts.insertOne(
-            {
-              _id: key as never,
-              fingerprint,
-              terminal,
-              ...receiptStamp(),
-              createdAt: new Date(),
+          return {
+            keys: [],
+            terminal: {
+              status: 'rejected',
+              operation: 'expense.update',
+              tripId,
+              code: !current
+                ? 'RESOURCE_GONE'
+                : unit !== currentLedger().baseCurrency
+                  ? 'LEDGER_CURRENCY_MISMATCH'
+                  : 'RESOURCE_CHANGED',
             },
-            { session: transactionSession }
-          );
-          return { removed: [] as string[], terminal };
+          };
         }
         const raw = current as typeof current & { currency: string; amount: number };
         const oa = original_amount ?? current.originalAmount,
@@ -748,13 +658,7 @@ export const updateExpenseForActor = async (
         // this check, a client that knows an outside user id could replace the payer
         // or a split participant after the expense was created.
         if (payer_id !== undefined || splits !== undefined) {
-          const trip = await Trip.findById(tripId)
-            .session(transactionSession)
-            .select('members')
-            .lean<{
-              members: { user: { toString(): string } }[];
-            }>();
-          const memberIds = new Set((trip?.members ?? []).map((member) => member.user.toString()));
+          const memberIds = new Set(parent!.members.map((member) => member.user.toString()));
           if (
             (payer_id !== undefined && !memberIds.has(payer_id)) ||
             splits?.some((split) => !memberIds.has(split.user_id))
@@ -842,7 +746,7 @@ export const updateExpenseForActor = async (
         );
 
         await retireUnreferencedBlobs(mongoose.connection.db!, transactionSession, tripId, removed);
-        const terminal = terminalWithLedger({
+        const terminal: Terminal = {
           status: 'committed',
           operation: 'expense.update',
           resourceId: expenseId,
@@ -854,46 +758,21 @@ export const updateExpenseForActor = async (
               tripId,
               (await Expense.findOne({ _id: expenseId, trip: tripId })
                 .session(transactionSession)
-                .select(
-                  'payer amount originalAmount currency exchangeRate description category date splits attachments tags itineraryDays'
-                )
+                .select(businessFields.join(' '))
                 .lean())!,
-              (await Trip.findById(tripId).session(transactionSession).select('members').lean())!
-                .members
+              parent!.members
             ),
           },
-        } as Terminal);
-        await mongoose.connection.db!.collection(MUTATION_REQUESTS).insertOne(
-          {
-            _id: key as never,
-            fingerprint,
-            terminal,
-            ...receiptStamp(),
-            createdAt: new Date(),
-          },
-          { session: transactionSession }
-        );
-        await mongoose.connection.db!.collection('activitylogs').insertOne(
-          {
-            trip: new mongo.ObjectId(tripId),
-            actor: new mongo.ObjectId(actorId),
-            actorName:
-              (
-                await mongoose.connection
-                  .db!.collection('users')
-                  .findOne(
-                    { _id: new mongo.ObjectId(actorId) },
-                    { session: transactionSession, projection: { displayName: 1 } }
-                  )
-              )?.displayName ?? '',
-            type: 'expense_updated',
-            meta: { expense_id: expenseId, description: description ?? current.description },
-            createdAt: new Date(),
-          },
-          { session: transactionSession }
-        );
-        return { removed, terminal };
-      }
+        };
+        const db = mongoose.connection.db!;
+        await recordExpenseActivity(db, transactionSession, {
+          tripId,
+          actorId,
+          type: 'expense_updated',
+          meta: { expense_id: expenseId, description: description ?? current.description },
+        });
+        return { keys: removed, terminal };
+      })
     );
     if (terminal.status === 'rejected')
       return {
@@ -901,7 +780,7 @@ export const updateExpenseForActor = async (
         error: terminal.code,
         code: terminal.code,
       };
-    await cleanupRetiredBlobs(mongoose.connection.db!, removed).catch(() => undefined);
+    await cleanupRetiredBlobs(mongoose.connection.db!, keys).catch(() => undefined);
 
     return {
       success: true,
@@ -926,120 +805,69 @@ export const deleteExpenseForActor = async (
   confirmation?: { client_request_id: string; expected_revision: string; base_currency: string }
 ): Promise<ActionResult<{ message: string }>> => {
   try {
-    const doc = await withTripWrite(tripId, actorId, async (transactionSession) => {
-      // 先讀附件 key（刪 R2 物件用）+ 描述（動態牆顯示用）
-      const doc = await Expense.findOne({ _id: expenseId, trip: tripId })
-        .session(transactionSession)
-        .select(
-          'payer amount originalAmount currency exchangeRate description category date splits attachments tags itineraryDays'
-        )
-        .lean<{ attachments?: { key: string }[]; description?: string }>();
-
+    const { terminal, keys } = await withTripWrite(tripId, actorId, async (transactionSession) => {
       if (
         !confirmation ||
         !z.string().uuid().safeParse(confirmation.client_request_id).success ||
         !/^[a-f0-9]{64}$/.test(confirmation.expected_revision)
       )
         throw new TripWriteError('VALIDATION_ERROR');
-      const key = `${actorId.toLowerCase()}:${confirmation.client_request_id.toLowerCase()}`;
-      const receipts = mongoose.connection.db!.collection(MUTATION_REQUESTS);
-      const fingerprint = createHash('sha256')
-        .update(
-          JSON.stringify(
-            canonical({
-              contractVersion: 2,
-              operation: 'web.expense.delete',
-              tripId,
-              expenseId,
-              input: confirmation,
-            })
-          )
-        )
-        .digest('hex');
-      const existing = await receipts.findOne(
-        { _id: key as never },
-        { session: transactionSession }
-      );
-      if (existing) {
-        checkReceiptVersion({
-          contractVersion: existing.contractVersion,
-          ledger: existing.ledger,
-        });
-        if (existing.fingerprint !== fingerprint) throw new TripWriteError('CONFLICT');
-        return { ...doc, terminal: existing.terminal as Terminal };
-      }
-      const parent = await Trip.findById(tripId)
-        .session(transactionSession)
-        .select('members baseCurrency')
-        .lean();
-      const code =
-        confirmation.base_currency !== currentLedger().baseCurrency
-          ? 'LEDGER_CURRENCY_MISMATCH'
-          : !doc
-            ? 'RESOURCE_GONE'
-            : confirmation.expected_revision !==
-                webExpenseRevision(getEnv().JWT_SECRET, tripId, doc, parent!.members)
-              ? 'RESOURCE_CHANGED'
-              : null;
-      const terminal = terminalWithLedger(
-        code
-          ? { status: 'rejected', operation: 'expense.delete', tripId, code }
-          : {
-              status: 'committed',
-              operation: 'expense.delete',
-              resourceId: expenseId,
-              result: { tripId, expenseId, deleted: true },
-            }
-      );
-      await receipts.insertOne(
-        { _id: key as never, fingerprint, terminal, ...receiptStamp(), createdAt: new Date() },
-        { session: transactionSession }
-      );
-      if (code) return { ...doc, terminal: terminal as Terminal };
-      await Expense.deleteOne({ _id: expenseId, trip: tripId }, { session: transactionSession });
-
-      await Comment.deleteMany(
-        { expense: expenseId, trip: tripId },
-        { session: transactionSession }
-      );
-      await retireUnreferencedBlobs(
-        mongoose.connection.db!,
-        transactionSession,
-        tripId,
-        (doc?.attachments ?? []).map((a) => a.key)
-      );
-      await mongoose.connection.db!.collection('activitylogs').insertOne(
+      const db = mongoose.connection.db!;
+      const request = expenseRequest(
+        `${actorId.toLowerCase()}:${confirmation.client_request_id.toLowerCase()}`,
         {
-          trip: new mongo.ObjectId(tripId),
-          actor: new mongo.ObjectId(actorId),
-          actorName:
-            (
-              await mongoose.connection
-                .db!.collection('users')
-                .findOne(
-                  { _id: new mongo.ObjectId(actorId) },
-                  { session: transactionSession, projection: { displayName: 1 } }
-                )
-            )?.displayName ?? '',
-          type: 'expense_deleted',
-          meta: {
-            description: doc?.description ?? '',
-            baseCurrency: currentLedger().baseCurrency,
-          },
-          createdAt: new Date(),
-        },
-        { session: transactionSession }
+          contractVersion: 2,
+          operation: 'web.expense.delete',
+          tripId,
+          expenseId,
+          input: confirmation,
+        }
       );
-      return doc;
+      return withExpenseReceipt(db, transactionSession, request, async () => {
+        const doc = await Expense.findOne({ _id: expenseId, trip: tripId })
+          .session(transactionSession)
+          .select(businessFields.join(' '))
+          .lean<{ attachments?: { key: string }[]; description?: string }>();
+
+        const parent = await Trip.findById(tripId)
+          .session(transactionSession)
+          .select('members baseCurrency')
+          .lean();
+        const code =
+          confirmation.base_currency !== currentLedger().baseCurrency
+            ? 'LEDGER_CURRENCY_MISMATCH'
+            : !doc
+              ? 'RESOURCE_GONE'
+              : confirmation.expected_revision !==
+                  webExpenseRevision(getEnv().JWT_SECRET, tripId, doc, parent!.members)
+                ? 'RESOURCE_CHANGED'
+                : null;
+        if (code)
+          return {
+            keys: [],
+            terminal: { status: 'rejected', operation: 'expense.delete', tripId, code },
+          };
+        const keys = await deleteExpenseRecords(db, transactionSession, tripId, expenseId);
+        await recordExpenseActivity(db, transactionSession, {
+          tripId,
+          actorId,
+          type: 'expense_deleted',
+          meta: { description: doc?.description ?? '', baseCurrency: currentLedger().baseCurrency },
+        });
+        return {
+          keys,
+          terminal: {
+            status: 'committed',
+            operation: 'expense.delete',
+            resourceId: expenseId,
+            result: { tripId, expenseId, deleted: true },
+          },
+        };
+      });
     });
 
-    if (doc && 'terminal' in doc && (doc.terminal as Terminal).status === 'rejected')
-      return {
-        success: false,
-        error: (doc.terminal as Extract<Terminal, { status: 'rejected' }>).code,
-        code: 'CONFLICT',
-      };
-    const keys = (doc?.attachments ?? []).map((a) => a.key);
+    if (terminal.status === 'rejected')
+      return { success: false, error: terminal.code, code: 'CONFLICT' };
     await cleanupRetiredBlobs(mongoose.connection.db!, keys).catch(() => undefined);
 
     return { success: true, data: { message: '支出已刪除' } };

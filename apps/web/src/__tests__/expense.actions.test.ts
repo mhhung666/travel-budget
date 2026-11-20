@@ -102,7 +102,13 @@ vi.mock('@/models', () => ({
   Comment: { deleteMany: (...args: unknown[]) => commentDeleteMany(...args) },
 }));
 
-import { createLedgerExpense, getExpenseTags, getReceiptUrl } from '@/actions/expense.actions';
+import {
+  createLedgerExpense,
+  updateLedgerExpense,
+  deleteLedgerExpense,
+  getExpenseTags,
+  getReceiptUrl,
+} from '@/actions/expense.actions';
 import type { CreateExpenseInput } from '@/lib/validation';
 import { authorizeLedger } from '@/lib/ledger';
 
@@ -179,6 +185,52 @@ beforeEach(() => {
   expenseUpdateOne.mockResolvedValue({ modifiedCount: 1 });
   expenseDeleteOne.mockResolvedValue({ deletedCount: 1 });
   expenseDistinct.mockResolvedValue(['visa', '', 'food']);
+});
+
+// Persisted v2 fingerprints from before the shared write path. In particular, the UUID
+// in the key is lowercase while the original Web request body retains its casing.
+describe('replay of existing Web expense receipts', () => {
+  it.each([
+    ['update', '5ba0308a6a847bdb6659271e465495bf78e3b4bb1823de9dab6b4b345b0b9949'],
+    ['delete', '8642748961c14ec1f1fd161270f447514417be7364a1ab2e9a6d3b87dfb3d56c'],
+  ] as const)('replays an expense %s without writing again', async (operation, fingerprint) => {
+    const body = {
+      client_request_id: 'FEF4EA79-7250-4D89-AD74-C4DAA8821B36',
+      expected_revision: 'a'.repeat(64),
+      base_currency: 'TWD',
+    };
+    const ledger = { baseCurrency: 'TWD', moneyScale: 2 };
+    const receipt = {
+      _id: `${USER}:${body.client_request_id.toLowerCase()}`,
+      contractVersion: 2,
+      fingerprint,
+      ledger,
+      terminal: {
+        status: 'committed',
+        operation: `expense.${operation}`,
+        resourceId: EXPENSE,
+        ledger,
+        result: {
+          tripId: TRIP,
+          expenseId: EXPENSE,
+          ledger,
+          ...(operation === 'update' ? { revision: 'b'.repeat(64) } : { deleted: true }),
+        },
+      },
+    };
+    receipts.set(receipt._id, receipt);
+    const result =
+      operation === 'update'
+        ? await updateLedgerExpense(TRIP, EXPENSE, { ...body, description: 'Tea' })
+        : await deleteLedgerExpense(TRIP, EXPENSE, body);
+    expect(result).toMatchObject(
+      operation === 'update'
+        ? { success: true, data: { ...receipt.terminal.result, message: '支出已更新' } }
+        : { success: true, data: { message: '支出已刪除' } }
+    );
+    expect(receiptInsert).not.toHaveBeenCalled();
+    expect(deleteObjects).not.toHaveBeenCalled();
+  });
 });
 
 describe('getExpenseTags', () => {

@@ -78,7 +78,7 @@ Web 畫面只透過在 v2 context 執行的 Server Action 身分（`withLedgerAu
 
 ## E3 支出維護服務
 
-Web update／delete action 抽成 `expenseMaintenance.ts` 的 actor service，保留進階欄位與附件驗證；Mobile adapter 使用同模組的 basic／equal 操作及明確指定的 split 重新分攤。`withTripWriteInDatabase` 與既有 writer 共用 parent fence／snapshot transaction，context 與 HMAC token 取自原始 BSON，前條件、expense／comment／retirement／活動及 E receipt 在交易內處理。對 body 不同的 UUID 衝突不覆蓋原結果；終局拒絕也同交易，receipt 讀取對其 tripId 重授權。Web v2 更新先核對既有 receipt，資源被刪除的新更新保存 RESOURCE_GONE；已提交重播不依賴資源或附件繼續存在。更新成功的 revision 從交易內實際保存的 BSON 計算，與下一次讀取一致。
+Web 與 Mobile 的支出修改／刪除經 [expenseMaintenance.ts](../src/lib/expenseMaintenance.ts) 驗證各自的輸入、revision 與既有請求指紋。Web 支援進階欄位與附件驗證，Mobile 支援 basic／equal／split。兩端共用 [交易內的 receipt、活動與刪除清理](../src/lib/expenseMaintenanceTransaction.ts)，提交後才清理儲存物件。`withTripWriteInDatabase` 與既有 writer 共用 parent fence／snapshot transaction，context 與 HMAC token 取自原始 BSON，前條件、expense／comment／retirement／活動及 E receipt 在交易內處理。對 body 不同的 UUID 衝突不覆蓋原結果；終局拒絕也同交易，receipt 讀取對其 tripId 重授權。Web v2 更新先核對既有 receipt，資源被刪除的新更新保存 RESOURCE_GONE；已提交重播不依賴資源或附件繼續存在。更新成功的 revision 從交易內實際保存的 BSON 計算，與下一次讀取一致。
 
 清理與快取在提交後，失敗不推翻已寫入／刪除；E receipt 與既有 C creation receipt 均不隨資源刪除移除。詳細契約見 [Mobile E3](../../mobile/docs/BACKEND_CONTRACT.md#e3-支出維護)。
 

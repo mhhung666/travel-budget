@@ -3,7 +3,12 @@ import { randomUUID } from 'node:crypto';
 import mongoose, { mongo } from 'mongoose';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { withLedgerV2, authorizeLedger } from '@/lib/ledger';
-import { updateExpenseForActor, webExpenseRevision } from '@/lib/expenseMaintenance';
+import {
+  maintainExpense,
+  readExpenseEditContext,
+  updateExpenseForActor,
+  webExpenseRevision,
+} from '@/lib/expenseMaintenance';
 import { readWebPaymentContext } from '@/lib/paymentWrite';
 import { Expense } from '@/models';
 import { MUTATION_REQUESTS, readTripMutation } from '@/lib/tripEntry';
@@ -174,6 +179,39 @@ describe.skipIf(!uri || !allowed)(
         ).toMatchObject({ success: true });
         expect(await db.collection(MUTATION_REQUESTS).countDocuments({})).toBe(2);
       }));
+    it('serializes a Web update racing a mobile delete and replays the winning and losing receipts', async () => {
+      const ids = [actor.toString(), trip.toString(), expense.toString()] as const;
+      const webBody = {
+        client_request_id: randomUUID(),
+        base_currency: 'USD',
+        expected_revision: await withLedgerV2(revision),
+        description: 'Edited on Web',
+      };
+      const mobileContext = await withLedgerV2(() => readExpenseEditContext(db, ...ids, secret));
+      const mobileBody = {
+        client_request_id: randomUUID(),
+        base_currency: 'USD',
+        expected_revision: mobileContext.revision,
+      };
+      const edit = () => withLedgerV2(() => write(webBody));
+      const remove = () =>
+        withLedgerV2(() => maintainExpense(db, ...ids, 'expense.delete', mobileBody, secret));
+      const [web, mobile] = await Promise.allSettled([edit(), remove()]);
+      if (web.status !== 'fulfilled') throw web.reason;
+      if (web.value.success) {
+        expect(mobile).toMatchObject({ status: 'rejected', reason: { code: 'RESOURCE_CHANGED' } });
+        expect(await db.collection('expenses').findOne({ _id: expense })).toMatchObject({
+          description: webBody.description,
+        });
+      } else {
+        expect(web.value.code).toBe('RESOURCE_GONE');
+        expect(mobile).toMatchObject({ status: 'fulfilled', value: { deleted: true } });
+        expect(await db.collection('expenses').findOne({ _id: expense })).toBeNull();
+      }
+      expect(await Promise.allSettled([edit(), remove()])).toEqual([web, mobile]);
+      expect(await db.collection(MUTATION_REQUESTS).countDocuments({})).toBe(2);
+      expect(await db.collection('activitylogs').countDocuments({})).toBe(1);
+    });
     it('does not increment the delivery fence while reading settlement or its revisions', async () => {
       await db.collection('trips').updateOne({ _id: trip }, { $set: { expenseDeliveryFence: 7 } });
       const results = await Promise.all(
